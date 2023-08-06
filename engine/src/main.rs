@@ -1,4 +1,4 @@
-use domain::model::{
+use domain::models::{
     order::{Side, StopLimitMarket},
     security::{AssetType, Exchange, Security},
 };
