@@ -14,35 +14,64 @@ pub struct Market {
     quantity: i32,
     side: Side,
     security: Security,
+    times_in_force: TimesInForce,
 }
 
 impl Market {
     // constructor
-    pub fn new(quantity: i32, side: Side, security: Security) -> Self {
+    pub fn new(
+        quantity: i32,
+        side: Side,
+        security: Security,
+        times_in_force: TimesInForce,
+    ) -> Self {
         Self {
             quantity,
             side,
             security,
+            times_in_force,
         }
     }
 }
 
+// https://ibkrguides.com/tws/usersguidebook/ordertypes/time%20in%20force%20for%20orders.htm
+#[derive(Debug)]
+pub enum TimesInForce {
+    Day,
+    GTC,
+    OPG,
+    IOC,
+    GTD,
+    DTC,
+    // TODO: do you need the below?
+    // Fill/Trigger Outside RTH
+}
+
+// TODO: Add order durtation example, day order
 #[derive(Debug)]
 pub struct Limit {
     quantity: i32,
     price: Price,
     side: Side,
     security: Security,
+    times_in_force: TimesInForce,
 }
 
 impl Limit {
     // constructor
-    pub fn new(quantity: i32, price: Price, side: Side, security: Security) -> Self {
+    pub fn new(
+        quantity: i32,
+        price: Price,
+        side: Side,
+        security: Security,
+        times_in_force: TimesInForce,
+    ) -> Self {
         Self {
             quantity,
             price,
             side,
             security,
+            times_in_force,
         }
     }
 }
@@ -50,8 +79,11 @@ impl Limit {
 #[derive(Debug)]
 pub struct StopLimitMarket {
     stop: Price,
-    market: Market,
     limit: Price,
+    side: Side,
+    quantity: i32,
+    security: Security,
+    times_in_force: TimesInForce,
 }
 
 impl StopLimitMarket {
@@ -61,6 +93,7 @@ impl StopLimitMarket {
         side: Side,
         stop: Price,
         limit: Price,
+        times_in_force: TimesInForce,
     ) -> Result<Self, String> {
         if let Side::Long = side {
             if stop > limit {
@@ -81,11 +114,10 @@ impl StopLimitMarket {
         Ok(Self {
             stop,
             limit,
-            market: Market {
-                quantity,
-                side,
-                security,
-            },
+            side,
+            quantity,
+            security,
+            times_in_force,
         })
     }
 }

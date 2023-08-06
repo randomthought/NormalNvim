@@ -45,7 +45,7 @@ impl Candle {
     }
 }
 
-pub struct EquityHistory<'a> {
-    symbol: Symbol,
+pub struct PriceHistory<'a> {
+    symbol: &'a Symbol,
     history: Vec<&'a Candle>,
 }
