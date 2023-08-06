@@ -16,12 +16,35 @@ pub struct Market {
     security: Security,
 }
 
+impl Market {
+    // constructor
+    pub fn new(quantity: i32, side: Side, security: Security) -> Self {
+        Self {
+            quantity,
+            side,
+            security,
+        }
+    }
+}
+
 #[derive(Debug)]
 pub struct Limit {
     quantity: i32,
     price: Price,
     side: Side,
     security: Security,
+}
+
+impl Limit {
+    // constructor
+    pub fn new(quantity: i32, price: Price, side: Side, security: Security) -> Self {
+        Self {
+            quantity,
+            price,
+            side,
+            security,
+        }
+    }
 }
 
 #[derive(Debug)]

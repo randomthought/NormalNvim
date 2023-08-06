@@ -6,6 +6,6 @@ pub trait Broker {
     fn get() -> Result<Order, io::Error>;
     fn place_order(order: &Order) -> Result<OrderResult, io::Error>;
     fn orders() -> Result<Vec<OrderResult>, io::Error>;
-    fn update(orderTicket: &OrderTicket) -> Result<(), io::Error>;
+    fn update(order_ticket: &OrderTicket) -> Result<(), io::Error>;
     fn cancel(order: &OrderTicket) -> Result<(), io::Error>;
 }
