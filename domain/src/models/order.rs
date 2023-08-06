@@ -13,7 +13,7 @@ pub enum Side {
 pub struct Market {
     quantity: i32,
     side: Side,
-    security: Security,
+    security: Security, // TODO: Consider using lifetime pointer
     times_in_force: TimesInForce,
 }
 
@@ -53,7 +53,7 @@ pub struct Limit {
     quantity: i32,
     price: Price,
     side: Side,
-    security: Security,
+    security: Security, // TODO: Consider using lifetime pointer
     times_in_force: TimesInForce,
 }
 
@@ -82,7 +82,7 @@ pub struct StopLimitMarket {
     limit: Price,
     side: Side,
     quantity: i32,
-    security: Security,
+    security: Security, // TODO: Consider using lifetime pointer
     times_in_force: TimesInForce,
 }
 
