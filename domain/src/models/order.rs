@@ -1,4 +1,5 @@
 // TODO: helpful to model more complex order types: https://tlc.thinkorswim.com/center/howToTos/thinkManual/Trade/Order-Entry-Tools/Order-Types
+// TODO: heloful for more order types: https://www.quantconnect.com/docs/v2/writing-algorithms/trading-and-orders/key-concepts
 
 use super::price::Price;
 use super::security::Security;
@@ -138,7 +139,15 @@ pub struct OrderTicket {
 }
 
 #[derive(Debug)]
-pub struct FilledOrder {}
+#[non_exhaustive]
+pub struct FilledOrder {
+    pub security: Security,
+    pub side: Side,
+    pub price: Price,
+    pub commission: Price,
+    pub quantity: i32,
+    pub datetime: i32,
+}
 
 #[derive(Debug)]
 pub enum OrderResult {

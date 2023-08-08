@@ -2,6 +2,23 @@ pub type Symbol = String;
 pub type Price = f32;
 
 #[derive(Debug)]
+#[non_exhaustive]
+pub struct Quote {
+    pub bid: f32,
+    pub ask: f32,
+}
+
+impl Quote {
+    pub fn new(bid: f32, ask: f32) -> Result<Self, String> {
+        if bid > ask {
+            return Err("bid price should be lower than ask price".to_owned());
+        }
+
+        Ok(Self { bid, ask })
+    }
+}
+
+#[derive(Debug)]
 pub struct Candle {
     high: Price,
     open: Price,
