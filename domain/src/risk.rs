@@ -13,7 +13,7 @@ enum TradingState {
 pub struct RiskEngineConfig {
     max_portfolio_risk: f32,
     max_risk_per_trade: f32,
-    max_open_trades: Option<i32>,
+    max_open_trades: Option<u32>,
     // TODO: nautilus_trader has max_order_submit_rate and max_order_modify_rate. Maybe it's worth having
 }
 
@@ -41,6 +41,7 @@ impl RiskEngineConfig {
 
 pub struct RiskEngine<'a> {
     risk_engine_config: RiskEngineConfig,
+    // TODO: state has to be mutable.
     trading_state: TradingState,
     order_manager: &'a dyn OrderManager,
 }
@@ -53,6 +54,12 @@ impl<'a> RiskEngine<'a> {
             order_manager,
         }
     }
+
+    async fn get_open_trades(&self) -> Result<u32, io::Error> {
+        let results = self.order_manager.orders().await.unwrap().len();
+
+        Ok(results as u32)
+    }
 }
 
 #[async_trait]
@@ -62,6 +69,16 @@ impl<'a> EventHandler for RiskEngine<'a> {
             if let TradingState::Halted = self.trading_state {
                 // TODO: Are you sure you want to return nothing if trading state is halted?
                 return Ok(());
+            }
+        }
+
+        let config = &self.risk_engine_config;
+
+        if let Some(max) = config.max_open_trades {
+            let open_trades = self.get_open_trades().await.unwrap();
+            if open_trades >= max {
+                return Ok(());
+                // return Err("exceded the number maximum number '{max}' of open trades ");
             }
         }
 
