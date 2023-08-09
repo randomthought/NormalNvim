@@ -1,9 +1,9 @@
 use std::io;
 
-use futures_lite::{stream, StreamExt};
+use futures_util::future;
 
 use crate::{
-    data::DataProvider,
+    data::QouteProvider,
     models::order::{FilledOrder, OrderResult, Side},
     order::OrderReader,
 };
@@ -26,51 +26,51 @@ impl<'a> Position<'a> {
 
 pub struct Portfolio<'a> {
     order_reader: &'a dyn OrderReader,
-    data_provider: &'a dyn DataProvider,
+    qoute_provider: &'a dyn QouteProvider,
 }
 
 impl<'a> Portfolio<'a> {
-    pub fn new(order_reader: &'a dyn OrderReader, data_provider: &'a dyn DataProvider) -> Self {
+    pub fn new(order_reader: &'a dyn OrderReader, qoute_provider: &'a dyn QouteProvider) -> Self {
         Self {
             order_reader,
-            data_provider,
+            qoute_provider,
         }
     }
 
     pub async fn get_open_positions(&self) -> Result<Vec<Position<'a>>, io::Error> {
-        let orders = self.order_reader.orders().await.unwrap();
+        let orders = self.order_reader.orders().await?;
 
-        // let positions: Vec<Position<'a>> = stream::iter(orders)
-        let positions: Vec<Position<'a>> = stream::iter(orders)
-            .then(|order| async move {
-                match order {
-                    OrderResult::FilledOrder(fo) => {
-                        let quote = self.data_provider.get_quote(&fo.security).await.unwrap();
-                        let profit = match fo.side {
-                            Side::Long => fo.price - quote.ask,
-                            Side::Short => quote.bid - fo.price,
-                        };
-
-                        let p: Position<'a> = Position::new(fo, profit);
-                        Some(p)
-                    }
-
-                    _ => None,
-                }
+        // let futures: Vec<impl Future<Output = Result<Option<Position>, io::Error>>> = orders
+        let futures: Vec<_> = orders
+            .iter()
+            .flat_map(|order| match order {
+                OrderResult::FilledOrder(o) => Some(o),
+                _ => None,
             })
-            .filter_map(|x| x)
-            .collect()
-            .await;
+            .map(|order| async move {
+                let quote = self.qoute_provider.get_quote(&order.security).await?;
+
+                let profit = match order.side {
+                    Side::Long => order.price - quote.ask,
+                    Side::Short => quote.bid - order.price,
+                };
+
+                let p = Position::new(order, profit);
+
+                Ok(p) as Result<Position, io::Error>
+            })
+            .collect();
+
+        let positions = future::try_join_all(futures).await?;
 
         Ok(positions)
     }
 
     // Total portfolio value if we sold all holdings at current market rates.
-    pub async fn unrealized_profit(&self) -> Result<f32, String> {
+    pub async fn unrealized_profit(&self) -> Result<f32, io::Error> {
         let result: f32 = self
             .get_open_positions()
-            .await
-            .unwrap()
+            .await?
             .iter()
             .map(|p| p.unlrealized_profit)
             .sum();

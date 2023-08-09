@@ -1,9 +1,12 @@
 use super::{
     order::{FilledOrder, Order, Side},
+    price::PriceHistory,
     security::Security,
 };
 
-pub struct Market {}
+pub enum Market {
+    DataEvent(PriceHistory),
+}
 
 pub struct Signal {
     strategy_id: String, // TODO: consider using lifetime pointers

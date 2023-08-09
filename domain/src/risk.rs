@@ -56,7 +56,7 @@ impl<'a> RiskEngine<'a> {
     }
 
     async fn get_open_trades(&self) -> Result<u32, io::Error> {
-        let results = self.order_manager.orders().await.unwrap().len();
+        let results = self.order_manager.orders().await?.len();
 
         Ok(results as u32)
     }
@@ -75,7 +75,7 @@ impl<'a> EventHandler for RiskEngine<'a> {
         let config = &self.risk_engine_config;
 
         if let Some(max) = config.max_open_trades {
-            let open_trades = self.get_open_trades().await.unwrap();
+            let open_trades = self.get_open_trades().await?;
             if open_trades >= max {
                 return Ok(());
                 // return Err("exceded the number maximum number '{max}' of open trades ");
