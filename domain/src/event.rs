@@ -11,3 +11,9 @@ pub trait EventHandler: Sync + Send {
 pub trait EventProducer: Sync + Send {
     async fn produce(&self, event: &Event) -> Result<(), io::Error>;
 }
+
+#[async_trait]
+pub trait Pipe {
+    async fn send(&self, event: &Event) -> Result<(), io::Error>;
+    async fn recieve(&self) -> Result<Option<&Event>, io::Error>;
+}

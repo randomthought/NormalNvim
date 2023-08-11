@@ -1,24 +1,29 @@
-use crate::models::event::Event;
+use crate::event::EventHandler;
+use crate::event::Pipe;
 use futures_util::future;
 use std::io;
 
-use crate::event::EventHandler;
-
 pub struct Engine<'a> {
     handlers: &'a Vec<&'a dyn EventHandler>,
-    iter: &'a mut dyn Iterator<Item = &'a Event>,
+    pipe: &'a dyn Pipe,
 }
 
 impl<'a> Engine<'a> {
-    async fn runner(&mut self) -> Result<(), io::Error> {
-        while let Some(event) = self.iter.next() {
+    pub fn new(handlers: &'a Vec<&'a dyn EventHandler>, pipe: &'a dyn Pipe) -> Self {
+        Self { handlers, pipe }
+    }
+
+    pub async fn runner(&mut self) -> Result<(), io::Error> {
+        // let c = self.pipe.recieve().await?
+
+        while let Some(event) = self.pipe.recieve().await? {
             let futures: Vec<_> = self
                 .handlers
                 .iter()
                 .map(|algo| async move { algo.handle(event).await })
                 .collect();
 
-            let _ = future::try_join_all(futures).await;
+            future::try_join_all(futures).await?;
         }
 
         Ok(())

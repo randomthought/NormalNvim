@@ -7,3 +7,6 @@ edition = "2021"
 
 [dependencies]
 domain = { path = "../domain" }
+tokio = { version = "1", features = ["full"] }
+async-trait = "0.1.72"
+futures-util = "0.3.28"

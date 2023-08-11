@@ -1,11 +1,25 @@
-// use domain::models::{
-//     order::{Side, StopLimitMarket},
-//     security::{AssetType, Exchange, Security},
-// };
+use std::{
+    sync::mpsc::{self, Receiver, Sender},
+    time::Duration,
+};
 
-fn main() {
-    // let sec = Security::new("NYSE".to_owned(), Exchange::NYSE, AssetType::Equity);
-    // let stm = StopLimitMarket::new(sec, 2, Side::Long, 2.3, 2.6).unwrap();
+use domain::{engine::Engine, event::EventHandler, models::event::Event};
+use engine::ChannelPipe;
+use futures_util::{
+    future,
+    stream::{self, iter},
+    StreamExt,
+};
 
-    println!("Hello world");
+#[tokio::main]
+async fn main() {
+    let (sx, rx): (Sender<&Event>, Receiver<&Event>) = mpsc::channel();
+    let pipe = ChannelPipe::new(&sx, &rx);
+
+    let handlers: Vec<&dyn EventHandler> = vec![];
+
+    let t1 = tokio::spawn(async {
+        let algo_engine = Engine::new(&handlers, &pipe);
+        algo_engine.runner().await;
+    });
 }

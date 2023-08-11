@@ -1,25 +1,44 @@
-use domain::{event::EventProducer, models::event::Event};
-use std::io;
-use std::sync::mpsc::{self, Receiver, Sender};
+use async_trait::async_trait;
+use domain::{event::Pipe, models::event::Event};
+use std::{
+    io::{self, ErrorKind},
+    sync::{
+        mpsc::{Receiver, Sender},
+        Mutex,
+    },
+};
 
-#[derive(Debug)]
-pub struct Pipe<'a> {
-    sender: &'a Sender<&'a Event>,
-    reciever: &'a Receiver<&'a Event>,
+pub struct ChannelPipe<'a> {
+    sender: Mutex<Sender<&'a Event>>,
+    reciever: Mutex<Receiver<&'a Event>>,
+    // reciever: Mutex<Iter<'a, &'a Event>>,
 }
 
-impl<'a> Pipe<'a> {
-    pub fn new(&self, sender: &'a Sender<&'a Event>, reciever: &'a Receiver<&'a Event>) -> Self {
-        Self { sender, reciever }
+impl<'a> ChannelPipe<'a> {
+    pub fn new(sender: Sender<&'a Event>, reciever: Receiver<&'a Event>) -> Self {
+        let rm = Mutex::new(reciever);
+        let sm = Mutex::new(sender);
+        Self {
+            reciever: rm,
+            sender: sm,
+        };
+        todo!()
     }
 }
 
-impl<'a> IntoIterator for Pipe<'a> {
-    type Item = &'a Event;
+#[async_trait]
+impl<'a> Pipe for ChannelPipe<'a> {
+    async fn send(&self, event: &Event) -> Result<(), io::Error> {
+        let sender = self.sender.lock().unwrap();
+        sender.send(event);
+        todo!()
+    }
 
-    type IntoIter = std::sync::mpsc::Iter<'a, &'a Event>;
-
-    fn into_iter(self) -> Self::IntoIter {
-        self.reciever.iter()
+    async fn recieve(&self) -> Result<Option<&Event>, io::Error> {
+        let reciever = self.reciever.lock().unwrap();
+        match reciever.recv() {
+            Ok(event) => Ok(Some(event)),
+            Err(err) => Err(io::Error::new(ErrorKind::Other, err.to_string())),
+        }
     }
 }
