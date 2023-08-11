@@ -4,12 +4,12 @@ use futures_util::future;
 use std::io;
 
 pub struct Engine<'a> {
-    handlers: &'a Vec<&'a dyn EventHandler>,
+    handlers: Vec<&'a dyn EventHandler>,
     pipe: &'a dyn Pipe,
 }
 
 impl<'a> Engine<'a> {
-    pub fn new(handlers: &'a Vec<&'a dyn EventHandler>, pipe: &'a dyn Pipe) -> Self {
+    pub fn new(handlers: Vec<&'a dyn EventHandler>, pipe: &'a dyn Pipe) -> Self {
         Self { handlers, pipe }
     }
 

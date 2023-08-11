@@ -1,5 +1,8 @@
 use async_trait::async_trait;
-use domain::{event::Pipe, models::event::Event};
+use domain::{
+    event::{EventProducer, Pipe},
+    models::event::Event,
+};
 use std::{
     io::{self, ErrorKind},
     sync::{
@@ -40,5 +43,13 @@ impl Pipe for ChannelPipe {
             Ok(event) => Ok(Some(event)),
             Err(err) => Err(io::Error::new(ErrorKind::Other, err.to_string())),
         }
+    }
+}
+
+#[async_trait]
+impl EventProducer for ChannelPipe {
+    async fn produce(&self, event: &Event) -> Result<(), io::Error> {
+        let ec = event.clone();
+        self.send(ec).await
     }
 }
