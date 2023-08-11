@@ -4,13 +4,13 @@
 use super::price::Price;
 use super::security::Security;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Side {
     Long,
     Short,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Market {
     quantity: i32,
     side: Side,
@@ -36,7 +36,7 @@ impl Market {
 }
 
 // https://ibkrguides.com/tws/usersguidebook/ordertypes/time%20in%20force%20for%20orders.htm
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum TimesInForce {
     Day,
     GTC,
@@ -49,7 +49,7 @@ pub enum TimesInForce {
 }
 
 // TODO: Add order durtation example, day order
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Limit {
     quantity: i32,
     price: Price,
@@ -77,7 +77,7 @@ impl Limit {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct StopLimitMarket {
     stop: Price,
     limit: Price,
@@ -125,20 +125,21 @@ impl StopLimitMarket {
 
 type OrderId = String;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Order {
     Market(Market),
     Limit(Limit),
     StopLimitMarket(StopLimitMarket),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct OrderTicket {
-    order_id: OrderId,
+    // TODO: Find a way to make this work
+    // order_id: OrderId,
     limit: Limit,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 #[non_exhaustive]
 pub struct FilledOrder {
     pub security: Security,

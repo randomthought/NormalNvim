@@ -3,7 +3,7 @@ use super::security::Security;
 pub type Symbol = String;
 pub type Price = f32;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 #[non_exhaustive]
 pub struct Quote {
     pub bid: f32,
@@ -21,7 +21,7 @@ impl Quote {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Resolution {
     Second,
     Minute,
@@ -32,7 +32,7 @@ pub enum Resolution {
     Day,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Candle {
     high: Price,
     open: Price,
@@ -76,11 +76,11 @@ impl Candle {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct PriceHistory {
     pub security: Security,
     pub resolution: Resolution,
-    pub history: Box<[Candle]>,
+    // pub history: Vec<Candle>,
 }
 
 // impl<'a> PriceHistory<'a> {

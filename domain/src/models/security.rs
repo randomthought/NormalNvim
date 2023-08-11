@@ -1,13 +1,13 @@
 type Ticker = String;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Exchange {
     // TODO: add list of exchanges
     NASDAQ,
     NYSE,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum AssetType {
     Equity,
     Forex,
@@ -16,11 +16,11 @@ pub enum AssetType {
     Crypto,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub struct Security {
     asset_type: AssetType,
     exchange: Exchange,
-    ticker: Ticker,
+    // ticker: String,
 }
 
 impl Security {
@@ -28,7 +28,7 @@ impl Security {
         Security {
             asset_type,
             exchange,
-            ticker,
+            // ticker,
         }
     }
 }

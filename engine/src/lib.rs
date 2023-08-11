@@ -8,14 +8,13 @@ use std::{
     },
 };
 
-pub struct ChannelPipe<'a> {
-    sender: Mutex<Sender<&'a Event>>,
-    reciever: Mutex<Receiver<&'a Event>>,
-    // reciever: Mutex<Iter<'a, &'a Event>>,
+pub struct ChannelPipe {
+    sender: Mutex<Sender<Event>>,
+    reciever: Mutex<Receiver<Event>>,
 }
 
-impl<'a> ChannelPipe<'a> {
-    pub fn new(sender: Sender<&'a Event>, reciever: Receiver<&'a Event>) -> Self {
+impl ChannelPipe {
+    pub fn new(sender: Sender<Event>, reciever: Receiver<Event>) -> Self {
         let rm = Mutex::new(reciever);
         let sm = Mutex::new(sender);
         Self {
@@ -27,14 +26,15 @@ impl<'a> ChannelPipe<'a> {
 }
 
 #[async_trait]
-impl<'a> Pipe for ChannelPipe<'a> {
-    async fn send(&self, event: &Event) -> Result<(), io::Error> {
+impl Pipe for ChannelPipe {
+    async fn send(&self, event: Event) -> Result<(), io::Error> {
         let sender = self.sender.lock().unwrap();
-        sender.send(event);
+        let ec = event.clone();
+        sender.send(ec);
         todo!()
     }
 
-    async fn recieve(&self) -> Result<Option<&Event>, io::Error> {
+    async fn recieve(&self) -> Result<Option<Event>, io::Error> {
         let reciever = self.reciever.lock().unwrap();
         match reciever.recv() {
             Ok(event) => Ok(Some(event)),

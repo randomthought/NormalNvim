@@ -13,7 +13,7 @@ pub trait EventProducer: Sync + Send {
 }
 
 #[async_trait]
-pub trait Pipe {
-    async fn send(&self, event: &Event) -> Result<(), io::Error>;
-    async fn recieve(&self) -> Result<Option<&Event>, io::Error>;
+pub trait Pipe: Sync + Send {
+    async fn send(&self, event: Event) -> Result<(), io::Error>;
+    async fn recieve(&self) -> Result<Option<Event>, io::Error>;
 }
