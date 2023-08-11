@@ -1,7 +1,10 @@
 use std::sync::mpsc::{self, Receiver, Sender};
 
-use domain::{engine::Engine, event::EventHandler, models::event::Event};
-use engine::ChannelPipe;
+use domain::{
+    engine::Engine,
+    event::{channel_pipe::ChannelPipe, event::EventHandler},
+    models::event::Event,
+};
 
 #[tokio::main]
 async fn main() {

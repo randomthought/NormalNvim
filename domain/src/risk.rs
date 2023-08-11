@@ -1,4 +1,4 @@
-use crate::event::EventHandler;
+use crate::event::event::EventHandler;
 use crate::{models::event::Event, order::OrderManager};
 use async_trait::async_trait;
 use std::io;

@@ -3,7 +3,7 @@ use futures_util::future;
 
 use crate::models::event::{Event, Market};
 
-use crate::event::{EventHandler, EventProducer};
+use crate::event::event::{EventHandler, EventProducer};
 use crate::models::event::Signal;
 use crate::models::price::PriceHistory;
 

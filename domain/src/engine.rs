@@ -1,7 +1,7 @@
-use crate::event::EventHandler;
-use crate::event::Pipe;
 use futures_util::future;
 use std::io;
+
+use crate::event::event::{EventHandler, Pipe};
 
 pub struct Engine<'a> {
     handlers: Vec<&'a dyn EventHandler>,
