@@ -16,20 +16,19 @@ pub trait TradeManager {
 }
 
 #[async_trait]
-pub trait Algorithm: Sync + Send {
+pub trait Algorithm {
     async fn process(&self, price_history: &PriceHistory) -> Result<Option<Signal>, io::Error>;
 }
 
 pub struct StrategyEngine<'a> {
-    algorithms: &'a [&'a dyn Algorithm],
-    event_producer: &'a dyn EventProducer,
+    algorithms: Vec<&'a (dyn Algorithm + Send + Sync)>,
+    event_producer: &'a (dyn EventProducer<'a> + Send + Sync),
 }
 
 impl<'a> StrategyEngine<'a> {
     pub fn new(
-        &self,
-        algorithms: &'a [&'a dyn Algorithm],
-        event_producer: &'a dyn EventProducer,
+        algorithms: Vec<&'a (dyn Algorithm + Send + Sync)>,
+        event_producer: &'a (dyn EventProducer<'a> + Send + Sync),
     ) -> Self {
         Self {
             algorithms,
@@ -39,8 +38,8 @@ impl<'a> StrategyEngine<'a> {
 }
 
 #[async_trait]
-impl<'a> EventHandler for StrategyEngine<'a> {
-    async fn handle(&self, event: &Event) -> Result<(), io::Error> {
+impl<'a> EventHandler<'a> for StrategyEngine<'a> {
+    async fn handle(&self, event: Event<'a>) -> Result<(), io::Error> {
         if let Event::Market(market) = event {
             if let Market::DataEvent(data_event) = market {
                 let futures: Vec<_> = self
@@ -50,7 +49,7 @@ impl<'a> EventHandler for StrategyEngine<'a> {
                         // TODO: Make sure you ar actually returning on a failed process error
                         if let Some(signal) = algo.process(data_event).await? {
                             let se = Event::Signal(signal);
-                            return self.event_producer.produce(&se).await;
+                            return self.event_producer.produce(se).await;
                         }
 
                         Ok(())

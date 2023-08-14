@@ -10,6 +10,7 @@ enum TradingState {
     Halted,   // all trading commands except cancels are denied
 }
 
+#[derive(Debug, Clone, Copy)]
 pub struct RiskEngineConfig {
     max_portfolio_risk: f32,
     max_risk_per_trade: f32,
@@ -63,8 +64,8 @@ impl<'a> RiskEngine<'a> {
 }
 
 #[async_trait]
-impl<'a> EventHandler for RiskEngine<'a> {
-    async fn handle(&self, event: &Event) -> Result<(), io::Error> {
+impl<'a> EventHandler<'a> for RiskEngine<'a> {
+    async fn handle(&self, event: Event<'a>) -> Result<(), io::Error> {
         if let Event::Order(_) = event {
             if let TradingState::Halted = self.trading_state {
                 // TODO: Are you sure you want to return nothing if trading state is halted?

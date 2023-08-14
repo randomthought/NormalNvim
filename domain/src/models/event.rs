@@ -20,8 +20,8 @@ pub struct Signal {
 }
 
 #[derive(Debug, Clone, Copy)]
-pub enum Event {
-    Market(Market),
+pub enum Event<'a> {
+    Market(&'a Market),
     Signal(Signal),
     Order(Order),
     FilledOrder(FilledOrder),
