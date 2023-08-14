@@ -3,12 +3,14 @@ use async_trait::async_trait;
 use std::io;
 
 #[async_trait]
-pub trait EventHandler<'a>: Send + Sync {
+// TODO: this is unsafe, make sure your implmentations are actually Sync + Send
+pub(crate) trait EventHandler<'a>: Send + Sync {
     async fn handle(&self, event: Event<'a>) -> Result<(), io::Error>;
 }
 
 #[async_trait]
-pub trait EventProducer<'a>: Send + Send {
+// TODO: this is unsafe, make sure your implmentations are actually Sync + Send
+pub(crate) trait EventProducer<'a>: Send + Send {
     async fn produce(&self, event: Event<'a>) -> Result<(), io::Error>;
 }
 

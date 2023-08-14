@@ -5,7 +5,7 @@ use std::io;
 // Model based on https://developer.tdameritrade.com/account-access/apis
 // TODO: model errors here https://www.quantconnect.com/docs/v2/writing-algorithms/trading-and-orders/order-errors
 #[async_trait]
-pub trait OrderReader: Sync + Send {
+pub trait OrderReader {
     // TODO: Please look more into your use of lifetimes here.
     async fn get(&self) -> Result<Order, io::Error>;
     async fn orders(&self) -> Result<Vec<&OrderResult>, io::Error>;

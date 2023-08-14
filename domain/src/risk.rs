@@ -12,9 +12,9 @@ enum TradingState {
 
 #[derive(Debug, Clone, Copy)]
 pub struct RiskEngineConfig {
-    max_portfolio_risk: f32,
-    max_risk_per_trade: f32,
-    max_open_trades: Option<u32>,
+    pub max_portfolio_risk: f32,
+    pub max_risk_per_trade: f32,
+    pub max_open_trades: Option<u32>,
     // TODO: nautilus_trader has max_order_submit_rate and max_order_modify_rate. Maybe it's worth having
 }
 
@@ -40,15 +40,18 @@ impl RiskEngineConfig {
     }
 }
 
-pub struct RiskEngine<'a> {
+pub struct RiskEngine {
     risk_engine_config: RiskEngineConfig,
     // TODO: state has to be mutable.
     trading_state: TradingState,
-    order_manager: &'a dyn OrderManager,
+    order_manager: Box<dyn OrderManager + Send + Sync>,
 }
 
-impl<'a> RiskEngine<'a> {
-    pub fn new(risk_engine_config: RiskEngineConfig, order_manager: &'a dyn OrderManager) -> Self {
+impl RiskEngine {
+    pub fn new(
+        risk_engine_config: RiskEngineConfig,
+        order_manager: Box<dyn OrderManager + Send + Sync>,
+    ) -> Self {
         Self {
             risk_engine_config,
             trading_state: TradingState::Active,
@@ -64,7 +67,7 @@ impl<'a> RiskEngine<'a> {
 }
 
 #[async_trait]
-impl<'a> EventHandler<'a> for RiskEngine<'a> {
+impl<'a> EventHandler<'a> for RiskEngine {
     async fn handle(&self, event: Event<'a>) -> Result<(), io::Error> {
         if let Event::Order(_) = event {
             if let TradingState::Halted = self.trading_state {

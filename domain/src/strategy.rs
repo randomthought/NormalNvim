@@ -3,13 +3,14 @@ use futures_util::future;
 
 use crate::models::event::{Event, Market};
 
-use crate::event::event::{EventHandler, EventProducer};
+use crate::event::event::{EventHandler, EventProducer, Pipe};
 use crate::models::event::Signal;
 use crate::models::price::PriceHistory;
 
 use super::models::order::Order;
 use std::io;
 use std::option::Option;
+use std::sync::Arc;
 
 pub trait TradeManager {
     fn manage(order: &Order) -> Result<(), io::Error>;
@@ -22,18 +23,15 @@ pub trait Algorithm {
 
 pub struct StrategyEngine<'a> {
     algorithms: Vec<&'a (dyn Algorithm + Send + Sync)>,
-    event_producer: &'a (dyn EventProducer<'a> + Send + Sync),
+    pipe: Arc<Box<dyn Pipe<'a> + Send + Sync>>,
 }
 
 impl<'a> StrategyEngine<'a> {
     pub fn new(
         algorithms: Vec<&'a (dyn Algorithm + Send + Sync)>,
-        event_producer: &'a (dyn EventProducer<'a> + Send + Sync),
+        pipe: Arc<Box<dyn Pipe<'a> + Send + Sync>>,
     ) -> Self {
-        Self {
-            algorithms,
-            event_producer,
-        }
+        Self { algorithms, pipe }
     }
 }
 
@@ -49,10 +47,10 @@ impl<'a> EventHandler<'a> for StrategyEngine<'a> {
                         // TODO: Make sure you ar actually returning on a failed process error
                         if let Some(signal) = algo.process(data_event).await? {
                             let se = Event::Signal(signal);
-                            return self.event_producer.produce(se).await;
+                            self.pipe.send(se).await?;
                         }
 
-                        Ok(())
+                        Ok(()) as Result<(), io::Error>
                     })
                     .collect();
 

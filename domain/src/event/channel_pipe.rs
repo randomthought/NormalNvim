@@ -12,6 +12,7 @@ use crate::models::event::Event;
 
 use super::event::{EventProducer, Pipe};
 
+#[derive(Clone)]
 pub struct ChannelPipe<'a> {
     sender: Arc<Mutex<Sender<Event<'a>>>>,
     reciever: Arc<Mutex<Receiver<Event<'a>>>>,
@@ -21,10 +22,12 @@ impl<'a> Default for ChannelPipe<'a> {
     fn default() -> Self {
         let (sx, rx): (Sender<Event>, Receiver<Event>) = mpsc::channel();
         let sm = Mutex::new(sx);
+        let asm = Arc::new(sm);
         let rm = Mutex::new(rx);
+        let arm = Arc::new(rm);
         Self {
-            reciever: Arc::new(rm),
-            sender: Arc::new(sm),
+            sender: asm,
+            reciever: arm,
         }
     }
 }
