@@ -1,20 +1,19 @@
 use std::sync::mpsc::{self, Receiver, Sender};
 
+use domain::models::event::Event;
 use domain::{
     engine::Engine,
     event::{channel_pipe::ChannelPipe, event::EventHandler},
-    models::event::Event,
 };
 
 #[tokio::main]
 async fn main() {
-    let (sx, rx): (Sender<Event>, Receiver<Event>) = mpsc::channel();
-    let pipe = ChannelPipe::new(sx, rx);
+    let pipe: ChannelPipe<'_> = ChannelPipe::default();
+    let handlers: Vec<Box<dyn EventHandler>> = vec![];
+    let mut algo_engine: Engine<'_> = Engine::new(handlers, Box::new(pipe));
 
-    let handlers: Vec<&dyn EventHandler> = vec![];
-
-    let t1 = tokio::spawn(async move {
-        let mut algo_engine = Engine::new(handlers, &pipe);
+    tokio::spawn(async move {
+        // let algo_engine = Engine::new(handlers, &pipe);
         algo_engine.runner().await;
     });
 }
