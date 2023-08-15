@@ -4,26 +4,16 @@ use std::{io, pin::Pin, sync::Arc};
 use crate::risk::RiskEngine;
 use crate::{models::price::PriceHistory, strategy::StrategyEngine};
 
-pub struct MarketStream {}
-
-impl Stream for MarketStream {
-    type Item = PriceHistory;
-
-    fn poll_next(
-        self: std::pin::Pin<&mut Self>,
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Option<Self::Item>> {
-        todo!()
-    }
-}
-
 pub struct Engine {
     strategy_engine: StrategyEngine,
-    market_stream: Pin<Box<MarketStream>>,
+    market_stream: Pin<Box<dyn Stream<Item = PriceHistory>>>,
 }
 
 impl Engine {
-    pub fn new(strategy_engine: StrategyEngine, market_stream: Pin<Box<MarketStream>>) -> Self {
+    pub fn new(
+        strategy_engine: StrategyEngine,
+        market_stream: Pin<Box<dyn Stream<Item = PriceHistory>>>,
+    ) -> Self {
         Self {
             strategy_engine,
             market_stream,
