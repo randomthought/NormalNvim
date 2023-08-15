@@ -76,20 +76,9 @@ impl Candle {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct PriceHistory {
     pub security: Security,
     pub resolution: Resolution,
-    // pub history: Vec<Candle>,
+    pub history: Box<Vec<Candle>>,
 }
-
-// impl<'a> PriceHistory<'a> {
-//     pub fn new(security: &'a Security, resolution: Resolution, history: &'a [&'a Candle]) -> Self {
-//         Ok(Self {
-//             security,
-//             resolution,
-//             // TODO: ensure you sort
-//             history,
-//         })
-//     }
-// }

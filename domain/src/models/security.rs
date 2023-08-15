@@ -16,19 +16,19 @@ pub enum AssetType {
     Crypto,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Security {
     asset_type: AssetType,
     exchange: Exchange,
-    // ticker: String,
+    ticker: String,
 }
 
 impl Security {
-    pub fn new(ticker: Ticker, exchange: Exchange, asset_type: AssetType) -> Self {
+    pub fn new(asset_type: AssetType, exchange: Exchange, ticker: String) -> Self {
         Security {
             asset_type,
             exchange,
-            // ticker,
+            ticker,
         }
     }
 }

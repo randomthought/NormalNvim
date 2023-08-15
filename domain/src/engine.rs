@@ -10,7 +10,7 @@ use crate::{
 pub struct Engine<'a> {
     strategy_engine: StrategyEngine<'a>,
     risk_engine: RiskEngine,
-    pipe: Arc<Box<dyn Pipe<'a> + Send + Sync>>,
+    pipe: Arc<Box<dyn Pipe + Send + Sync>>,
 }
 
 impl<'a> Engine<'a> {
@@ -18,7 +18,7 @@ impl<'a> Engine<'a> {
         strategy_engine: StrategyEngine<'a>,
         risk_engine: RiskEngine,
 
-        pipe: Arc<Box<dyn Pipe<'a> + Send + Sync>>,
+        pipe: Arc<Box<dyn Pipe + Send + Sync>>,
     ) -> Self {
         Self {
             strategy_engine,

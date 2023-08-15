@@ -13,12 +13,12 @@ use crate::models::event::Event;
 use super::event::{EventProducer, Pipe};
 
 #[derive(Clone)]
-pub struct ChannelPipe<'a> {
-    sender: Arc<Mutex<Sender<Event<'a>>>>,
-    reciever: Arc<Mutex<Receiver<Event<'a>>>>,
+pub struct ChannelPipe {
+    sender: Arc<Mutex<Sender<Event>>>,
+    reciever: Arc<Mutex<Receiver<Event>>>,
 }
 
-impl<'a> Default for ChannelPipe<'a> {
+impl Default for ChannelPipe {
     fn default() -> Self {
         let (sx, rx): (Sender<Event>, Receiver<Event>) = mpsc::channel();
         let sm = Mutex::new(sx);
@@ -33,8 +33,8 @@ impl<'a> Default for ChannelPipe<'a> {
 }
 
 #[async_trait]
-impl<'a> Pipe<'a> for ChannelPipe<'a> {
-    async fn send(&self, event: Event<'a>) -> Result<(), io::Error> {
+impl Pipe for ChannelPipe {
+    async fn send(&self, event: Event) -> Result<(), io::Error> {
         let sender = self.sender.lock().await;
         match sender.send(event) {
             Ok(r) => Ok(r),
@@ -42,7 +42,7 @@ impl<'a> Pipe<'a> for ChannelPipe<'a> {
         }
     }
 
-    async fn recieve(&self) -> Result<Option<Event<'a>>, io::Error> {
+    async fn recieve(&self) -> Result<Option<Event>, io::Error> {
         let reciever = self.reciever.lock().await;
         match reciever.recv() {
             Ok(event) => Ok(Some(event)),
@@ -52,8 +52,8 @@ impl<'a> Pipe<'a> for ChannelPipe<'a> {
 }
 
 #[async_trait]
-impl<'a> EventProducer<'a> for ChannelPipe<'a> {
-    async fn produce(&self, event: Event<'a>) -> Result<(), io::Error> {
+impl EventProducer for ChannelPipe {
+    async fn produce(&self, event: Event) -> Result<(), io::Error> {
         self.send(event).await
     }
 }

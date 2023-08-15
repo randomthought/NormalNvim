@@ -10,7 +10,7 @@ pub enum Side {
     Short,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Market {
     quantity: i32,
     side: Side,
@@ -49,7 +49,7 @@ pub enum TimesInForce {
 }
 
 // TODO: Add order durtation example, day order
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct Limit {
     quantity: i32,
     price: Price,
@@ -77,7 +77,7 @@ impl Limit {
     }
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct StopLimitMarket {
     stop: Price,
     limit: Price,
@@ -125,21 +125,21 @@ impl StopLimitMarket {
 
 type OrderId = String;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum Order {
     Market(Market),
     Limit(Limit),
     StopLimitMarket(StopLimitMarket),
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub struct OrderTicket {
     // TODO: Find a way to make this work
     // order_id: OrderId,
     limit: Limit,
 }
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct FilledOrder {
     pub security: Security,

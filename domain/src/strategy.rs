@@ -23,21 +23,21 @@ pub trait Algorithm {
 
 pub struct StrategyEngine<'a> {
     algorithms: Vec<&'a (dyn Algorithm + Send + Sync)>,
-    pipe: Arc<Box<dyn Pipe<'a> + Send + Sync>>,
+    pipe: Arc<Box<dyn Pipe + Send + Sync>>,
 }
 
 impl<'a> StrategyEngine<'a> {
     pub fn new(
         algorithms: Vec<&'a (dyn Algorithm + Send + Sync)>,
-        pipe: Arc<Box<dyn Pipe<'a> + Send + Sync>>,
+        pipe: Arc<Box<dyn Pipe + Send + Sync>>,
     ) -> Self {
         Self { algorithms, pipe }
     }
 }
 
 #[async_trait]
-impl<'a> EventHandler<'a> for StrategyEngine<'a> {
-    async fn handle(&self, event: Event<'a>) -> Result<(), io::Error> {
+impl<'a> EventHandler for StrategyEngine<'a> {
+    async fn handle(&self, event: Event) -> Result<(), io::Error> {
         if let Event::Market(market) = event {
             if let Market::DataEvent(data_event) = market {
                 let futures: Vec<_> = self
@@ -45,7 +45,7 @@ impl<'a> EventHandler<'a> for StrategyEngine<'a> {
                     .iter()
                     .map(|algo| async {
                         // TODO: Make sure you ar actually returning on a failed process error
-                        if let Some(signal) = algo.process(data_event).await? {
+                        if let Some(signal) = algo.process(&data_event).await? {
                             let se = Event::Signal(signal);
                             self.pipe.send(se).await?;
                         }

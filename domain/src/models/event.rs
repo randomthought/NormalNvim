@@ -4,15 +4,14 @@ use super::{
     security::Security,
 };
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 pub enum Market {
     DataEvent(PriceHistory),
 }
 
 #[derive(Debug, Clone)]
 pub struct Signal {
-    // TODO: Find a way to make this work
-    strategy_id: String, // TODO: consider using lifetime pointers
+    strategy_id: String,
     security: Security,
     side: Side,
     datetime: i32,
@@ -20,9 +19,9 @@ pub struct Signal {
 }
 
 #[derive(Debug, Clone)]
-pub enum Event<'a> {
-    Market(&'a Market),
+pub enum Event {
+    Market(Market),
     Signal(Signal),
     Order(Order),
-    FilledOrder(&'a FilledOrder),
+    FilledOrder(FilledOrder),
 }
