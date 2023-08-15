@@ -1,21 +1,14 @@
 use async_trait::async_trait;
 use futures_util::future;
 
-use crate::models::event::{Event, Market};
+use crate::models::event::Event;
 
-use crate::event::event::EventProducer;
 use crate::models::event::Signal;
 use crate::models::price::PriceHistory;
 use crate::risk::RiskEngine;
 
-use super::models::order::Order;
 use std::io;
 use std::option::Option;
-use std::sync::Arc;
-
-pub trait TradeManager {
-    fn manage(order: &Order) -> Result<(), io::Error>;
-}
 
 #[async_trait]
 pub trait Algorithm {

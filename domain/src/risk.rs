@@ -66,6 +66,7 @@ impl RiskEngine {
     }
 
     pub async fn process_signal(&self, signal: Signal) -> Result<SignalResult, io::Error> {
+        println!("risk_engine processed signal");
         if let TradingState::Halted = self.trading_state {
             return Ok(SignalResult::Rejected);
         }
@@ -79,10 +80,12 @@ impl RiskEngine {
             }
         }
 
-        let order = to_order(signal);
+        return Ok(SignalResult::Rejected);
 
-        self.order_manager.place_order(&order).await?;
-        return Ok(SignalResult::PlacedOrder(order));
+        // let order = to_order(signal);
+
+        // self.order_manager.place_order(&order).await?;
+        // return Ok(SignalResult::PlacedOrder(order));
     }
 
     async fn get_open_trades(&self) -> Result<u32, io::Error> {
