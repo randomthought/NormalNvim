@@ -1,6 +1,5 @@
 use domain::{
-    engine::Engine,
-    event::{channel_pipe::ChannelPipe, event::Pipe},
+    engine::{Engine, MarketStream},
     models::{
         event::{Event, Market},
         price::{Candle, PriceHistory},
@@ -10,31 +9,26 @@ use domain::{
     strategy::{Algorithm, StrategyEngine},
 };
 use engine::{algorithms::fake_algo::FakeAlgo, brokers::fake_broker::FakeOrderManager};
-use std::{io, sync::Arc};
+use std::{io, pin::Pin, sync::Arc};
 use tokio::time::{sleep, Duration};
 
 #[tokio::main]
 async fn main() {
-    let pipe = ChannelPipe::default();
     let risk_engine_config = RiskEngineConfig {
         max_portfolio_risk: 0.10,
         max_risk_per_trade: 0.05,
         max_open_trades: None,
     };
 
-    let bpip: Arc<Box<dyn Pipe + Send + Sync>> = Arc::new(Box::new(pipe));
-
     let order_manager = FakeOrderManager {};
 
     let algorithms: Vec<Box<dyn Algorithm + Send + Sync>> = vec![Box::new(FakeAlgo {})];
 
-    let channel1 = bpip.clone();
-    let channel2 = bpip.clone();
-
     let t1 = tokio::spawn(async move {
         let risk_engine = RiskEngine::new(risk_engine_config, Box::new(order_manager));
-        let strategy_engine = StrategyEngine::new(algorithms, bpip.clone());
-        let mut algo_engine = Engine::new(strategy_engine, risk_engine, channel1);
+        let strategy_engine = StrategyEngine::new(Box::new(risk_engine), algorithms);
+        let market_stream: Pin<Box<MarketStream>> = Box::pin(MarketStream {});
+        let mut algo_engine = Engine::new(strategy_engine, market_stream);
         algo_engine.runner().await.unwrap();
     });
 
@@ -59,7 +53,7 @@ async fn main() {
         let mut i = 0;
         loop {
             i += 1;
-            channel2.send(event.clone()).await?;
+            // channel2.send(event.clone()).await?;
             sleep(Duration::from_millis(500)).await;
             if i > 5 {
                 break;

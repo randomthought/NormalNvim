@@ -1,4 +1,5 @@
-use crate::event::event::EventHandler;
+use crate::models::event::Signal;
+use crate::models::order::Order;
 use crate::{models::event::Event, order::OrderManager};
 use async_trait::async_trait;
 use std::io;
@@ -8,6 +9,11 @@ enum TradingState {
     // TODO: add an update order type this might be good for only accepting modified orders and not trading
     Reducing, // only new orders or updates which reduce an open position are allowed
     Halted,   // all trading commands except cancels are denied
+}
+
+pub enum SignalResult {
+    Rejected,
+    PlacedOrder(Order),
 }
 
 #[derive(Debug, Clone, Copy)]
@@ -59,23 +65,9 @@ impl RiskEngine {
         }
     }
 
-    async fn get_open_trades(&self) -> Result<u32, io::Error> {
-        let results = self.order_manager.orders().await?.len();
-
-        Ok(results as u32)
-    }
-}
-
-#[async_trait]
-impl EventHandler for RiskEngine {
-    async fn handle(&self, event: Event) -> Result<(), io::Error> {
+    pub async fn process_signal(&self, signal: Signal) -> Result<SignalResult, io::Error> {
         if let TradingState::Halted = self.trading_state {
-            // TODO: Are you sure you want to return nothing if trading state is halted?
-            return Ok(());
-        }
-
-        if let Event::Signal(signal) = event {
-            println!("risk_engine got trade signal");
+            return Ok(SignalResult::Rejected);
         }
 
         let config = &self.risk_engine_config;
@@ -83,11 +75,23 @@ impl EventHandler for RiskEngine {
         if let Some(max) = config.max_open_trades {
             let open_trades = self.get_open_trades().await?;
             if open_trades >= max {
-                return Ok(());
-                // return Err("exceded the number maximum number '{max}' of open trades ");
+                return Ok(SignalResult::Rejected);
             }
         }
 
-        return Ok(());
+        let order = to_order(signal);
+
+        self.order_manager.place_order(&order).await?;
+        return Ok(SignalResult::PlacedOrder(order));
     }
+
+    async fn get_open_trades(&self) -> Result<u32, io::Error> {
+        let results = self.order_manager.orders().await?.len();
+
+        Ok(results as u32)
+    }
+}
+
+fn to_order(signal: Signal) -> Order {
+    todo!()
 }

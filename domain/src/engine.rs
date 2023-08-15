@@ -1,40 +1,39 @@
-use futures_util::future;
-use std::{io, sync::Arc};
+use futures_util::{future, Stream, StreamExt};
+use std::{io, pin::Pin, sync::Arc};
 
-use crate::{
-    event::event::{EventHandler, Pipe},
-    risk::RiskEngine,
-    strategy::StrategyEngine,
-};
+use crate::risk::RiskEngine;
+use crate::{models::price::PriceHistory, strategy::StrategyEngine};
+
+pub struct MarketStream {}
+
+impl Stream for MarketStream {
+    type Item = PriceHistory;
+
+    fn poll_next(
+        self: std::pin::Pin<&mut Self>,
+        cx: &mut std::task::Context<'_>,
+    ) -> std::task::Poll<Option<Self::Item>> {
+        todo!()
+    }
+}
 
 pub struct Engine {
     strategy_engine: StrategyEngine,
-    risk_engine: RiskEngine,
-    pipe: Arc<Box<dyn Pipe + Send + Sync>>,
+    market_stream: Pin<Box<MarketStream>>,
 }
 
 impl Engine {
-    pub fn new(
-        strategy_engine: StrategyEngine,
-        risk_engine: RiskEngine,
-
-        pipe: Arc<Box<dyn Pipe + Send + Sync>>,
-    ) -> Self {
+    pub fn new(strategy_engine: StrategyEngine, market_stream: Pin<Box<MarketStream>>) -> Self {
         Self {
             strategy_engine,
-            risk_engine,
-            pipe,
+            market_stream,
         }
     }
 
     pub async fn runner(&mut self) -> Result<(), io::Error> {
-        while let Some(event) = self.pipe.recieve().await? {
-            let f1 = self.strategy_engine.handle(event.clone());
-            let f2 = self.risk_engine.handle(event);
-
-            future::try_join_all(vec![f1, f2]).await?;
+        while let Some(item) = self.market_stream.next().await {
+            self.strategy_engine.process(item).await?;
         }
-
         Ok(())
     }
 }
