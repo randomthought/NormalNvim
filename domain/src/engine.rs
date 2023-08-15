@@ -29,7 +29,7 @@ impl<'a> Engine<'a> {
 
     pub async fn runner(&mut self) -> Result<(), io::Error> {
         while let Some(event) = self.pipe.recieve().await? {
-            let f1 = self.strategy_engine.handle(event);
+            let f1 = self.strategy_engine.handle(event.clone());
             let f2 = self.risk_engine.handle(event);
 
             future::try_join_all(vec![f1, f2]).await?;

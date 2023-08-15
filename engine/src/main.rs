@@ -6,7 +6,7 @@ use domain::{
     risk::{RiskEngine, RiskEngineConfig},
     strategy::{Algorithm, StrategyEngine},
 };
-use engine::FakeOrderManager;
+use engine::{algorithms::fake_algo::FakeAlgo, brokers::fake_broker::FakeOrderManager};
 
 #[tokio::main]
 async fn main() {
@@ -21,7 +21,9 @@ async fn main() {
 
     let order_manager = FakeOrderManager {};
 
-    let algorithms: Vec<&(dyn Algorithm + Send + Sync)> = vec![];
+    let algorithms: Vec<&(dyn Algorithm + Send + Sync)> = vec![
+        // Box::new(FakeAlgo {})
+    ];
 
     tokio::spawn(async move {
         let risk_engine = RiskEngine::new(risk_engine_config, Box::new(order_manager));
