@@ -1,19 +1,20 @@
 // TODO: helpful to model more complex order types: https://tlc.thinkorswim.com/center/howToTos/thinkManual/Trade/Order-Entry-Tools/Order-Types
+// TODO: heloful for more order types: https://www.quantconnect.com/docs/v2/writing-algorithms/trading-and-orders/key-concepts
 
 use super::price::Price;
 use super::security::Security;
 
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum Side {
     Long,
     Short,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Market {
     quantity: i32,
     side: Side,
-    security: Security,
+    security: Security, // TODO: Consider using lifetime pointer
     times_in_force: TimesInForce,
 }
 
@@ -35,7 +36,7 @@ impl Market {
 }
 
 // https://ibkrguides.com/tws/usersguidebook/ordertypes/time%20in%20force%20for%20orders.htm
-#[derive(Debug)]
+#[derive(Debug, Clone, Copy)]
 pub enum TimesInForce {
     Day,
     GTC,
@@ -48,12 +49,12 @@ pub enum TimesInForce {
 }
 
 // TODO: Add order durtation example, day order
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct Limit {
     quantity: i32,
     price: Price,
     side: Side,
-    security: Security,
+    security: Security, // TODO: Consider using lifetime pointer
     times_in_force: TimesInForce,
 }
 
@@ -76,13 +77,13 @@ impl Limit {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct StopLimitMarket {
     stop: Price,
     limit: Price,
     side: Side,
     quantity: i32,
-    security: Security,
+    security: Security, // TODO: Consider using lifetime pointer
     times_in_force: TimesInForce,
 }
 
@@ -124,21 +125,29 @@ impl StopLimitMarket {
 
 type OrderId = String;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum Order {
     Market(Market),
     Limit(Limit),
     StopLimitMarket(StopLimitMarket),
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub struct OrderTicket {
     order_id: OrderId,
     limit: Limit,
 }
 
-#[derive(Debug)]
-pub struct FilledOrder {}
+#[derive(Debug, Clone)]
+#[non_exhaustive]
+pub struct FilledOrder {
+    pub security: Security,
+    pub side: Side,
+    pub commission: Price,
+    pub price: Price,
+    pub quantity: i32,
+    pub datetime: i32,
+}
 
 #[derive(Debug)]
 pub enum OrderResult {
