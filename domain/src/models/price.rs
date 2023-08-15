@@ -57,11 +57,11 @@ impl Candle {
             return Err("High cannot be less than low".to_owned());
         }
 
-        if open > high && open < low {
+        if high < open && open < low {
             return Err("Open cannot be greater than high or less than low".to_owned());
         }
 
-        if open > close && close < low {
+        if high < close && close < low {
             return Err("Close cannot be greater than high or less than low".to_owned());
         }
 

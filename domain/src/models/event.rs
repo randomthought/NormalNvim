@@ -11,11 +11,12 @@ pub enum Market {
 
 #[derive(Debug, Clone)]
 pub struct Signal {
-    strategy_id: String,
-    security: Security,
-    side: Side,
-    datetime: i32,
-    strength: f32,
+    // TODO: create constructor
+    pub strategy_id: String,
+    pub security: Security,
+    pub side: Side,
+    pub datetime: i32,
+    pub strength: f32,
 }
 
 #[derive(Debug, Clone)]

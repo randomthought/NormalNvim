@@ -18,9 +18,9 @@ pub enum AssetType {
 
 #[derive(Debug, Clone)]
 pub struct Security {
-    asset_type: AssetType,
-    exchange: Exchange,
-    ticker: String,
+    pub asset_type: AssetType,
+    pub exchange: Exchange,
+    pub ticker: String,
 }
 
 impl Security {

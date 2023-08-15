@@ -9,3 +9,4 @@ edition = "2021"
 domain = { path = "../domain" }
 tokio = { version = "1", features = ["full"] }
 async-trait = "0.1.72"
+rand = "0.8"

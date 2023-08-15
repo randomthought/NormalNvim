@@ -7,15 +7,15 @@ use crate::{
     strategy::StrategyEngine,
 };
 
-pub struct Engine<'a> {
-    strategy_engine: StrategyEngine<'a>,
+pub struct Engine {
+    strategy_engine: StrategyEngine,
     risk_engine: RiskEngine,
     pipe: Arc<Box<dyn Pipe + Send + Sync>>,
 }
 
-impl<'a> Engine<'a> {
+impl Engine {
     pub fn new(
-        strategy_engine: StrategyEngine<'a>,
+        strategy_engine: StrategyEngine,
         risk_engine: RiskEngine,
 
         pipe: Arc<Box<dyn Pipe + Send + Sync>>,

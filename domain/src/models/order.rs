@@ -134,8 +134,7 @@ pub enum Order {
 
 #[derive(Debug, Clone)]
 pub struct OrderTicket {
-    // TODO: Find a way to make this work
-    // order_id: OrderId,
+    order_id: OrderId,
     limit: Limit,
 }
 
@@ -144,8 +143,8 @@ pub struct OrderTicket {
 pub struct FilledOrder {
     pub security: Security,
     pub side: Side,
-    pub price: Price,
     pub commission: Price,
+    pub price: Price,
     pub quantity: i32,
     pub datetime: i32,
 }

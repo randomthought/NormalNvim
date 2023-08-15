@@ -21,14 +21,14 @@ pub trait Algorithm {
     async fn process(&self, price_history: &PriceHistory) -> Result<Option<Signal>, io::Error>;
 }
 
-pub struct StrategyEngine<'a> {
-    algorithms: Vec<&'a (dyn Algorithm + Send + Sync)>,
+pub struct StrategyEngine {
+    algorithms: Vec<Box<dyn Algorithm + Send + Sync>>,
     pipe: Arc<Box<dyn Pipe + Send + Sync>>,
 }
 
-impl<'a> StrategyEngine<'a> {
+impl StrategyEngine {
     pub fn new(
-        algorithms: Vec<&'a (dyn Algorithm + Send + Sync)>,
+        algorithms: Vec<Box<dyn Algorithm + Send + Sync>>,
         pipe: Arc<Box<dyn Pipe + Send + Sync>>,
     ) -> Self {
         Self { algorithms, pipe }
@@ -36,7 +36,7 @@ impl<'a> StrategyEngine<'a> {
 }
 
 #[async_trait]
-impl<'a> EventHandler for StrategyEngine<'a> {
+impl EventHandler for StrategyEngine {
     async fn handle(&self, event: Event) -> Result<(), io::Error> {
         if let Event::Market(market) = event {
             if let Market::DataEvent(data_event) = market {

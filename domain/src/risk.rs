@@ -67,13 +67,15 @@ impl RiskEngine {
 }
 
 #[async_trait]
-impl<'a> EventHandler for RiskEngine {
+impl EventHandler for RiskEngine {
     async fn handle(&self, event: Event) -> Result<(), io::Error> {
-        if let Event::Order(_) = event {
-            if let TradingState::Halted = self.trading_state {
-                // TODO: Are you sure you want to return nothing if trading state is halted?
-                return Ok(());
-            }
+        if let TradingState::Halted = self.trading_state {
+            // TODO: Are you sure you want to return nothing if trading state is halted?
+            return Ok(());
+        }
+
+        if let Event::Signal(signal) = event {
+            println!("risk_engine got trade signal");
         }
 
         let config = &self.risk_engine_config;
