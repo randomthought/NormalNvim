@@ -80,12 +80,10 @@ impl RiskEngine {
             }
         }
 
-        return Ok(SignalResult::Rejected);
+        let order = to_order(signal);
 
-        // let order = to_order(signal);
-
-        // self.order_manager.place_order(&order).await?;
-        // return Ok(SignalResult::PlacedOrder(order));
+        self.order_manager.place_order(&order).await?;
+        return Ok(SignalResult::PlacedOrder(order));
     }
 
     async fn get_open_trades(&self) -> Result<u32, io::Error> {
