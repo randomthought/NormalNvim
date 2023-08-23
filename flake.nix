@@ -95,7 +95,8 @@
               cargo
               cargo-watch
               rust-analyzer
-              clang
+              rustfmt
+              clippy
             ];
           };
 
