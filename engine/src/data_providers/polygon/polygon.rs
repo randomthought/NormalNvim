@@ -1,22 +1,22 @@
 use std::io;
 use std::net::TcpStream;
 
-use domain::models::price::PriceHistory;
-use futures_util::{Stream, StreamExt};
+use domain::models::{
+    price::{Candle, PriceHistory, Resolution},
+    security::{AssetType, Exchange, Security},
+};
+use futures_util::Stream;
 
 use tungstenite::{connect, stream::MaybeTlsStream, Message, WebSocket};
 use url::Url;
 
 static POLYGON_STOCKS_WS_API: &str = "wss://delayed.polygon.io/stocks";
 
-use async_stream::{stream, try_stream};
-
 use super::models::Aggregates;
 
 pub struct PolygonClient {
     vec: Vec<PriceHistory>,
     api_key: String,
-    // socket: Option<WebSocket<MaybeTlsStream<TcpStream>>>,
     socket: WebSocket<MaybeTlsStream<TcpStream>>,
     authenticated: bool,
 }
@@ -33,7 +33,7 @@ impl PolygonClient {
             authenticated: false,
         };
 
-        client.authenticate();
+        client.authenticate()?;
 
         Ok(client)
     }
@@ -51,7 +51,6 @@ impl PolygonClient {
         println!("{}", m);
 
         self.socket.write_message(Message::Text(
-            // r#"{"action":"subscribe","params":"A.AAPL"}"#.into(),
             r#"{"action":"subscribe","params":"A.*"}"#.into(),
         ));
 
@@ -77,7 +76,6 @@ impl Stream for PolygonClient {
 
         match self.socket.read_message() {
             Ok(msg) => {
-                println!("Results: {}", msg);
                 let s = msg.to_text().unwrap();
                 let deserialized: Vec<Aggregates> = serde_json::from_str(s).unwrap();
                 if deserialized.is_empty() {
@@ -90,20 +88,46 @@ impl Stream for PolygonClient {
                 }
 
                 if let Some(item) = self.vec.pop() {
+                    println!("{:?}", item);
                     return std::task::Poll::Ready(Some(Ok(item)));
                 }
 
-                return std::task::Poll::Ready(None);
+                std::task::Poll::Ready(None)
             }
             Err(err) => {
                 let err = io::Error::new(io::ErrorKind::Other, err.to_string());
-                return std::task::Poll::Ready(Some(Err(err)));
+                std::task::Poll::Ready(Some(Err(err)))
             }
         }
     }
 }
 
 fn convert(aggregates: Aggregates) -> PriceHistory {
-    print!("{}", aggregates.sym);
-    todo!()
+    let security = Security {
+        asset_type: AssetType::Equity,
+        exchange: Exchange::Unkown,
+        ticker: aggregates.sym,
+    };
+
+    let candle = Candle::new(
+        aggregates.o,
+        aggregates.h,
+        aggregates.l,
+        aggregates.c,
+        convert_volume(aggregates.v),
+        convert_volume(0), // TODO: get the actual time from the API
+    )
+    .unwrap();
+
+    let history = vec![candle];
+
+    PriceHistory {
+        security,
+        history,
+        resolution: Resolution::Second,
+    }
+}
+
+fn convert_volume(x: i64) -> u64 {
+    (x as u64) ^ (1 << 63)
 }

@@ -35,7 +35,7 @@ impl Stream for FakePriceHistoryStream {
         let price_history = PriceHistory {
             security,
             resolution: domain::models::price::Resolution::Second,
-            history: Box::new(candles),
+            history: candles,
         };
 
         sleep(time::Duration::from_millis(500));

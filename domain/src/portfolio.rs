@@ -12,11 +12,11 @@ use crate::{
 pub struct Position<'a> {
     filled_order: &'a FilledOrder,
     // TODO: consider using a different type for money
-    unlrealized_profit: f32,
+    unlrealized_profit: f64,
 }
 
 impl<'a> Position<'a> {
-    pub fn new(filled_order: &'a FilledOrder, unlrealized_profit: f32) -> Self {
+    pub fn new(filled_order: &'a FilledOrder, unlrealized_profit: f64) -> Self {
         Self {
             filled_order,
             unlrealized_profit,
@@ -67,8 +67,8 @@ impl<'a> Portfolio<'a> {
     }
 
     // Total portfolio value if we sold all holdings at current market rates.
-    pub async fn unrealized_profit(&self) -> Result<f32, io::Error> {
-        let result: f32 = self
+    pub async fn unrealized_profit(&self) -> Result<f64, io::Error> {
+        let result: f64 = self
             .get_open_positions()
             .await?
             .iter()
@@ -78,11 +78,11 @@ impl<'a> Portfolio<'a> {
         Ok(result)
     }
 
-    pub async fn total_profit(&self) -> f32 {
+    pub async fn total_profit(&self) -> f64 {
         unimplemented!()
     }
 
-    pub async fn margin_remaining(&self) -> f32 {
+    pub async fn margin_remaining(&self) -> f64 {
         unimplemented!()
     }
 }

@@ -5,6 +5,7 @@ pub enum Exchange {
     // TODO: add list of exchanges
     NASDAQ,
     NYSE,
+    Unkown,
 }
 
 #[derive(Debug, Clone, Copy)]
