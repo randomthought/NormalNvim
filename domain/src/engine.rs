@@ -6,13 +6,13 @@ use crate::{models::price::PriceHistory, strategy::StrategyEngine};
 
 pub struct Engine {
     strategy_engine: StrategyEngine,
-    market_stream: Pin<Box<dyn Stream<Item = PriceHistory>>>,
+    market_stream: Pin<Box<dyn Stream<Item = Result<PriceHistory, io::Error>>>>,
 }
 
 impl Engine {
     pub fn new(
         strategy_engine: StrategyEngine,
-        market_stream: Pin<Box<dyn Stream<Item = PriceHistory>>>,
+        market_stream: Pin<Box<dyn Stream<Item = Result<PriceHistory, io::Error>>>>,
     ) -> Self {
         Self {
             strategy_engine,
@@ -21,9 +21,14 @@ impl Engine {
     }
 
     pub async fn runner(&mut self) -> Result<(), io::Error> {
-        while let Some(item) = self.market_stream.next().await {
-            self.strategy_engine.process(item).await?;
+        while let some = self.market_stream.next().await {
+            match some {
+                Some(Ok(item)) => print!("{}", item.security.ticker),
+                Some(Err(err)) => return Err(err),
+                _ => (),
+            }
         }
+
         Ok(())
     }
 }

@@ -18,7 +18,6 @@ pub struct PolygonClient {
     vec: Vec<PriceHistory>,
     api_key: String,
     socket: WebSocket<MaybeTlsStream<TcpStream>>,
-    authenticated: bool,
 }
 
 impl PolygonClient {
@@ -30,7 +29,6 @@ impl PolygonClient {
             api_key,
             socket,
             vec: Vec::new(),
-            authenticated: false,
         };
 
         client.authenticate()?;
@@ -39,25 +37,27 @@ impl PolygonClient {
     }
 
     fn authenticate(&mut self) -> Result<(), io::Error> {
-        let m = self.socket.read_message().expect("Error connecting");
+        let m = self.socket.read_message().expect("error connecting");
         println!("{}", m);
 
-        self.socket.write_message(Message::Text(
-            format!(r#"{{"action":"auth","params":"{}"}}"#, self.api_key).into(),
-        ));
+        self.socket
+            .write_message(Message::Text(
+                format!(r#"{{"action":"auth","params":"{}"}}"#, self.api_key).into(),
+            ))
+            .expect("error when attempting to authenticate");
 
         // TODO: check if connection was succesful
-        let m = self.socket.read_message().expect("Error connecting");
+        let m = self.socket.read_message().expect("error connecting");
         println!("{}", m);
 
-        self.socket.write_message(Message::Text(
-            r#"{"action":"subscribe","params":"A.*"}"#.into(),
-        ));
+        self.socket
+            .write_message(Message::Text(
+                r#"{"action":"subscribe","params":"A.*"}"#.into(),
+            ))
+            .expect("error subscribing");
 
-        let m = self.socket.read_message().expect("Error in subscribing");
+        let m = self.socket.read_message().expect("error in subscribing");
         println!("{}", m);
-
-        self.authenticated = true;
 
         Ok(())
     }
@@ -77,7 +77,14 @@ impl Stream for PolygonClient {
         match self.socket.read_message() {
             Ok(msg) => {
                 let s = msg.to_text().unwrap();
-                let deserialized: Vec<Aggregates> = serde_json::from_str(s).unwrap();
+
+                if (s.is_empty()) {
+                    return std::task::Poll::Ready(None);
+                }
+
+                let deserialized: Vec<Aggregates> = serde_json::from_str(s)
+                    .expect(format!("Unable to deserialize socket message: {}", s).as_str());
+
                 if deserialized.is_empty() {
                     return std::task::Poll::Ready(None);
                 }
@@ -88,7 +95,6 @@ impl Stream for PolygonClient {
                 }
 
                 if let Some(item) = self.vec.pop() {
-                    println!("{:?}", item);
                     return std::task::Poll::Ready(Some(Ok(item)));
                 }
 
@@ -96,6 +102,7 @@ impl Stream for PolygonClient {
             }
             Err(err) => {
                 let err = io::Error::new(io::ErrorKind::Other, err.to_string());
+                println!("Error: {}", err);
                 std::task::Poll::Ready(Some(Err(err)))
             }
         }
