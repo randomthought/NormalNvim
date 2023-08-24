@@ -110,9 +110,15 @@ impl Stream for PolygonClient {
 }
 
 fn convert(aggregates: Aggregates) -> PriceHistory {
+    let exchange = if aggregates.otc {
+        Exchange::OTC
+    } else {
+        Exchange::Unkown
+    };
+
     let security = Security {
         asset_type: AssetType::Equity,
-        exchange: Exchange::Unkown,
+        exchange: exchange,
         ticker: aggregates.sym,
     };
 
@@ -121,8 +127,9 @@ fn convert(aggregates: Aggregates) -> PriceHistory {
         aggregates.h,
         aggregates.l,
         aggregates.c,
-        convert_volume(aggregates.v),
-        convert_volume(0), // TODO: get the actual time from the API
+        aggregates.v,
+        aggregates.s,
+        aggregates.e,
     )
     .unwrap();
 
@@ -133,8 +140,4 @@ fn convert(aggregates: Aggregates) -> PriceHistory {
         history,
         resolution: Resolution::Second,
     }
-}
-
-fn convert_volume(x: i64) -> u64 {
-    (x as u64) ^ (1 << 63)
 }

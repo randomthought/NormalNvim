@@ -30,7 +30,7 @@ impl Stream for FakePriceHistoryStream {
             ticker: "AAPL".to_owned(),
         };
 
-        let candles = vec![Candle::new(99.96, 99.98, 99.95, 99.7, 100, 888).unwrap()];
+        let candles = vec![Candle::new(99.96, 99.98, 99.95, 99.7, 100, 888, 0).unwrap()];
 
         let price_history = PriceHistory {
             security,

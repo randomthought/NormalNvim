@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 pub struct Aggregates {
     pub ev: String,
     pub sym: String,
-    pub v: i64,
+    pub v: u64,
     pub av: i64,
     pub op: f64,
     pub vw: f64,
@@ -17,7 +17,9 @@ pub struct Aggregates {
     pub h: f64,
     pub l: f64,
     pub a: f64,
-    pub z: i64,
-    pub s: i64,
-    pub e: i64,
+    pub z: f64,
+    pub s: u64,
+    pub e: u64,
+    #[serde(default)]
+    pub otc: bool,
 }

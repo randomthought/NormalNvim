@@ -40,7 +40,8 @@ pub struct Candle {
     pub low: Price,
     pub close: Price,
     // The Unix Msec timestamp for the start of the aggregate window.
-    pub time: u64,
+    pub start_time: u64,
+    pub end_time: u64,
     // The trading volume of the symbol in the given time period.
     pub volume: u64,
 }
@@ -52,7 +53,8 @@ impl Candle {
         low: Price,
         close: Price,
         volume: u64,
-        time: u64,
+        start_time: u64,
+        end_time: u64,
     ) -> Result<Self, String> {
         if high < low {
             return Err("High cannot be less than low".to_owned());
@@ -71,7 +73,8 @@ impl Candle {
             high,
             low,
             close,
-            time,
+            start_time,
+            end_time,
             volume,
         })
     }

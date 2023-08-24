@@ -5,6 +5,8 @@ pub enum Exchange {
     // TODO: add list of exchanges
     NASDAQ,
     NYSE,
+    AMEX,
+    OTC,
     Unkown,
 }
 

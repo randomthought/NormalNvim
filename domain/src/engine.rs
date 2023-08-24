@@ -21,14 +21,12 @@ impl Engine {
     }
 
     pub async fn runner(&mut self) -> Result<(), io::Error> {
-        while let some = self.market_stream.next().await {
-            match some {
-                Some(Ok(item)) => print!("{}", item.security.ticker),
+        loop {
+            match self.market_stream.next().await {
+                Some(Ok(item)) => println!("{:?}", item),
                 Some(Err(err)) => return Err(err),
                 _ => (),
             }
         }
-
-        Ok(())
     }
 }
