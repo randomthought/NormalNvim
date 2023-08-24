@@ -1,5 +1,6 @@
 use crate::models::event::Signal;
-use crate::models::order::Order;
+use crate::models::order::{Order, StopLimitMarket};
+use crate::models::security::Security;
 use crate::{models::event::Event, order::OrderManager};
 use async_trait::async_trait;
 use std::io;
@@ -80,7 +81,8 @@ impl RiskEngine {
             }
         }
 
-        let order = to_order(signal);
+        let quantity = self.calulate_risk_quantity(&signal.security).await?;
+        let order = _to_order(signal, quantity).unwrap();
 
         self.order_manager.place_order(&order).await?;
         return Ok(SignalResult::PlacedOrder(order));
@@ -91,8 +93,21 @@ impl RiskEngine {
 
         Ok(results as u32)
     }
+
+    async fn calulate_risk_quantity(&self, security: &Security) -> Result<u32, io::Error> {
+        todo!()
+    }
 }
 
-fn to_order(signal: Signal) -> Order {
-    todo!()
+fn _to_order(signal: Signal, quantity: u32) -> Result<Order, String> {
+    let stop_limit_market = StopLimitMarket::new(
+        signal.security,
+        quantity,
+        signal.side,
+        signal.stop,
+        signal.limit,
+        signal.times_in_force,
+    )?;
+
+    Ok(Order::StopLimitMarket(stop_limit_market))
 }

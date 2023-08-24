@@ -33,15 +33,16 @@ pub enum Resolution {
 }
 
 #[derive(Debug, Clone, Copy)]
+#[non_exhaustive]
 pub struct Candle {
-    high: Price,
-    open: Price,
-    low: Price,
-    close: Price,
+    pub high: Price,
+    pub open: Price,
+    pub low: Price,
+    pub close: Price,
     // The Unix Msec timestamp for the start of the aggregate window.
-    time: u64,
+    pub time: u64,
     // The trading volume of the symbol in the given time period.
-    volume: u64,
+    pub volume: u64,
 }
 
 impl Candle {
