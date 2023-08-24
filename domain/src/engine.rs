@@ -1,7 +1,6 @@
-use futures_util::{future, Stream, StreamExt};
+use futures_util::{Stream, StreamExt};
 use std::{io, pin::Pin, sync::Arc};
 
-use crate::risk::RiskEngine;
 use crate::{models::price::PriceHistory, strategy::StrategyEngine};
 
 pub struct Engine {
@@ -23,7 +22,7 @@ impl Engine {
     pub async fn runner(&mut self) -> Result<(), io::Error> {
         loop {
             match self.market_stream.next().await {
-                Some(Ok(item)) => println!("{:?}", item),
+                Some(Ok(price_history)) => self.strategy_engine.process(price_history).await?,
                 Some(Err(err)) => return Err(err),
                 _ => (),
             }

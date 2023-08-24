@@ -23,8 +23,8 @@ impl Algorithm for FakeAlgo {
             let signal = Signal::new(
                 "fake_algo".to_owned(),
                 price_history.security.to_owned(),
-                20.0,
-                10.0,
+                0.0,
+                2000000.0,
                 Side::Long,
                 TimesInForce::GTC,
                 0,

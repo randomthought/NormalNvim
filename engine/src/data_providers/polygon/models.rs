@@ -1,9 +1,6 @@
 use serde::{Deserialize, Serialize};
-// use serde_derive::Deserialize;
-// use serde_derive::Serialize;
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
-// #[derive(Serialize, Deserialize, Debug)]
 #[serde(rename_all = "camelCase")]
 pub struct Aggregates {
     pub ev: String,

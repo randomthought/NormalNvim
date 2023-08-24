@@ -1,8 +1,7 @@
 use crate::models::event::Signal;
 use crate::models::order::{Order, StopLimitMarket};
 use crate::models::security::Security;
-use crate::{models::event::Event, order::OrderManager};
-use async_trait::async_trait;
+use crate::order::OrderManager;
 use std::io;
 
 enum TradingState {
@@ -85,7 +84,7 @@ impl RiskEngine {
         let order = _to_order(signal, quantity).unwrap();
 
         self.order_manager.place_order(&order).await?;
-        return Ok(SignalResult::PlacedOrder(order));
+        Ok(SignalResult::PlacedOrder(order))
     }
 
     async fn get_open_trades(&self) -> Result<u32, io::Error> {
