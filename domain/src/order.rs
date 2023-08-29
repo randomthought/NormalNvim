@@ -2,6 +2,12 @@ use super::models::order::{Order, OrderResult, OrderTicket};
 use async_trait::async_trait;
 use std::io;
 
+#[async_trait]
+pub trait Account {
+    async fn get_account_balance(&self) -> Result<f64, io::Error>;
+    async fn get_buying_power(&self) -> Result<f64, io::Error>;
+}
+
 // Model based on https://developer.tdameritrade.com/account-access/apis
 // TODO: model errors here https://www.quantconnect.com/docs/v2/writing-algorithms/trading-and-orders/order-errors
 #[async_trait]

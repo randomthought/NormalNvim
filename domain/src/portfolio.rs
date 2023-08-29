@@ -5,18 +5,18 @@ use futures_util::future;
 use crate::{
     data::QouteProvider,
     models::order::{FilledOrder, OrderResult, Side},
-    order::OrderReader,
+    order::{Account, OrderReader},
 };
 
 #[derive(Debug)]
-pub struct Position<'a> {
-    filled_order: &'a FilledOrder,
+pub struct Position {
+    filled_order: FilledOrder,
     // TODO: consider using a different type for money
     unlrealized_profit: f64,
 }
 
-impl<'a> Position<'a> {
-    pub fn new(filled_order: &'a FilledOrder, unlrealized_profit: f64) -> Self {
+impl Position {
+    pub fn new(filled_order: FilledOrder, unlrealized_profit: f64) -> Self {
         Self {
             filled_order,
             unlrealized_profit,
@@ -24,20 +24,26 @@ impl<'a> Position<'a> {
     }
 }
 
-pub struct Portfolio<'a> {
-    order_reader: &'a dyn OrderReader,
-    qoute_provider: &'a dyn QouteProvider,
+pub struct Portfolio {
+    account: Box<dyn Account>,
+    order_reader: Box<dyn OrderReader>,
+    qoute_provider: Box<dyn QouteProvider>,
 }
 
-impl<'a> Portfolio<'a> {
-    pub fn new(order_reader: &'a dyn OrderReader, qoute_provider: &'a dyn QouteProvider) -> Self {
+impl Portfolio {
+    pub fn new(
+        order_reader: Box<dyn OrderReader>,
+        qoute_provider: Box<dyn QouteProvider>,
+        account: Box<dyn Account>,
+    ) -> Self {
         Self {
             order_reader,
             qoute_provider,
+            account,
         }
     }
 
-    pub async fn get_open_positions(&self) -> Result<Vec<Position<'a>>, io::Error> {
+    pub async fn get_open_positions(&self) -> Result<Vec<Position>, io::Error> {
         let orders = self.order_reader.orders().await?;
 
         // let futures: Vec<impl Future<Output = Result<Option<Position>, io::Error>>> = orders
@@ -55,7 +61,7 @@ impl<'a> Portfolio<'a> {
                     Side::Short => quote.bid - order.price,
                 };
 
-                let p = Position::new(order, profit);
+                let p = Position::new(order.clone(), profit);
 
                 Ok(p) as Result<Position, io::Error>
             })
@@ -78,11 +84,11 @@ impl<'a> Portfolio<'a> {
         Ok(result)
     }
 
-    pub async fn total_profit(&self) -> f64 {
-        unimplemented!()
+    pub async fn account_value(&self) -> Result<f64, io::Error> {
+        self.account.get_account_balance().await
     }
 
-    pub async fn margin_remaining(&self) -> f64 {
-        unimplemented!()
+    pub async fn margin_remaining(&self) -> Result<f64, io::Error> {
+        self.account.get_buying_power().await
     }
 }

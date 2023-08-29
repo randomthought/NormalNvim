@@ -82,7 +82,7 @@ pub struct StopLimitMarket {
     stop: Price,
     limit: Price,
     side: Side,
-    quantity: u32,
+    quantity: u64,
     security: Security, // TODO: Consider using lifetime pointer
     times_in_force: TimesInForce,
 }
@@ -90,7 +90,7 @@ pub struct StopLimitMarket {
 impl StopLimitMarket {
     pub fn new(
         security: Security,
-        quantity: u32,
+        quantity: u64,
         side: Side,
         stop: Price,
         limit: Price,

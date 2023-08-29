@@ -20,3 +20,44 @@ pub struct Aggregates {
     #[serde(default)]
     pub otc: bool,
 }
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct ResponseMessage {
+    pub ev: String,
+    pub status: String,
+    pub message: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct QuoteResponse {
+    #[serde(rename = "request_id")]
+    pub request_id: String,
+    pub results: Quote,
+    pub status: String,
+}
+
+#[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(rename_all = "camelCase")]
+pub struct Quote {
+    #[serde(rename = "P")]
+    pub p: f64,
+    #[serde(rename = "S")]
+    pub s: u64,
+    #[serde(rename = "T")]
+    pub t: String,
+    #[serde(rename = "X")]
+    pub x: i64,
+    #[serde(rename = "p")]
+    pub p2: f64,
+    pub q: i64,
+    #[serde(rename = "s")]
+    pub s2: u64,
+    #[serde(rename = "t")]
+    pub t2: u64,
+    #[serde(rename = "x")]
+    pub x2: i64,
+    pub y: i64,
+    pub z: i64,
+}

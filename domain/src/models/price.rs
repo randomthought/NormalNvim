@@ -3,21 +3,38 @@ use super::security::Security;
 pub type Symbol = String;
 pub type Price = f64;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct Quote {
+    pub security: Security,
     pub bid: Price,
+    pub bid_size: u64,
     pub ask: Price,
-    pub volume: u64,
+    pub ask_size: u64,
+    pub timestamp: u64,
 }
 
 impl Quote {
-    pub fn new(bid: Price, ask: Price, volume: u64) -> Result<Self, String> {
+    pub fn new(
+        security: Security,
+        bid: Price,
+        ask: Price,
+        bid_size: u64,
+        ask_size: u64,
+        timestamp: u64,
+    ) -> Result<Self, String> {
         if bid > ask {
             return Err("bid price should be lower than ask price".to_owned());
         }
 
-        Ok(Self { bid, ask, volume })
+        Ok(Self {
+            security,
+            bid,
+            ask,
+            bid_size,
+            ask_size,
+            timestamp,
+        })
     }
 }
 

@@ -12,16 +12,22 @@ use url::Url;
 
 static POLYGON_STOCKS_WS_API: &str = "wss://delayed.polygon.io/stocks";
 
-use super::models::Aggregates;
+use crate::data_providers::polygon::models::{QuoteResponse, ResponseMessage};
+
+use super::{models::Aggregates, utils};
+
+use async_trait::async_trait;
+use domain::{data::QouteProvider, models::price::Quote};
 
 pub struct PolygonClient {
     vec: Vec<PriceHistory>,
     api_key: String,
     socket: WebSocket<MaybeTlsStream<TcpStream>>,
+    client: reqwest::Client,
 }
 
 impl PolygonClient {
-    pub async fn new(api_key: String) -> Result<Self, io::Error> {
+    pub async fn new(api_key: String, client: reqwest::Client) -> Result<Self, io::Error> {
         let (socket, _) =
             connect(Url::parse(POLYGON_STOCKS_WS_API).unwrap()).expect("Can't connect");
 
@@ -29,6 +35,7 @@ impl PolygonClient {
             api_key,
             socket,
             vec: Vec::new(),
+            client,
         };
 
         client.authenticate()?;
@@ -38,7 +45,11 @@ impl PolygonClient {
 
     fn authenticate(&mut self) -> Result<(), io::Error> {
         let m = self.socket.read_message().expect("error connecting");
-        println!("{}", m);
+        let s = m.to_text().unwrap();
+        let deserialized: Vec<ResponseMessage> = serde_json::from_str(s)
+            .expect(format!("Unable to deserialize socket message: {}", s).as_str());
+
+        println!("{:?}", deserialized);
 
         self.socket
             .write_message(Message::Text(
@@ -48,7 +59,11 @@ impl PolygonClient {
 
         // TODO: check if connection was succesful
         let m = self.socket.read_message().expect("error connecting");
-        println!("{}", m);
+        let s = m.to_text().unwrap();
+        let deserialized: Vec<ResponseMessage> = serde_json::from_str(s)
+            .expect(format!("Unable to deserialize socket message: {}", s).as_str());
+
+        println!("{:?}", deserialized);
 
         self.socket
             .write_message(Message::Text(
@@ -57,9 +72,28 @@ impl PolygonClient {
             .expect("error subscribing");
 
         let m = self.socket.read_message().expect("error in subscribing");
-        println!("{}", m);
+        let s = m.to_text().unwrap();
+        let deserialized: Vec<ResponseMessage> = serde_json::from_str(s)
+            .expect(format!("Unable to deserialize socket message: {}", s).as_str());
+
+        println!("{:?}", deserialized);
 
         Ok(())
+    }
+}
+
+#[async_trait]
+impl QouteProvider for PolygonClient {
+    async fn get_quote(&self, security: &Security) -> Result<Quote, io::Error> {
+        // let ticker = security.ticker;
+        let url = format!(
+            "https://api.polygon.io/v2/last/nbbo/{}?apiKey={}",
+            security.ticker, self.api_key
+        );
+        let resp = self.client.get(url).send().await.unwrap();
+        let qoute_response = resp.json::<QuoteResponse>().await.unwrap();
+        let qoute = utils::to_quote(&qoute_response);
+        Ok(qoute)
     }
 }
 
@@ -78,7 +112,7 @@ impl Stream for PolygonClient {
             Ok(msg) => {
                 let s = msg.to_text().unwrap();
 
-                if (s.is_empty()) {
+                if s.is_empty() {
                     return std::task::Poll::Ready(None);
                 }
 
@@ -90,7 +124,7 @@ impl Stream for PolygonClient {
                 }
 
                 for ele in deserialized {
-                    let ph = convert(ele);
+                    let ph = utils::to_price_history(&ele);
                     self.vec.push(ph);
                 }
 
@@ -106,38 +140,5 @@ impl Stream for PolygonClient {
                 std::task::Poll::Ready(Some(Err(err)))
             }
         }
-    }
-}
-
-fn convert(aggregates: Aggregates) -> PriceHistory {
-    let exchange = if aggregates.otc {
-        Exchange::OTC
-    } else {
-        Exchange::Unkown
-    };
-
-    let security = Security {
-        asset_type: AssetType::Equity,
-        exchange: exchange,
-        ticker: aggregates.sym,
-    };
-
-    let candle = Candle::new(
-        aggregates.o,
-        aggregates.h,
-        aggregates.l,
-        aggregates.c,
-        aggregates.v,
-        aggregates.s,
-        aggregates.e,
-    )
-    .unwrap();
-
-    let history = vec![candle];
-
-    PriceHistory {
-        security,
-        history,
-        resolution: Resolution::Second,
     }
 }
