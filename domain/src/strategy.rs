@@ -5,7 +5,7 @@ use crate::models::event::Event;
 
 use crate::models::event::Signal;
 use crate::models::price::PriceHistory;
-use crate::risk::RiskEngine;
+use crate::risk::risk_engine::RiskEngine;
 
 use std::io;
 use std::option::Option;

@@ -1,4 +1,4 @@
-use std::io;
+use std::{io, sync::Arc};
 
 use futures_util::future;
 
@@ -25,16 +25,16 @@ impl Position {
 }
 
 pub struct Portfolio {
-    account: Box<dyn Account>,
-    order_reader: Box<dyn OrderReader>,
-    qoute_provider: Box<dyn QouteProvider>,
+    account: Arc<dyn Account>,
+    order_reader: Arc<dyn OrderReader>,
+    qoute_provider: Arc<dyn QouteProvider>,
 }
 
 impl Portfolio {
     pub fn new(
-        order_reader: Box<dyn OrderReader>,
-        qoute_provider: Box<dyn QouteProvider>,
-        account: Box<dyn Account>,
+        account: Arc<dyn Account>,
+        order_reader: Arc<dyn OrderReader>,
+        qoute_provider: Arc<dyn QouteProvider>,
     ) -> Self {
         Self {
             order_reader,

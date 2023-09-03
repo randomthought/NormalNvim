@@ -6,6 +6,15 @@ use crate::models::security::Security;
 use crate::order::OrderManager;
 use crate::portfolio::Portfolio;
 use std::io;
+use std::pin::Pin;
+use std::sync::Arc;
+
+use super::config::RiskEngineConfig;
+
+pub enum SignalResult {
+    Rejected(String), // TODO: maybe make Rejected(String) so you can add a reason for rejection
+    PlacedOrder(Order),
+}
 
 enum TradingState {
     Active, // trading is enabled
@@ -14,69 +23,20 @@ enum TradingState {
     Halted,   // all trading commands except cancels are denied
 }
 
-pub enum SignalResult {
-    Rejected(String), // TODO: maybe make Rejected(String) so you can add a reason for rejection
-    PlacedOrder(Order),
-}
-
-#[derive(Debug, Clone, Copy)]
-pub struct RiskEngineConfig {
-    pub max_trade_portfolio_accumulaton: f64,
-    // TODO: add functionality to check portfolio risk on orders
-    pub max_portfolio_risk: f64,
-    pub max_risk_per_trade: f64,
-    pub max_open_trades: Option<u32>,
-    // TODO: nautilus_trader has max_order_submit_rate and max_order_modify_rate. Maybe it's worth having
-}
-
-impl RiskEngineConfig {
-    pub fn new(
-        max_portfolio_risk: f64,
-        max_risk_per_trade: f64,
-        max_trade_portfolio_accumulaton: f64,
-    ) -> Result<Self, String> {
-        if (0.0..=1.0).contains(&max_risk_per_trade) {
-            return Err("{dbg!(max_risk_per_trade)} has to be between a value 0 and 1".to_owned());
-        }
-
-        if (0.0..=1.0).contains(&max_portfolio_risk) {
-            return Err("{dbg!(max_portfolio_risk)} has to be between a value 0 and 1".to_owned());
-        }
-
-        if (0.0..=1.0).contains(&max_trade_portfolio_accumulaton) {
-            return Err(
-                "{dbg!(max_trade_portfolio_accumulaton)} has to be between a value 0 and 1"
-                    .to_owned(),
-            );
-        }
-
-        if max_portfolio_risk < max_risk_per_trade {
-            return Err("risk per trade cannot be greater than portfolio risk".to_owned());
-        }
-
-        Ok(Self {
-            max_portfolio_risk,
-            max_risk_per_trade,
-            max_open_trades: None,
-            max_trade_portfolio_accumulaton,
-        })
-    }
-}
-
 pub struct RiskEngine {
     risk_engine_config: RiskEngineConfig,
     // TODO: state has to be mutable.
     trading_state: TradingState,
-    qoute_provider: Box<dyn QouteProvider + Send + Sync>,
-    order_manager: Box<dyn OrderManager + Send + Sync>,
+    qoute_provider: Arc<dyn QouteProvider>,
+    order_manager: Arc<dyn OrderManager>,
     portfolio: Box<Portfolio>,
 }
 
 impl RiskEngine {
     pub fn new(
         risk_engine_config: RiskEngineConfig,
-        order_manager: Box<dyn OrderManager + Send + Sync>,
-        qoute_provider: Box<dyn QouteProvider + Send + Sync>,
+        qoute_provider: Arc<dyn QouteProvider>,
+        order_manager: Arc<dyn OrderManager>,
         portfolio: Box<Portfolio>,
     ) -> Self {
         Self {

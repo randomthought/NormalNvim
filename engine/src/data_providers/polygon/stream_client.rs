@@ -23,11 +23,10 @@ pub struct PolygonClient {
     vec: Vec<PriceHistory>,
     api_key: String,
     socket: WebSocket<MaybeTlsStream<TcpStream>>,
-    client: reqwest::Client,
 }
 
 impl PolygonClient {
-    pub async fn new(api_key: String, client: reqwest::Client) -> Result<Self, io::Error> {
+    pub async fn new(api_key: String) -> Result<Self, io::Error> {
         let (socket, _) =
             connect(Url::parse(POLYGON_STOCKS_WS_API).unwrap()).expect("Can't connect");
 
@@ -35,7 +34,6 @@ impl PolygonClient {
             api_key,
             socket,
             vec: Vec::new(),
-            client,
         };
 
         client.authenticate()?;
@@ -79,21 +77,6 @@ impl PolygonClient {
         println!("{:?}", deserialized);
 
         Ok(())
-    }
-}
-
-#[async_trait]
-impl QouteProvider for PolygonClient {
-    async fn get_quote(&self, security: &Security) -> Result<Quote, io::Error> {
-        // let ticker = security.ticker;
-        let url = format!(
-            "https://api.polygon.io/v2/last/nbbo/{}?apiKey={}",
-            security.ticker, self.api_key
-        );
-        let resp = self.client.get(url).send().await.unwrap();
-        let qoute_response = resp.json::<QuoteResponse>().await.unwrap();
-        let qoute = utils::to_quote(&qoute_response);
-        Ok(qoute)
     }
 }
 
