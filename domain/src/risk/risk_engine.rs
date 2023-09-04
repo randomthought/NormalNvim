@@ -13,6 +13,7 @@ use std::pin::Pin;
 use std::sync::Arc;
 
 use super::config::RiskEngineConfig;
+use anyhow::{Context, Result};
 
 pub enum SignalResult {
     Rejected(String), // TODO: maybe make Rejected(String) so you can add a reason for rejection
@@ -51,7 +52,7 @@ impl RiskEngine {
         }
     }
 
-    pub async fn process_signal(&self, signal: Signal) -> Result<SignalResult, io::Error> {
+    pub async fn process_signal(&self, signal: Signal) -> Result<SignalResult> {
         println!("risk_engine processed signal");
         if let TradingState::Halted = self.trading_state {
             return Ok(SignalResult::Rejected(
@@ -73,7 +74,7 @@ impl RiskEngine {
         let account_value = self.portfolio.account_value().await?;
         let qoute = self.qoute_provider.get_quote(&signal.security).await?;
 
-        let quantity = self.calulate_risk_quantity(account_value, &qoute, &signal);
+        let quantity = self.calulate_risk_quantity(account_value, &qoute, &signal)?;
 
         if !self.quantity_within_risks_params(quantity, signal.side, &qoute, account_value) {
             return Ok(SignalResult::Rejected(
@@ -99,15 +100,18 @@ impl RiskEngine {
         account_value: Decimal,
         qoute: &Quote,
         signal: &Signal,
-    ) -> u64 {
+    ) -> Result<u64> {
         let obtain_price = match signal.side {
             order::Side::Long => qoute.ask,
             order::Side::Short => qoute.bid,
         };
 
         // TODO: think about making risk engine values all decimals?
-        let max_risk_per_trade =
-            Decimal::from_f64(self.risk_engine_config.max_risk_per_trade).unwrap();
+        let max_risk_per_trade = Decimal::from_f64(self.risk_engine_config.max_risk_per_trade)
+            .context(format!(
+                "unable to parse '{}' to decimal",
+                self.risk_engine_config.max_risk_per_trade
+            ))?;
 
         let max_trade_loss = account_value * max_risk_per_trade;
 
@@ -115,7 +119,8 @@ impl RiskEngine {
 
         let quantity = (max_trade_loss / risk_amount).trunc();
 
-        todo!()
+        let result = u64::try_from(quantity)?;
+        Ok(result)
     }
 
     fn quantity_within_risks_params(

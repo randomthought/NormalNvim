@@ -13,11 +13,13 @@ use domain::{
     strategy::Algorithm,
 };
 
+use anyhow::{Context, Result};
+
 pub struct FakeAlgo {}
 
 #[async_trait]
 impl Algorithm for FakeAlgo {
-    async fn process(&self, price_history: &PriceHistory) -> Result<Option<Signal>, io::Error> {
+    async fn process(&self, price_history: &PriceHistory) -> Result<Option<Signal>> {
         let num = rand::thread_rng().gen_range(0..100);
         if num > 50 {
             println!("fake_algo sending signal");

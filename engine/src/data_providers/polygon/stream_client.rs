@@ -1,23 +1,19 @@
-use std::io;
-use std::net::TcpStream;
-
+use super::{models::Aggregates, utils};
+use crate::data_providers::polygon::models::{QuoteResponse, ResponseMessage};
+use anyhow::{Context, Result};
+use async_trait::async_trait;
 use domain::models::{
     price::{Candle, PriceHistory, Resolution},
     security::{AssetType, Exchange, Security},
 };
+use domain::{data::QouteProvider, models::price::Quote};
 use futures_util::Stream;
-
+use std::io;
+use std::net::TcpStream;
 use tungstenite::{connect, stream::MaybeTlsStream, Message, WebSocket};
 use url::Url;
 
 static POLYGON_STOCKS_WS_API: &str = "wss://delayed.polygon.io/stocks";
-
-use crate::data_providers::polygon::models::{QuoteResponse, ResponseMessage};
-
-use super::{models::Aggregates, utils};
-
-use async_trait::async_trait;
-use domain::{data::QouteProvider, models::price::Quote};
 
 pub struct PolygonClient {
     vec: Vec<PriceHistory>,
@@ -26,7 +22,7 @@ pub struct PolygonClient {
 }
 
 impl PolygonClient {
-    pub async fn new(api_key: String) -> Result<Self, io::Error> {
+    pub async fn new(api_key: String) -> Result<Self> {
         let (socket, _) =
             connect(Url::parse(POLYGON_STOCKS_WS_API).unwrap()).expect("Can't connect");
 
@@ -41,7 +37,7 @@ impl PolygonClient {
         Ok(client)
     }
 
-    fn authenticate(&mut self) -> Result<(), io::Error> {
+    fn authenticate(&mut self) -> Result<()> {
         let m = self.socket.read_message().expect("error connecting");
         let s = m.to_text().unwrap();
         let deserialized: Vec<ResponseMessage> = serde_json::from_str(s)
@@ -81,7 +77,7 @@ impl PolygonClient {
 }
 
 impl Stream for PolygonClient {
-    type Item = Result<PriceHistory, io::Error>;
+    type Item = Result<PriceHistory>;
 
     fn poll_next(
         mut self: std::pin::Pin<&mut Self>,
@@ -118,8 +114,9 @@ impl Stream for PolygonClient {
                 std::task::Poll::Ready(None)
             }
             Err(err) => {
-                let err = io::Error::new(io::ErrorKind::Other, err.to_string());
-                println!("Error: {}", err);
+                let err = anyhow::Error::new(err);
+                println!("Error: {:?}", err);
+
                 std::task::Poll::Ready(Some(Err(err)))
             }
         }

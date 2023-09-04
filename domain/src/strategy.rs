@@ -1,18 +1,16 @@
-use async_trait::async_trait;
-use futures_util::future;
-
 use crate::models::event::Event;
-
 use crate::models::event::Signal;
 use crate::models::price::PriceHistory;
 use crate::risk::risk_engine::RiskEngine;
-
+use anyhow::{Context, Result};
+use async_trait::async_trait;
+use futures_util::future;
 use std::io;
 use std::option::Option;
 
 #[async_trait]
 pub trait Algorithm {
-    async fn process(&self, price_history: &PriceHistory) -> Result<Option<Signal>, io::Error>;
+    async fn process(&self, price_history: &PriceHistory) -> Result<Option<Signal>>;
 }
 
 pub struct StrategyEngine {
@@ -31,7 +29,7 @@ impl StrategyEngine {
         }
     }
 
-    pub async fn process(&self, price_data: PriceHistory) -> Result<(), io::Error> {
+    pub async fn process(&self, price_data: PriceHistory) -> Result<()> {
         let futures: Vec<_> = self
             .algorithms
             .iter()
@@ -44,7 +42,7 @@ impl StrategyEngine {
                     let se = Event::Signal(signal);
                 }
 
-                Ok(()) as Result<(), io::Error>
+                Ok(()) as Result<()>
             })
             .collect();
 
