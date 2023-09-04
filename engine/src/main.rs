@@ -1,5 +1,4 @@
-use std::{pin::Pin, sync::Arc};
-
+use anyhow::Result;
 use domain::{
     engine::Engine,
     portfolio::Portfolio,
@@ -12,11 +11,13 @@ use engine::{
     data_providers::polygon::{self, stream_client::PolygonClient},
 };
 use rust_decimal::{prelude::FromPrimitive, Decimal};
+use std::env;
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
     let client = reqwest::Client::new();
-    let api_key = "XXX..".to_owned();
+    let api_key = env::var("API_KEY").unwrap();
     let polygon_client = PolygonClient::new(api_key.clone()).await.unwrap();
     let quite_provider = polygon::api_client::ApiClient::new(api_key.clone(), client);
     let quite_provider_ = Arc::new(quite_provider);
