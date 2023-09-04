@@ -1,14 +1,8 @@
 use super::{models::Aggregates, utils};
-use crate::data_providers::polygon::models::{QuoteResponse, ResponseMessage};
-use anyhow::{Context, Result};
-use async_trait::async_trait;
-use domain::models::{
-    price::{Candle, PriceHistory, Resolution},
-    security::{AssetType, Exchange, Security},
-};
-use domain::{data::QouteProvider, models::price::Quote};
+use crate::data_providers::polygon::models::ResponseMessage;
+use anyhow::Result;
+use domain::models::price::PriceHistory;
 use futures_util::Stream;
-use std::io;
 use std::net::TcpStream;
 use tungstenite::{connect, stream::MaybeTlsStream, Message, WebSocket};
 use url::Url;

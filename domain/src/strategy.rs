@@ -2,10 +2,9 @@ use crate::models::event::Event;
 use crate::models::event::Signal;
 use crate::models::price::PriceHistory;
 use crate::risk::risk_engine::RiskEngine;
-use anyhow::{Context, Result};
+use anyhow::Result;
 use async_trait::async_trait;
 use futures_util::future;
-use std::io;
 use std::option::Option;
 
 #[async_trait]

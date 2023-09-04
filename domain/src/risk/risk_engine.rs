@@ -1,19 +1,14 @@
+use super::config::RiskEngineConfig;
 use crate::data::QouteProvider;
 use crate::models::event::Signal;
 use crate::models::order::{self, Order, StopLimitMarket};
 use crate::models::price::Quote;
-use crate::models::security::Security;
 use crate::order::OrderManager;
 use crate::portfolio::Portfolio;
+use anyhow::{Context, Result};
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
-use std::io;
-use std::ops::Mul;
-use std::pin::Pin;
 use std::sync::Arc;
-
-use super::config::RiskEngineConfig;
-use anyhow::{Context, Result};
 
 pub enum SignalResult {
     Rejected(String), // TODO: maybe make Rejected(String) so you can add a reason for rejection
@@ -89,7 +84,7 @@ impl RiskEngine {
         Ok(SignalResult::PlacedOrder(order))
     }
 
-    async fn get_open_trades(&self) -> Result<u32, io::Error> {
+    async fn get_open_trades(&self) -> Result<u32> {
         let results = self.order_manager.orders().await?.len();
 
         Ok(results as u32)

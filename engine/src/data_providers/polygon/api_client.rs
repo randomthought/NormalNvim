@@ -1,12 +1,11 @@
-use std::io;
-
+use super::{models::QuoteResponse, utils};
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 use domain::{
     data::QouteProvider,
     models::{price::Quote, security::Security},
 };
-
-use super::{models::QuoteResponse, utils};
+use std::io;
 
 pub struct ApiClient {
     api_key: String,
@@ -21,7 +20,7 @@ impl ApiClient {
 
 #[async_trait]
 impl QouteProvider for ApiClient {
-    async fn get_quote(&self, security: &Security) -> Result<Quote, io::Error> {
+    async fn get_quote(&self, security: &Security) -> Result<Quote> {
         // let ticker = security.ticker;
         let url = format!(
             "https://api.polygon.io/v2/last/nbbo/{}?apiKey={}",

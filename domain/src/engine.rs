@@ -1,9 +1,7 @@
-use futures_util::{Stream, StreamExt};
-use std::{io, pin::Pin, sync::Arc};
-
-use anyhow::{Context, Result};
-
 use crate::{models::price::PriceHistory, strategy::StrategyEngine};
+use anyhow::Result;
+use futures_util::{Stream, StreamExt};
+use std::pin::Pin;
 
 pub struct Engine {
     strategy_engine: StrategyEngine,

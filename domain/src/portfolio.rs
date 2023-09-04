@@ -1,13 +1,12 @@
-use std::{io, sync::Arc};
-
-use futures_util::future;
-use rust_decimal::Decimal;
-
 use crate::{
     data::QouteProvider,
     models::order::{FilledOrder, OrderResult, Side},
     order::{Account, OrderReader},
 };
+use anyhow::Result;
+use futures_util::future;
+use rust_decimal::Decimal;
+use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct Position {
@@ -43,7 +42,7 @@ impl Portfolio {
         }
     }
 
-    pub async fn get_open_positions(&self) -> Result<Vec<Position>, io::Error> {
+    pub async fn get_open_positions(&self) -> Result<Vec<Position>> {
         let orders = self.order_reader.orders().await?;
 
         // let futures: Vec<impl Future<Output = Result<Option<Position>, io::Error>>> = orders
@@ -63,7 +62,7 @@ impl Portfolio {
 
                 let p = Position::new(order.clone(), profit);
 
-                Ok(p) as Result<Position, io::Error>
+                Ok(p) as Result<Position>
             })
             .collect();
 
@@ -73,7 +72,7 @@ impl Portfolio {
     }
 
     // Total portfolio value if we sold all holdings at current market rates.
-    pub async fn unrealized_profit(&self) -> Result<Decimal, io::Error> {
+    pub async fn unrealized_profit(&self) -> Result<Decimal> {
         let result: Decimal = self
             .get_open_positions()
             .await?
@@ -84,11 +83,11 @@ impl Portfolio {
         Ok(result)
     }
 
-    pub async fn account_value(&self) -> Result<Decimal, io::Error> {
+    pub async fn account_value(&self) -> Result<Decimal> {
         self.account.get_account_balance().await
     }
 
-    pub async fn margin_remaining(&self) -> Result<Decimal, io::Error> {
+    pub async fn margin_remaining(&self) -> Result<Decimal> {
         self.account.get_buying_power().await
     }
 }

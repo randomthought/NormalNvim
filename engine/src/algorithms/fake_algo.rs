@@ -1,19 +1,15 @@
-use rand::Rng;
-use rust_decimal::{prelude::FromPrimitive, Decimal};
-use std::io;
-
+use anyhow::Result;
 use async_trait::async_trait;
 use domain::{
     models::{
         event::Signal,
         order::{Side, TimesInForce},
         price::PriceHistory,
-        security::Security,
     },
     strategy::Algorithm,
 };
-
-use anyhow::{Context, Result};
+use rand::Rng;
+use rust_decimal::{prelude::FromPrimitive, Decimal};
 
 pub struct FakeAlgo {}
 
