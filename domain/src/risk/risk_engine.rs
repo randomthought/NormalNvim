@@ -5,7 +5,10 @@ use crate::models::price::Quote;
 use crate::models::security::Security;
 use crate::order::OrderManager;
 use crate::portfolio::Portfolio;
+use rust_decimal::prelude::FromPrimitive;
+use rust_decimal::Decimal;
 use std::io;
+use std::ops::Mul;
 use std::pin::Pin;
 use std::sync::Arc;
 
@@ -91,19 +94,28 @@ impl RiskEngine {
         Ok(results as u32)
     }
 
-    fn calulate_risk_quantity(&self, account_value: f64, qoute: &Quote, signal: &Signal) -> u64 {
+    fn calulate_risk_quantity(
+        &self,
+        account_value: Decimal,
+        qoute: &Quote,
+        signal: &Signal,
+    ) -> u64 {
         let obtain_price = match signal.side {
             order::Side::Long => qoute.ask,
             order::Side::Short => qoute.bid,
         };
 
-        let max_trade_loss = account_value * self.risk_engine_config.max_risk_per_trade;
+        // TODO: think about making risk engine values all decimals?
+        let max_risk_per_trade =
+            Decimal::from_f64(self.risk_engine_config.max_risk_per_trade).unwrap();
 
-        let risk_amount = f64::abs(obtain_price - signal.stop);
+        let max_trade_loss = account_value * max_risk_per_trade;
 
-        let quantity = (max_trade_loss / risk_amount).floor();
+        let risk_amount = (obtain_price - signal.stop).abs();
 
-        quantity as u64
+        let quantity = (max_trade_loss / risk_amount).trunc();
+
+        todo!()
     }
 
     fn quantity_within_risks_params(
@@ -111,18 +123,22 @@ impl RiskEngine {
         quantity: u64,
         side: order::Side,
         qoute: &Quote,
-        account_value: f64,
+        account_value: Decimal,
     ) -> bool {
         // TODO: unit test needed for this.
-        let max_spend_on_trade =
-            self.risk_engine_config.max_trade_portfolio_accumulaton * account_value;
+
+        // TODO: think about making risk engine values all decimals?
+        let max_trade_portfolio_accumulaton =
+            Decimal::from_f64(self.risk_engine_config.max_trade_portfolio_accumulaton).unwrap();
+
+        let max_spend_on_trade = account_value * max_trade_portfolio_accumulaton;
 
         let obtain_price = match side {
             order::Side::Long => qoute.ask,
             order::Side::Short => qoute.bid,
         };
 
-        let spend_total = obtain_price * (quantity as f64);
+        let spend_total = obtain_price * Decimal::from_u64(quantity).unwrap();
 
         spend_total <= max_spend_on_trade
     }

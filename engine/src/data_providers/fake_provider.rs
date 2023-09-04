@@ -6,6 +6,7 @@ use domain::models::{
     security::{self, Security},
 };
 use futures_util::stream::Stream;
+use rust_decimal::{prelude::FromPrimitive, Decimal};
 
 pub struct FakePriceHistoryStream {
     pub max: i32,
@@ -30,7 +31,16 @@ impl Stream for FakePriceHistoryStream {
             ticker: "AAPL".to_owned(),
         };
 
-        let candles = vec![Candle::new(99.96, 99.98, 99.95, 99.7, 100, 888, 0).unwrap()];
+        let candles = vec![Candle::new(
+            Decimal::from_f64(99.96).unwrap(),
+            Decimal::from_f64(99.98).unwrap(),
+            Decimal::from_f64(99.95).unwrap(),
+            Decimal::from_f64(99.7).unwrap(),
+            100,
+            888,
+            0,
+        )
+        .unwrap()];
 
         let price_history = PriceHistory {
             security,

@@ -8,3 +8,4 @@ edition = "2021"
 [dependencies]
 async-trait = "0.1.72"
 futures-util = "0.3.28"
+rust_decimal = "1.32"

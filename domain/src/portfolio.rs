@@ -1,6 +1,7 @@
 use std::{io, sync::Arc};
 
 use futures_util::future;
+use rust_decimal::Decimal;
 
 use crate::{
     data::QouteProvider,
@@ -11,12 +12,11 @@ use crate::{
 #[derive(Debug)]
 pub struct Position {
     filled_order: FilledOrder,
-    // TODO: consider using a different type for money
-    unlrealized_profit: f64,
+    unlrealized_profit: Decimal,
 }
 
 impl Position {
-    pub fn new(filled_order: FilledOrder, unlrealized_profit: f64) -> Self {
+    pub fn new(filled_order: FilledOrder, unlrealized_profit: Decimal) -> Self {
         Self {
             filled_order,
             unlrealized_profit,
@@ -73,8 +73,8 @@ impl Portfolio {
     }
 
     // Total portfolio value if we sold all holdings at current market rates.
-    pub async fn unrealized_profit(&self) -> Result<f64, io::Error> {
-        let result: f64 = self
+    pub async fn unrealized_profit(&self) -> Result<Decimal, io::Error> {
+        let result: Decimal = self
             .get_open_positions()
             .await?
             .iter()
@@ -84,11 +84,11 @@ impl Portfolio {
         Ok(result)
     }
 
-    pub async fn account_value(&self) -> Result<f64, io::Error> {
+    pub async fn account_value(&self) -> Result<Decimal, io::Error> {
         self.account.get_account_balance().await
     }
 
-    pub async fn margin_remaining(&self) -> Result<f64, io::Error> {
+    pub async fn margin_remaining(&self) -> Result<Decimal, io::Error> {
         self.account.get_buying_power().await
     }
 }

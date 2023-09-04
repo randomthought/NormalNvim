@@ -11,6 +11,7 @@ use engine::{
     brokers::fake_broker::FakeBroker,
     data_providers::polygon::{self, stream_client::PolygonClient},
 };
+use rust_decimal::{prelude::FromPrimitive, Decimal};
 
 #[tokio::main]
 async fn main() {
@@ -20,9 +21,7 @@ async fn main() {
     let quite_provider = polygon::api_client::ApiClient::new(api_key.clone(), client);
     let quite_provider_ = Arc::new(quite_provider);
 
-    let broker = FakeBroker {
-        account_balance: 100000.0,
-    };
+    let broker = FakeBroker::new(Decimal::from_u64(100_000).unwrap());
     let broker_ = Arc::new(broker);
     let risk_engine_config = RiskEngineConfig {
         max_trade_portfolio_accumulaton: 0.10,

@@ -149,7 +149,7 @@ pub struct FilledOrder {
     pub datetime: i32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum OrderResult {
     FilledOrder(FilledOrder),
     OrderTicket(OrderTicket),

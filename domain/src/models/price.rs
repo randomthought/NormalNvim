@@ -1,7 +1,9 @@
+use rust_decimal::Decimal;
+
 use super::security::Security;
 
 pub type Symbol = String;
-pub type Price = f64;
+pub type Price = Decimal;
 
 #[derive(Debug, Clone)]
 #[non_exhaustive]

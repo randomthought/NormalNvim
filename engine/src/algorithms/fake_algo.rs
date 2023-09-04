@@ -1,4 +1,5 @@
 use rand::Rng;
+use rust_decimal::{prelude::FromPrimitive, Decimal};
 use std::io;
 
 use async_trait::async_trait;
@@ -23,8 +24,8 @@ impl Algorithm for FakeAlgo {
             let signal = Signal::new(
                 "fake_algo".to_owned(),
                 price_history.security.to_owned(),
-                0.0,
-                2000000.0,
+                Decimal::from_f64(0.0).unwrap(),
+                Decimal::from_f64(2000000.0).unwrap(),
                 Side::Long,
                 TimesInForce::GTC,
                 0,
