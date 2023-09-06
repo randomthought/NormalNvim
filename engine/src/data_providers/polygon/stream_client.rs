@@ -97,7 +97,7 @@ impl Stream for PolygonClient {
                 }
 
                 for ele in deserialized {
-                    let ph = utils::to_price_history(&ele);
+                    let ph = utils::to_price_history(&ele)?;
                     self.vec.push(ph);
                 }
 

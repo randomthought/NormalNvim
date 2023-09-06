@@ -27,7 +27,7 @@ impl QouteProvider for ApiClient {
         );
         let resp = self.client.get(url).send().await?;
         let qoute_response = resp.json::<QuoteResponse>().await?;
-        let qoute = utils::to_quote(&qoute_response);
+        let qoute = utils::to_quote(&qoute_response)?;
         Ok(qoute)
     }
 }

@@ -5,7 +5,7 @@ use crate::models::order::{self, Order, StopLimitMarket};
 use crate::models::price::Quote;
 use crate::order::OrderManager;
 use crate::portfolio::Portfolio;
-use anyhow::{Context, Result};
+use anyhow::{Context, Ok, Result};
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 use std::sync::Arc;
@@ -71,7 +71,7 @@ impl RiskEngine {
 
         let quantity = self.calulate_risk_quantity(account_value, &qoute, &signal)?;
 
-        if !self.quantity_within_risks_params(quantity, signal.side, &qoute, account_value) {
+        if !self.quantity_within_risks_params(quantity, signal.side, &qoute, account_value)? {
             return Ok(SignalResult::Rejected(
                 "unable to afford this trade according to portfolio risk params".to_owned(),
             ));
@@ -124,12 +124,17 @@ impl RiskEngine {
         side: order::Side,
         qoute: &Quote,
         account_value: Decimal,
-    ) -> bool {
+    ) -> Result<bool> {
         // TODO: unit test needed for this.
 
         // TODO: think about making risk engine values all decimals?
-        let max_trade_portfolio_accumulaton =
-            Decimal::from_f64(self.risk_engine_config.max_trade_portfolio_accumulaton).unwrap();
+        let max_trade_portfolio_accumulaton = Decimal::from_f64(
+            self.risk_engine_config.max_trade_portfolio_accumulaton,
+        )
+        .context(format!(
+            "unable to convert '{}' to a decimal",
+            self.risk_engine_config.max_trade_portfolio_accumulaton
+        ))?;
 
         let max_spend_on_trade = account_value * max_trade_portfolio_accumulaton;
 
@@ -138,9 +143,11 @@ impl RiskEngine {
             order::Side::Short => qoute.bid,
         };
 
-        let spend_total = obtain_price * Decimal::from_u64(quantity).unwrap();
+        let spend_total = obtain_price
+            * Decimal::from_u64(quantity)
+                .context(format!("unable to convert '{}' to a decimal", quantity))?;
 
-        spend_total <= max_spend_on_trade
+        Ok(spend_total <= max_spend_on_trade)
     }
 }
 

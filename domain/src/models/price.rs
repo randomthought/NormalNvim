@@ -1,6 +1,6 @@
-use rust_decimal::Decimal;
-
 use super::security::Security;
+use anyhow::{ensure, Result};
+use rust_decimal::Decimal;
 
 pub type Symbol = String;
 pub type Price = Decimal;
@@ -24,10 +24,8 @@ impl Quote {
         bid_size: u64,
         ask_size: u64,
         timestamp: u64,
-    ) -> Result<Self, String> {
-        if bid > ask {
-            return Err("bid price should be lower than ask price".to_owned());
-        }
+    ) -> Result<Self> {
+        ensure!(bid > ask, "bid price should be lower than ask price");
 
         Ok(Self {
             security,
@@ -74,18 +72,18 @@ impl Candle {
         volume: u64,
         start_time: u64,
         end_time: u64,
-    ) -> Result<Self, String> {
-        if high < low {
-            return Err("High cannot be less than low".to_owned());
-        }
+    ) -> Result<Self> {
+        ensure!(high < low, "High cannot be less than low");
 
-        if high < open && open < low {
-            return Err("Open cannot be greater than high or less than low".to_owned());
-        }
+        ensure!(
+            high < open && open < low,
+            "Open cannot be greater than high or less than low"
+        );
 
-        if high < close && close < low {
-            return Err("Close cannot be greater than high or less than low".to_owned());
-        }
+        ensure!(
+            high < open && open < low,
+            "Close cannot be greater than high or less than low"
+        );
 
         Ok(Self {
             open,
