@@ -1,6 +1,6 @@
 use super::{models::Aggregates, utils};
 use crate::data_providers::polygon::models::ResponseMessage;
-use anyhow::Result;
+use anyhow::{ensure, Context, Result};
 use domain::models::price::PriceHistory;
 use futures_util::Stream;
 use std::net::TcpStream;
@@ -33,7 +33,7 @@ impl PolygonClient {
 
     fn authenticate(&mut self) -> Result<()> {
         let m = self.socket.read_message().expect("error connecting");
-        let s = m.to_text().unwrap();
+        let s = m.to_text().context("unable to parse connection message")?;
         let deserialized: Vec<ResponseMessage> = serde_json::from_str(s)
             .expect(format!("Unable to deserialize socket message: {}", s).as_str());
 
@@ -47,7 +47,7 @@ impl PolygonClient {
 
         // TODO: check if connection was succesful
         let m = self.socket.read_message().expect("error connecting");
-        let s = m.to_text().unwrap();
+        let s = m.to_text().context("unable to parse connection message")?;
         let deserialized: Vec<ResponseMessage> = serde_json::from_str(s)
             .expect(format!("Unable to deserialize socket message: {}", s).as_str());
 
@@ -60,7 +60,7 @@ impl PolygonClient {
             .expect("error subscribing");
 
         let m = self.socket.read_message().expect("error in subscribing");
-        let s = m.to_text().unwrap();
+        let s = m.to_text().context("unable to parse connection message")?;
         let deserialized: Vec<ResponseMessage> = serde_json::from_str(s)
             .expect(format!("Unable to deserialize socket message: {}", s).as_str());
 
@@ -83,7 +83,7 @@ impl Stream for PolygonClient {
 
         match self.socket.read_message() {
             Ok(msg) => {
-                let s = msg.to_text().unwrap();
+                let s = msg.to_text().expect("unable to parse message");
 
                 if s.is_empty() {
                     return std::task::Poll::Ready(None);

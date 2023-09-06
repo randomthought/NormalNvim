@@ -25,7 +25,7 @@ impl Quote {
         ask_size: u64,
         timestamp: u64,
     ) -> Result<Self> {
-        ensure!(bid > ask, "bid price should be lower than ask price");
+        ensure!(bid < ask, "bid price should be lower than ask price");
 
         Ok(Self {
             security,
@@ -73,17 +73,15 @@ impl Candle {
         start_time: u64,
         end_time: u64,
     ) -> Result<Self> {
-        ensure!(high < low, "High cannot be less than low");
+        ensure!(high >= low, "high cannot be less than low");
 
-        ensure!(
-            high < open && open < low,
-            "Open cannot be greater than high or less than low"
-        );
+        ensure!(high >= open, "open cannot be greater than high");
 
-        ensure!(
-            high < open && open < low,
-            "Close cannot be greater than high or less than low"
-        );
+        ensure!(open >= low, "open cannot be less than low");
+
+        ensure!(close >= low, "close cannot be less than low");
+
+        ensure!(high >= close, "close cannot be greater than high");
 
         Ok(Self {
             open,

@@ -39,7 +39,7 @@ impl RiskEngineConfig {
         );
 
         ensure!(
-            max_portfolio_risk < max_risk_per_trade,
+            max_portfolio_risk > max_risk_per_trade,
             "risk per trade cannot be greater than portfolio risk"
         );
 

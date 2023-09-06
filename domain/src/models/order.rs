@@ -99,14 +99,14 @@ impl StopLimitMarket {
     ) -> Result<Self> {
         if let Side::Long = side {
             ensure!(
-                stop > limit,
+                stop < limit,
                 "on a long tade, your stop price cannot be greater than your limit"
             );
         }
 
         if let Side::Short = side {
             ensure!(
-                stop < limit,
+                stop > limit,
                 "on a short tade, your stop price cannot be less than your limit"
             );
         }

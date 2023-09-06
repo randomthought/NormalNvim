@@ -3,6 +3,7 @@ use super::{
     price::{Price, PriceHistory},
     security::Security,
 };
+use anyhow::{ensure, Context, Result};
 
 #[derive(Debug, Clone)]
 pub enum Market {
@@ -33,22 +34,20 @@ impl Signal {
         times_in_force: TimesInForce,
         datetime: i32,
         strength: f32,
-    ) -> Result<Self, String> {
+    ) -> Result<Self> {
         match side {
             Side::Long => {
-                if stop >= limit {
-                    return Err(
-                        "limit has to be greater than the stop price on a long signal".to_owned(),
-                    );
-                }
+                ensure!(
+                    limit > stop,
+                    "limit has to be greater than the stop price on a long signal"
+                );
             }
 
             Side::Short => {
-                if stop <= limit {
-                    return Err(
-                        "limit has to be less than the stop price on a short signal".to_owned()
-                    );
-                }
+                ensure!(
+                    limit < stop,
+                    "limit has to be greater than the stop price on a long signal"
+                );
             }
         }
 

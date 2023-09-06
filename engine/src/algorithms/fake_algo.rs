@@ -1,4 +1,4 @@
-use anyhow::Result;
+use anyhow::{Context, Result};
 use async_trait::async_trait;
 use domain::{
     models::{
@@ -28,8 +28,7 @@ impl Algorithm for FakeAlgo {
                 TimesInForce::GTC,
                 0,
                 0.99,
-            )
-            .unwrap();
+            )?;
 
             return Ok(Some(signal));
         }

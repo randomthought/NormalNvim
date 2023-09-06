@@ -20,15 +20,14 @@ pub fn to_price_history(aggregates: &Aggregates) -> Result<PriceHistory> {
     };
 
     let candle = Candle::new(
-        Decimal::from_f64(aggregates.o).context("")?,
-        Decimal::from_f64(aggregates.h).context("")?,
-        Decimal::from_f64(aggregates.l).context("")?,
-        Decimal::from_f64(aggregates.c).context("")?,
+        Decimal::from_f64(aggregates.o).context("unable to convert open to decimal")?,
+        Decimal::from_f64(aggregates.h).context("unable to convert high to decimal")?,
+        Decimal::from_f64(aggregates.l).context("unable to convert low to decimal")?,
+        Decimal::from_f64(aggregates.c).context("unable to convert close to decimal")?,
         aggregates.v,
         aggregates.s,
         aggregates.e,
-    )
-    .unwrap();
+    )?;
 
     let history = vec![candle];
 
@@ -51,8 +50,8 @@ pub fn to_quote(qoute_response: &QuoteResponse) -> Result<Quote> {
 
     let quote = Quote::new(
         security,
-        Decimal::from_f64(results.p).unwrap(),
-        Decimal::from_f64(results.p2).unwrap(),
+        Decimal::from_f64(results.p).context("unable to convert bid to decimal")?,
+        Decimal::from_f64(results.p2).context("unable to convert ask to decimal")?,
         results.s2,
         results.s,
         results.t2,
