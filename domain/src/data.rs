@@ -2,13 +2,12 @@ use crate::models::{
     price::{PriceHistory, Quote, Resolution},
     security::Security,
 };
+use anyhow::Result;
 use async_trait::async_trait;
-use std::io;
 
 #[async_trait]
 pub trait QouteProvider {
-    async fn get_quote(&self, security: &Security) -> Result<Quote, io::Error>;
-    async fn get_quotes(&self, security: &[&Security]) -> Result<&[Quote], io::Error>;
+    async fn get_quote(&self, security: &Security) -> Result<Quote>;
 }
 
 #[async_trait]

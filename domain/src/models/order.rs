@@ -3,6 +3,7 @@
 
 use super::price::Price;
 use super::security::Security;
+use anyhow::{ensure, Result};
 
 #[derive(Debug, Clone, Copy)]
 pub enum Side {
@@ -12,7 +13,7 @@ pub enum Side {
 
 #[derive(Debug, Clone)]
 pub struct Market {
-    quantity: i32,
+    quantity: u32,
     side: Side,
     security: Security, // TODO: Consider using lifetime pointer
     times_in_force: TimesInForce,
@@ -21,7 +22,7 @@ pub struct Market {
 impl Market {
     // constructor
     pub fn new(
-        quantity: i32,
+        quantity: u32,
         side: Side,
         security: Security,
         times_in_force: TimesInForce,
@@ -82,7 +83,7 @@ pub struct StopLimitMarket {
     stop: Price,
     limit: Price,
     side: Side,
-    quantity: i32,
+    quantity: u64,
     security: Security, // TODO: Consider using lifetime pointer
     times_in_force: TimesInForce,
 }
@@ -90,26 +91,24 @@ pub struct StopLimitMarket {
 impl StopLimitMarket {
     pub fn new(
         security: Security,
-        quantity: i32,
+        quantity: u64,
         side: Side,
         stop: Price,
         limit: Price,
         times_in_force: TimesInForce,
-    ) -> Result<Self, String> {
+    ) -> Result<Self> {
         if let Side::Long = side {
-            if stop > limit {
-                return Err(
-                    "on a long tade, your stop price cannot be greater than your limit".to_owned(),
-                );
-            }
+            ensure!(
+                stop > limit,
+                "on a long tade, your stop price cannot be greater than your limit"
+            );
         }
 
         if let Side::Short = side {
-            if stop < limit {
-                return Err(
-                    "on a short tade, your stop price cannot be less than your limit".to_owned(),
-                );
-            }
+            ensure!(
+                stop < limit,
+                "on a short tade, your stop price cannot be less than your limit"
+            );
         }
 
         Ok(Self {
@@ -149,7 +148,7 @@ pub struct FilledOrder {
     pub datetime: i32,
 }
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 pub enum OrderResult {
     FilledOrder(FilledOrder),
     OrderTicket(OrderTicket),

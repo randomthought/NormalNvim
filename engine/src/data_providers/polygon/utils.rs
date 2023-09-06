@@ -1,0 +1,62 @@
+use super::models::{Aggregates, QuoteResponse};
+use anyhow::{Context, Ok, Result};
+use domain::models::{
+    price::{Candle, PriceHistory, Quote, Resolution},
+    security::{AssetType, Exchange, Security},
+};
+use rust_decimal::{prelude::FromPrimitive, Decimal};
+
+pub fn to_price_history(aggregates: &Aggregates) -> Result<PriceHistory> {
+    let exchange = if aggregates.otc {
+        Exchange::OTC
+    } else {
+        Exchange::Unkown
+    };
+
+    let security = Security {
+        asset_type: AssetType::Equity,
+        exchange,
+        ticker: aggregates.sym.to_owned(),
+    };
+
+    let candle = Candle::new(
+        Decimal::from_f64(aggregates.o).context("")?,
+        Decimal::from_f64(aggregates.h).context("")?,
+        Decimal::from_f64(aggregates.l).context("")?,
+        Decimal::from_f64(aggregates.c).context("")?,
+        aggregates.v,
+        aggregates.s,
+        aggregates.e,
+    )
+    .unwrap();
+
+    let history = vec![candle];
+
+    let price_history = PriceHistory {
+        security,
+        history,
+        resolution: Resolution::Second,
+    };
+
+    Ok(price_history)
+}
+
+pub fn to_quote(qoute_response: &QuoteResponse) -> Result<Quote> {
+    let results = &qoute_response.results;
+    let security = Security {
+        asset_type: AssetType::Equity,
+        exchange: Exchange::Unkown,
+        ticker: results.t.to_owned(),
+    };
+
+    let quote = Quote::new(
+        security,
+        Decimal::from_f64(results.p).unwrap(),
+        Decimal::from_f64(results.p2).unwrap(),
+        results.s2,
+        results.s,
+        results.t2,
+    )?;
+
+    Ok(quote)
+}

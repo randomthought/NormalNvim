@@ -1,23 +1,40 @@
 use super::security::Security;
+use anyhow::{ensure, Result};
+use rust_decimal::Decimal;
 
 pub type Symbol = String;
-pub type Price = f32;
+pub type Price = Decimal;
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct Quote {
-    pub bid: f32,
-    pub ask: f32,
-    pub volume: u32,
+    pub security: Security,
+    pub bid: Price,
+    pub bid_size: u64,
+    pub ask: Price,
+    pub ask_size: u64,
+    pub timestamp: u64,
 }
 
 impl Quote {
-    pub fn new(bid: f32, ask: f32, volume: u32) -> Result<Self, String> {
-        if bid > ask {
-            return Err("bid price should be lower than ask price".to_owned());
-        }
+    pub fn new(
+        security: Security,
+        bid: Price,
+        ask: Price,
+        bid_size: u64,
+        ask_size: u64,
+        timestamp: u64,
+    ) -> Result<Self> {
+        ensure!(bid > ask, "bid price should be lower than ask price");
 
-        Ok(Self { bid, ask, volume })
+        Ok(Self {
+            security,
+            bid,
+            ask,
+            bid_size,
+            ask_size,
+            timestamp,
+        })
     }
 }
 
@@ -33,15 +50,17 @@ pub enum Resolution {
 }
 
 #[derive(Debug, Clone, Copy)]
+#[non_exhaustive]
 pub struct Candle {
-    high: Price,
-    open: Price,
-    low: Price,
-    close: Price,
+    pub high: Price,
+    pub open: Price,
+    pub low: Price,
+    pub close: Price,
     // The Unix Msec timestamp for the start of the aggregate window.
-    time: u32,
+    pub start_time: u64,
+    pub end_time: u64,
     // The trading volume of the symbol in the given time period.
-    volume: u32,
+    pub volume: u64,
 }
 
 impl Candle {
@@ -50,27 +69,29 @@ impl Candle {
         high: Price,
         low: Price,
         close: Price,
-        volume: u32,
-        time: u32,
-    ) -> Result<Self, String> {
-        if high < low {
-            return Err("High cannot be less than low".to_owned());
-        }
+        volume: u64,
+        start_time: u64,
+        end_time: u64,
+    ) -> Result<Self> {
+        ensure!(high < low, "High cannot be less than low");
 
-        if high < open && open < low {
-            return Err("Open cannot be greater than high or less than low".to_owned());
-        }
+        ensure!(
+            high < open && open < low,
+            "Open cannot be greater than high or less than low"
+        );
 
-        if high < close && close < low {
-            return Err("Close cannot be greater than high or less than low".to_owned());
-        }
+        ensure!(
+            high < open && open < low,
+            "Close cannot be greater than high or less than low"
+        );
 
         Ok(Self {
             open,
             high,
             low,
             close,
-            time,
+            start_time,
+            end_time,
             volume,
         })
     }
@@ -80,5 +101,5 @@ impl Candle {
 pub struct PriceHistory {
     pub security: Security,
     pub resolution: Resolution,
-    pub history: Box<Vec<Candle>>,
+    pub history: Vec<Candle>,
 }

@@ -1,40 +1,31 @@
-use futures_util::future;
-use std::{io, sync::Arc};
-
-use crate::{
-    event::event::{EventHandler, Pipe},
-    risk::RiskEngine,
-    strategy::StrategyEngine,
-};
+use crate::{models::price::PriceHistory, strategy::StrategyEngine};
+use anyhow::Result;
+use futures_util::{Stream, StreamExt};
+use std::pin::Pin;
 
 pub struct Engine {
     strategy_engine: StrategyEngine,
-    risk_engine: RiskEngine,
-    pipe: Arc<Box<dyn Pipe + Send + Sync>>,
+    market_stream: Pin<Box<dyn Stream<Item = Result<PriceHistory>>>>,
 }
 
 impl Engine {
     pub fn new(
         strategy_engine: StrategyEngine,
-        risk_engine: RiskEngine,
-
-        pipe: Arc<Box<dyn Pipe + Send + Sync>>,
+        market_stream: Pin<Box<dyn Stream<Item = Result<PriceHistory>>>>,
     ) -> Self {
         Self {
             strategy_engine,
-            risk_engine,
-            pipe,
+            market_stream,
         }
     }
 
-    pub async fn runner(&mut self) -> Result<(), io::Error> {
-        while let Some(event) = self.pipe.recieve().await? {
-            let f1 = self.strategy_engine.handle(event.clone());
-            let f2 = self.risk_engine.handle(event);
-
-            future::try_join_all(vec![f1, f2]).await?;
+    pub async fn runner(&mut self) -> Result<()> {
+        loop {
+            match self.market_stream.next().await {
+                Some(Ok(price_history)) => self.strategy_engine.process(price_history).await?,
+                Some(Err(err)) => return Err(err),
+                _ => (),
+            }
         }
-
-        Ok(())
     }
 }

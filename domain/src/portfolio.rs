@@ -1,22 +1,21 @@
-use std::io;
-
-use futures_util::future;
-
 use crate::{
     data::QouteProvider,
     models::order::{FilledOrder, OrderResult, Side},
-    order::OrderReader,
+    order::{Account, OrderReader},
 };
+use anyhow::Result;
+use futures_util::future;
+use rust_decimal::Decimal;
+use std::sync::Arc;
 
 #[derive(Debug)]
-pub struct Position<'a> {
-    filled_order: &'a FilledOrder,
-    // TODO: consider using a different type for money
-    unlrealized_profit: f32,
+pub struct Position {
+    filled_order: FilledOrder,
+    unlrealized_profit: Decimal,
 }
 
-impl<'a> Position<'a> {
-    pub fn new(filled_order: &'a FilledOrder, unlrealized_profit: f32) -> Self {
+impl Position {
+    pub fn new(filled_order: FilledOrder, unlrealized_profit: Decimal) -> Self {
         Self {
             filled_order,
             unlrealized_profit,
@@ -24,20 +23,26 @@ impl<'a> Position<'a> {
     }
 }
 
-pub struct Portfolio<'a> {
-    order_reader: &'a dyn OrderReader,
-    qoute_provider: &'a dyn QouteProvider,
+pub struct Portfolio {
+    account: Arc<dyn Account>,
+    order_reader: Arc<dyn OrderReader>,
+    qoute_provider: Arc<dyn QouteProvider>,
 }
 
-impl<'a> Portfolio<'a> {
-    pub fn new(order_reader: &'a dyn OrderReader, qoute_provider: &'a dyn QouteProvider) -> Self {
+impl Portfolio {
+    pub fn new(
+        account: Arc<dyn Account>,
+        order_reader: Arc<dyn OrderReader>,
+        qoute_provider: Arc<dyn QouteProvider>,
+    ) -> Self {
         Self {
             order_reader,
             qoute_provider,
+            account,
         }
     }
 
-    pub async fn get_open_positions(&self) -> Result<Vec<Position<'a>>, io::Error> {
+    pub async fn get_open_positions(&self) -> Result<Vec<Position>> {
         let orders = self.order_reader.orders().await?;
 
         // let futures: Vec<impl Future<Output = Result<Option<Position>, io::Error>>> = orders
@@ -55,9 +60,9 @@ impl<'a> Portfolio<'a> {
                     Side::Short => quote.bid - order.price,
                 };
 
-                let p = Position::new(order, profit);
+                let p = Position::new(order.clone(), profit);
 
-                Ok(p) as Result<Position, io::Error>
+                Ok(p) as Result<Position>
             })
             .collect();
 
@@ -67,8 +72,8 @@ impl<'a> Portfolio<'a> {
     }
 
     // Total portfolio value if we sold all holdings at current market rates.
-    pub async fn unrealized_profit(&self) -> Result<f32, io::Error> {
-        let result: f32 = self
+    pub async fn unrealized_profit(&self) -> Result<Decimal> {
+        let result: Decimal = self
             .get_open_positions()
             .await?
             .iter()
@@ -78,11 +83,11 @@ impl<'a> Portfolio<'a> {
         Ok(result)
     }
 
-    pub async fn total_profit(&self) -> f32 {
-        unimplemented!()
+    pub async fn account_value(&self) -> Result<Decimal> {
+        self.account.get_account_balance().await
     }
 
-    pub async fn margin_remaining(&self) -> f32 {
-        unimplemented!()
+    pub async fn margin_remaining(&self) -> Result<Decimal> {
+        self.account.get_buying_power().await
     }
 }

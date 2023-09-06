@@ -1,74 +1,48 @@
+use anyhow::Result;
 use domain::{
     engine::Engine,
-    event::{channel_pipe::ChannelPipe, event::Pipe},
-    models::{
-        event::{Event, Market},
-        price::{Candle, PriceHistory},
-        security::{self, Security},
-    },
-    risk::{RiskEngine, RiskEngineConfig},
+    portfolio::Portfolio,
+    risk::{config::RiskEngineConfig, risk_engine::RiskEngine},
     strategy::{Algorithm, StrategyEngine},
 };
-use engine::{algorithms::fake_algo::FakeAlgo, brokers::fake_broker::FakeOrderManager};
-use std::{io, sync::Arc};
-use tokio::time::{sleep, Duration};
+use engine::{
+    algorithms::fake_algo::FakeAlgo,
+    brokers::fake_broker::FakeBroker,
+    data_providers::polygon::{self, stream_client::PolygonClient},
+};
+use rust_decimal::{prelude::FromPrimitive, Decimal};
+use std::env;
+use std::sync::Arc;
 
 #[tokio::main]
 async fn main() {
-    let pipe = ChannelPipe::default();
+    let client = reqwest::Client::new();
+    let api_key = env::var("API_KEY").unwrap();
+    let polygon_client = PolygonClient::new(api_key.clone()).await.unwrap();
+    let quite_provider = polygon::api_client::ApiClient::new(api_key.clone(), client);
+    let quite_provider_ = Arc::new(quite_provider);
+
+    let broker = FakeBroker::new(Decimal::from_u64(100_000).unwrap());
+    let broker_ = Arc::new(broker);
     let risk_engine_config = RiskEngineConfig {
+        max_trade_portfolio_accumulaton: 0.10,
         max_portfolio_risk: 0.10,
-        max_risk_per_trade: 0.05,
+        max_risk_per_trade: 0.005,
         max_open_trades: None,
     };
 
-    let bpip: Arc<Box<dyn Pipe + Send + Sync>> = Arc::new(Box::new(pipe));
-
-    let order_manager = FakeOrderManager {};
+    let portfolio = Portfolio::new(broker_.clone(), broker_.clone(), quite_provider_.clone());
+    let risk_egnine = RiskEngine::new(
+        risk_engine_config,
+        quite_provider_.clone(),
+        broker_.clone(),
+        Box::new(portfolio),
+    );
+    let risk_engine_ = Box::new(risk_egnine);
 
     let algorithms: Vec<Box<dyn Algorithm + Send + Sync>> = vec![Box::new(FakeAlgo {})];
+    let strategy_engine = StrategyEngine::new(risk_engine_, algorithms);
 
-    let channel1 = bpip.clone();
-    let channel2 = bpip.clone();
-
-    let t1 = tokio::spawn(async move {
-        let risk_engine = RiskEngine::new(risk_engine_config, Box::new(order_manager));
-        let strategy_engine = StrategyEngine::new(algorithms, bpip.clone());
-        let mut algo_engine = Engine::new(strategy_engine, risk_engine, channel1);
-        algo_engine.runner().await.unwrap();
-    });
-
-    let t2 = tokio::spawn(async move {
-        let security = Security {
-            asset_type: security::AssetType::Equity,
-            exchange: security::Exchange::NASDAQ,
-            ticker: "AAPL".to_owned(),
-        };
-
-        let candles = vec![Candle::new(99.96, 99.98, 99.95, 99.7, 100, 888).unwrap()];
-
-        let price_history = PriceHistory {
-            security,
-            resolution: domain::models::price::Resolution::Second,
-            history: Box::new(candles),
-        };
-
-        let market = Market::DataEvent(price_history);
-        let event = Event::Market(market);
-
-        let mut i = 0;
-        loop {
-            i += 1;
-            channel2.send(event.clone()).await?;
-            sleep(Duration::from_millis(500)).await;
-            if i > 5 {
-                break;
-            }
-        }
-
-        Ok(()) as Result<(), io::Error>
-    });
-
-    t1.await.unwrap();
-    t2.await.unwrap();
+    let mut engine = Engine::new(strategy_engine, Box::pin(polygon_client));
+    engine.runner().await.unwrap();
 }
