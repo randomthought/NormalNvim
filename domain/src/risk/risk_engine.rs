@@ -77,7 +77,7 @@ impl RiskEngine {
             ));
         }
 
-        let order = _to_order(signal, quantity).unwrap();
+        let order = _to_order(signal, quantity)?;
 
         self.order_manager.place_order(&order).await?;
 
@@ -144,7 +144,7 @@ impl RiskEngine {
     }
 }
 
-fn _to_order(signal: Signal, quantity: u64) -> Result<Order, String> {
+fn _to_order(signal: Signal, quantity: u64) -> Result<Order> {
     let stop_limit_market = StopLimitMarket::new(
         signal.security,
         quantity,
