@@ -41,7 +41,8 @@ async fn main() {
     let algorithms: Vec<Box<dyn Algorithm + Send + Sync>> = vec![Box::new(FakeAlgo {})];
     let strategy_engine = StrategyEngine::new(risk_engine_, algorithms);
 
-    let data_stream = create_stream(api_key).unwrap();
+    let subscription = "A.*";
+    let data_stream = create_stream(&api_key, &subscription).unwrap();
     let parser = Box::new(PolygonParser::new());
     let mut engine = Engine::new(strategy_engine, parser, data_stream);
     engine.runner().await.unwrap();

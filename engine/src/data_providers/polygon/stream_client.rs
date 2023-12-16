@@ -21,7 +21,14 @@ impl Stream for PolygonStream {
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<Self::Item>> {
         match self.socket.read_message() {
-            Ok(msg) => return std::task::Poll::Ready(Some(Ok(msg.to_string()))),
+            Ok(msg) => {
+                let s = msg.to_string();
+                if s.is_empty() {
+                    return std::task::Poll::Pending;
+                }
+
+                return std::task::Poll::Ready(Some(Ok(s)));
+            }
             Err(err) => {
                 let err = anyhow::Error::new(err);
                 println!("Error: {:?}", err);
@@ -32,18 +39,22 @@ impl Stream for PolygonStream {
     }
 }
 
-pub fn create_stream(api_key: String) -> Result<Pin<Box<dyn Stream<Item = Result<String>>>>> {
+pub fn create_stream(
+    api_key: &str,
+    subsciption: &str,
+) -> Result<Pin<Box<dyn Stream<Item = Result<String>>>>> {
     let (mut socket, _) =
         connect(Url::parse(POLYGON_STOCKS_WS_API).unwrap()).expect("Can't connect");
 
     authenticate(api_key, &mut socket)?;
+    subscribe(subsciption, &mut socket)?;
 
     let pgs = PolygonStream { socket };
 
     Ok(Box::pin(pgs))
 }
 
-fn authenticate(api_key: String, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -> Result<()> {
+fn authenticate(api_key: &str, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -> Result<()> {
     let m = socket.read_message().expect("error connecting");
     let s = m.to_text().context("unable to parse connection message")?;
     let deserialized: Vec<ResponseMessage> = serde_json::from_str(s)
@@ -65,9 +76,13 @@ fn authenticate(api_key: String, socket: &mut WebSocket<MaybeTlsStream<TcpStream
 
     println!("{:?}", deserialized);
 
+    Ok(())
+}
+
+fn subscribe(subsciption: &str, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -> Result<()> {
     socket
         .write_message(Message::Text(
-            r#"{"action":"subscribe","params":"A.*"}"#.into(),
+            format!(r#"{{"action":"subscribe","params":"{}"}}"#, subsciption).into(),
         ))
         .expect("error subscribing");
 
