@@ -1,3 +1,4 @@
+pub mod broker;
 pub mod data;
 pub mod engine;
 pub mod models;

@@ -28,13 +28,13 @@ impl StrategyEngine {
         }
     }
 
-    pub async fn process(&self, price_data: PriceHistory) -> Result<()> {
+    pub async fn process(&self, price_history: &PriceHistory) -> Result<()> {
         let futures: Vec<_> = self
             .algorithms
             .iter()
             .map(|algo| async {
                 // TODO: Make sure you ar actually returning on a failed process error
-                if let Some(signal) = algo.process(&price_data).await? {
+                if let Some(signal) = algo.process(price_history).await? {
                     self.risk_egnine.process_signal(signal.clone()).await?;
 
                     // TODO: add way to send signals to some stream
