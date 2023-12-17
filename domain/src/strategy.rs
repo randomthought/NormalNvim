@@ -32,18 +32,14 @@ impl StrategyEngine {
     }
 
     pub async fn process(&self, price_history: &PriceHistory) -> Result<()> {
-        let futures: Vec<_> = self
-            .algorithms
-            .iter()
-            .map(|algo| async {
-                if let Some(signal) = algo.process(price_history).await? {
-                    let se = Event::Signal(signal);
-                    self.event_producer.produce(se).await?;
-                }
+        let futures = self.algorithms.iter().map(|algo| async {
+            if let Some(signal) = algo.process(price_history).await? {
+                let se = Event::Signal(signal);
+                self.event_producer.produce(se).await?;
+            }
 
-                Ok(()) as Result<()>
-            })
-            .collect();
+            Ok(()) as Result<()>
+        });
 
         let _ = future::try_join_all(futures).await?;
 

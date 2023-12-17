@@ -1,3 +1,3 @@
 pub mod algorithms;
 pub mod brokers;
-pub mod data_providers;
+pub mod event_providers;

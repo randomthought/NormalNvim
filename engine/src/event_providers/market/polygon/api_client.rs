@@ -20,7 +20,6 @@ impl ApiClient {
 #[async_trait]
 impl QouteProvider for ApiClient {
     async fn get_quote(&self, security: &Security) -> Result<Quote> {
-        // let ticker = security.ticker;
         let url = format!(
             "https://api.polygon.io/v2/last/nbbo/{}?apiKey={}",
             security.ticker, self.api_key
