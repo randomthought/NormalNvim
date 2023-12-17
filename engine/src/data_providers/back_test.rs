@@ -32,33 +32,38 @@ impl BackTestProvider {
         }
     }
 
-    fn add(&self, price_history: &PriceHistory) -> Result<()> {
+    fn add(&mut self, price_history: &PriceHistory) -> Result<()> {
         let c = price_history
             .history
             .last()
             .context("no price history in 'security={ph.security.ticker}")?;
 
-        let spread = (c.close * self.spread) / Decimal::from(2);
-        let bid = c.close - spread;
-        let ask = c.close + spread;
-        let q = Quote::new(price_history.security, bid, ask, 0, 0, c.end_time)?;
+        let spread_half = (c.close * self.spread) / Decimal::from(2);
+        let bid = c.close - spread_half;
+        let ask = c.close + spread_half;
+        let ticker = price_history.security.ticker.clone();
+        let security = price_history.security.clone();
 
-        self.map.insert(price_history.security.ticker, q);
+        let q = Quote::new(security, bid, ask, 0, 0, c.end_time)?;
+        self.map.insert(ticker, q);
 
         Ok(())
     }
 }
 
 impl Parser for BackTestProvider {
-    fn parse(&self, data: &str) -> anyhow::Result<Box<dyn Iterator<Item = PriceHistory>>> {
+    fn parse(&mut self, data: &str) -> anyhow::Result<Box<dyn Iterator<Item = PriceHistory>>> {
         // TODO: iterator overloading mwould be better since this would be done on every price history twice
-        let price_histories: Vec<_> = self.parser.parse(data)?.collect();
 
+        let price_histories = self.parser.parse(data)?;
+
+        let mut vec: Vec<PriceHistory> = Vec::new();
         for ph in price_histories {
-            self.add(&ph)?
+            self.add(&ph)?;
+            vec.push(ph);
         }
 
-        let result = Box::new(price_histories.into_iter());
+        let result = Box::new(vec.into_iter());
 
         Ok(result)
     }
