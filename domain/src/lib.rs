@@ -1,6 +1,7 @@
 pub mod broker;
 pub mod data;
 pub mod engine;
+pub mod event;
 pub mod models;
 pub mod order;
 pub mod portfolio;
