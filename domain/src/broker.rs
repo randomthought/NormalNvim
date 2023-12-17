@@ -1,19 +1,19 @@
-use anyhow::Result;
-use async_trait::async_trait;
-use domain::{
+use crate::{
     models::order::{Order, OrderResult, OrderTicket},
     order::{Account, OrderManager, OrderReader},
 };
+use anyhow::Result;
+use async_trait::async_trait;
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use std::sync::RwLock;
 
-pub struct FakeBroker {
+pub struct Broker {
     account_balance: RwLock<Decimal>,
     orders: Vec<OrderResult>,
     commissions_per_share: Decimal,
 }
 
-impl FakeBroker {
+impl Broker {
     pub fn new(account_balance: Decimal) -> Self {
         let commissions_per_share = Decimal::from_f64(0.0).unwrap();
         Self {
@@ -25,7 +25,7 @@ impl FakeBroker {
 }
 
 #[async_trait]
-impl Account for FakeBroker {
+impl Account for Broker {
     async fn get_account_balance(&self) -> Result<Decimal> {
         let results = self.account_balance.read().unwrap();
         Ok(*results)
@@ -37,14 +37,14 @@ impl Account for FakeBroker {
 }
 
 #[async_trait]
-impl OrderReader for FakeBroker {
+impl OrderReader for Broker {
     async fn orders(&self) -> Result<Vec<OrderResult>> {
         Ok(self.orders.clone())
     }
 }
 
 #[async_trait]
-impl OrderManager for FakeBroker {
+impl OrderManager for Broker {
     async fn place_order(&self, order: &Order) -> Result<OrderResult> {
         match order {
             Order::Market(o) => {}

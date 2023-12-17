@@ -1,5 +1,5 @@
-use anyhow::Result;
 use domain::{
+    broker::Broker,
     engine::Engine,
     portfolio::Portfolio,
     risk::{config::RiskEngineConfig, risk_engine::RiskEngine},
@@ -7,8 +7,7 @@ use domain::{
 };
 use engine::{
     algorithms::fake_algo::FakeAlgo,
-    brokers::fake_broker::FakeBroker,
-    data_providers::polygon::{self, stream_client::PolygonClient},
+    data_providers::polygon::{self, parser::PolygonParser, stream_client::create_stream},
 };
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use std::env;
@@ -18,11 +17,10 @@ use std::sync::Arc;
 async fn main() {
     let client = reqwest::Client::new();
     let api_key = env::var("API_KEY").unwrap();
-    let polygon_client = PolygonClient::new(api_key.clone()).await.unwrap();
     let quite_provider = polygon::api_client::ApiClient::new(api_key.clone(), client);
     let quite_provider_ = Arc::new(quite_provider);
 
-    let broker = FakeBroker::new(Decimal::from_u64(100_000).unwrap());
+    let broker = Broker::new(Decimal::from_u64(100_000).unwrap());
     let broker_ = Arc::new(broker);
     let risk_engine_config = RiskEngineConfig {
         max_trade_portfolio_accumulaton: 0.10,
@@ -43,6 +41,9 @@ async fn main() {
     let algorithms: Vec<Box<dyn Algorithm + Send + Sync>> = vec![Box::new(FakeAlgo {})];
     let strategy_engine = StrategyEngine::new(risk_engine_, algorithms);
 
-    let mut engine = Engine::new(strategy_engine, Box::pin(polygon_client));
+    let subscription = "A.*";
+    let data_stream = create_stream(&api_key, &subscription).unwrap();
+    let parser = Box::new(PolygonParser::new());
+    let mut engine = Engine::new(strategy_engine, parser, data_stream);
     engine.runner().await.unwrap();
 }

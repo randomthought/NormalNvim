@@ -1,111 +1,33 @@
-use super::{models::Aggregates, utils};
 use crate::data_providers::polygon::models::ResponseMessage;
-use anyhow::{ensure, Context, Result};
-use domain::models::price::PriceHistory;
+use anyhow::{Context, Result};
 use futures_util::Stream;
-use std::net::TcpStream;
+use std::{net::TcpStream, pin::Pin};
 use tungstenite::{connect, stream::MaybeTlsStream, Message, WebSocket};
 use url::Url;
 
 static POLYGON_STOCKS_WS_API: &str = "wss://delayed.polygon.io/stocks";
 
-pub struct PolygonClient {
-    vec: Vec<PriceHistory>,
-    api_key: String,
+struct PolygonStream {
     socket: WebSocket<MaybeTlsStream<TcpStream>>,
 }
 
-impl PolygonClient {
-    pub async fn new(api_key: String) -> Result<Self> {
-        let (socket, _) =
-            connect(Url::parse(POLYGON_STOCKS_WS_API).unwrap()).expect("Can't connect");
-
-        let mut client = Self {
-            api_key,
-            socket,
-            vec: Vec::new(),
-        };
-
-        client.authenticate()?;
-
-        Ok(client)
-    }
-
-    fn authenticate(&mut self) -> Result<()> {
-        let m = self.socket.read_message().expect("error connecting");
-        let s = m.to_text().context("unable to parse connection message")?;
-        let deserialized: Vec<ResponseMessage> = serde_json::from_str(s)
-            .expect(format!("Unable to deserialize socket message: {}", s).as_str());
-
-        println!("{:?}", deserialized);
-
-        self.socket
-            .write_message(Message::Text(
-                format!(r#"{{"action":"auth","params":"{}"}}"#, self.api_key).into(),
-            ))
-            .expect("error when attempting to authenticate");
-
-        // TODO: check if connection was succesful
-        let m = self.socket.read_message().expect("error connecting");
-        let s = m.to_text().context("unable to parse connection message")?;
-        let deserialized: Vec<ResponseMessage> = serde_json::from_str(s)
-            .expect(format!("Unable to deserialize socket message: {}", s).as_str());
-
-        println!("{:?}", deserialized);
-
-        self.socket
-            .write_message(Message::Text(
-                r#"{"action":"subscribe","params":"A.*"}"#.into(),
-            ))
-            .expect("error subscribing");
-
-        let m = self.socket.read_message().expect("error in subscribing");
-        let s = m.to_text().context("unable to parse connection message")?;
-        let deserialized: Vec<ResponseMessage> = serde_json::from_str(s)
-            .expect(format!("Unable to deserialize socket message: {}", s).as_str());
-
-        println!("{:?}", deserialized);
-
-        Ok(())
-    }
-}
-
-impl Stream for PolygonClient {
-    type Item = Result<PriceHistory>;
+impl Stream for PolygonStream {
+    // TODO: is they a way you can use &str instead here?
+    type Item = Result<String>;
 
     fn poll_next(
-        mut self: std::pin::Pin<&mut Self>,
+        mut self: Pin<&mut Self>,
+        // TODO: learn to understand when to use cx
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<Self::Item>> {
-        if let Some(item) = self.vec.pop() {
-            return std::task::Poll::Ready(Some(Ok(item)));
-        }
-
         match self.socket.read_message() {
             Ok(msg) => {
-                let s = msg.to_text().expect("unable to parse message");
-
+                let s = msg.to_string();
                 if s.is_empty() {
-                    return std::task::Poll::Ready(None);
+                    return std::task::Poll::Pending;
                 }
 
-                let deserialized: Vec<Aggregates> = serde_json::from_str(s)
-                    .expect(format!("Unable to deserialize socket message: {}", s).as_str());
-
-                if deserialized.is_empty() {
-                    return std::task::Poll::Ready(None);
-                }
-
-                for ele in deserialized {
-                    let ph = utils::to_price_history(&ele)?;
-                    self.vec.push(ph);
-                }
-
-                if let Some(item) = self.vec.pop() {
-                    return std::task::Poll::Ready(Some(Ok(item)));
-                }
-
-                std::task::Poll::Ready(None)
+                return std::task::Poll::Ready(Some(Ok(s)));
             }
             Err(err) => {
                 let err = anyhow::Error::new(err);
@@ -115,4 +37,61 @@ impl Stream for PolygonClient {
             }
         }
     }
+}
+
+pub fn create_stream(
+    api_key: &str,
+    subsciption: &str,
+) -> Result<Pin<Box<dyn Stream<Item = Result<String>>>>> {
+    let (mut socket, _) =
+        connect(Url::parse(POLYGON_STOCKS_WS_API).unwrap()).expect("Can't connect");
+
+    authenticate(api_key, &mut socket)?;
+    subscribe(subsciption, &mut socket)?;
+
+    let pgs = PolygonStream { socket };
+
+    Ok(Box::pin(pgs))
+}
+
+fn authenticate(api_key: &str, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -> Result<()> {
+    let m = socket.read_message().expect("error connecting");
+    let s = m.to_text().context("unable to parse connection message")?;
+    let deserialized: Vec<ResponseMessage> = serde_json::from_str(s)
+        .expect(format!("Unable to deserialize socket message: {}", s).as_str());
+
+    println!("{:?}", deserialized);
+
+    socket
+        .write_message(Message::Text(
+            format!(r#"{{"action":"auth","params":"{}"}}"#, api_key).into(),
+        ))
+        .expect("error when attempting to authenticate");
+
+    // TODO: check if connection was succesful
+    let m = socket.read_message().expect("error connecting");
+    let s = m.to_text().context("unable to parse connection message")?;
+    let deserialized: Vec<ResponseMessage> = serde_json::from_str(s)
+        .expect(format!("Unable to deserialize socket message: {}", s).as_str());
+
+    println!("{:?}", deserialized);
+
+    Ok(())
+}
+
+fn subscribe(subsciption: &str, socket: &mut WebSocket<MaybeTlsStream<TcpStream>>) -> Result<()> {
+    socket
+        .write_message(Message::Text(
+            format!(r#"{{"action":"subscribe","params":"{}"}}"#, subsciption).into(),
+        ))
+        .expect("error subscribing");
+
+    let m = socket.read_message().expect("error in subscribing");
+    let s = m.to_text().context("unable to parse connection message")?;
+    let deserialized: Vec<ResponseMessage> = serde_json::from_str(s)
+        .expect(format!("Unable to deserialize socket message: {}", s).as_str());
+
+    println!("{:?}", deserialized);
+
+    Ok(())
 }
