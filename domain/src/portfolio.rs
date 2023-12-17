@@ -24,16 +24,16 @@ impl Position {
 }
 
 pub struct Portfolio {
-    account: Arc<dyn Account>,
-    order_reader: Arc<dyn OrderReader>,
-    qoute_provider: Arc<dyn QouteProvider>,
+    account: Arc<dyn Account + Sync + Send>,
+    order_reader: Arc<dyn OrderReader + Sync + Send>,
+    qoute_provider: Arc<dyn QouteProvider + Sync + Send>,
 }
 
 impl Portfolio {
     pub fn new(
-        account: Arc<dyn Account>,
-        order_reader: Arc<dyn OrderReader>,
-        qoute_provider: Arc<dyn QouteProvider>,
+        account: Arc<dyn Account + Sync + Send>,
+        order_reader: Arc<dyn OrderReader + Sync + Send>,
+        qoute_provider: Arc<dyn QouteProvider + Sync + Send>,
     ) -> Self {
         Self {
             order_reader,

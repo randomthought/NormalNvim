@@ -5,7 +5,7 @@ use super::model::Event;
 
 #[async_trait]
 pub trait EventProducer {
-    async fn produce(&self, event: &Event) -> Result<()>;
+    async fn produce(&self, event: Event) -> Result<()>;
 }
 
 #[async_trait]

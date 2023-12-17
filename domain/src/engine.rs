@@ -1,26 +1,32 @@
-use crate::{models::price::PriceHistory, strategy::StrategyEngine};
+use crate::{
+    event::{
+        event::EventHandler,
+        model::{Event, Market},
+    },
+    models::price::PriceHistory,
+};
 use anyhow::Result;
 use futures_util::{Stream, StreamExt};
 use std::pin::Pin;
 
 pub trait Parser {
-    fn parse(&self, data: &str) -> Result<Box<dyn Iterator<Item = PriceHistory>>>;
+    fn parse(&mut self, data: &str) -> Result<Box<dyn Iterator<Item = PriceHistory>>>;
 }
 
 pub struct Engine {
-    strategy_engine: StrategyEngine,
+    event_handlers: Vec<Box<dyn EventHandler>>,
     parser: Box<dyn Parser>,
     data_stream: Pin<Box<dyn Stream<Item = Result<String>>>>,
 }
 
 impl Engine {
     pub fn new(
-        strategy_engine: StrategyEngine,
+        event_handlers: Vec<Box<dyn EventHandler>>,
         parser: Box<dyn Parser>,
         data_stream: Pin<Box<dyn Stream<Item = Result<String>>>>,
     ) -> Self {
         Self {
-            strategy_engine,
+            event_handlers,
             parser,
             data_stream,
         }
@@ -37,9 +43,21 @@ impl Engine {
     }
 
     async fn process_data(&mut self, data: &str) -> Result<()> {
-        let price_histories = self.parser.parse(data)?;
-        for ph in price_histories {
-            self.strategy_engine.process(&ph).await?;
+        let events = self
+            .parser
+            .parse(data)?
+            .map(|ph| Event::Market(Market::DataEvent(ph)));
+
+        for event in events {
+            self.handle_event(&event).await?;
+        }
+
+        Ok(())
+    }
+
+    async fn handle_event(&self, event: &Event) -> Result<()> {
+        for eh in &self.event_handlers {
+            eh.handle(event).await?;
         }
 
         Ok(())
