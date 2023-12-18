@@ -1,4 +1,3 @@
-use core::f64;
 use std::collections::HashMap;
 
 use anyhow::Context;

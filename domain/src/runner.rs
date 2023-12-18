@@ -1,24 +1,17 @@
-use crate::{
-    event::{event::EventHandler, model::Event},
-    models::price::PriceHistory,
-};
+use crate::event::{event::EventHandler, model::Event};
 use anyhow::Result;
 use futures_util::future;
 use futures_util::{Stream, StreamExt};
 use std::pin::Pin;
 
-pub trait Parser {
-    fn parse(&mut self, data: &str) -> Result<Box<dyn Iterator<Item = PriceHistory>>>;
-}
-
 pub struct Runner {
-    event_handlers: Vec<Box<dyn EventHandler>>,
+    event_handlers: Vec<Box<dyn EventHandler + Sync + Send>>,
     data_stream: Pin<Box<dyn Stream<Item = Event>>>,
 }
 
 impl Runner {
     pub fn new(
-        event_handlers: Vec<Box<dyn EventHandler>>,
+        event_handlers: Vec<Box<dyn EventHandler + Sync + Send>>,
         data_stream: Pin<Box<dyn Stream<Item = Event>>>,
     ) -> Self {
         Self {

@@ -7,12 +7,13 @@ use std::sync::{
     Arc, Mutex,
 };
 
-pub struct EventChannel {
+#[derive(Clone)]
+pub struct Channel {
     receiver: Arc<Mutex<Receiver<Event>>>,
     sender: Arc<Mutex<Sender<Event>>>,
 }
 
-impl EventChannel {
+impl Channel {
     pub fn new() -> Self {
         let (sender, receiver) = std::sync::mpsc::channel();
         Self {
@@ -23,7 +24,7 @@ impl EventChannel {
 }
 
 #[async_trait]
-impl EventProducer for EventChannel {
+impl EventProducer for Channel {
     async fn produce(&self, event: Event) -> Result<()> {
         let sender = self.sender.lock().unwrap();
         sender.send(event.clone())?;
@@ -31,7 +32,7 @@ impl EventProducer for EventChannel {
     }
 }
 
-impl Stream for EventChannel {
+impl Stream for Channel {
     type Item = Event;
 
     fn poll_next(

@@ -9,10 +9,10 @@ use crate::{
 use anyhow::Result;
 use async_trait::async_trait;
 use rust_decimal::{prelude::FromPrimitive, Decimal};
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 
 pub struct Broker {
-    event_producer: Box<dyn EventProducer + Sync + Send>,
+    event_producer: Arc<dyn EventProducer + Sync + Send>,
     account_balance: RwLock<Decimal>,
     orders: Vec<OrderResult>,
     commissions_per_share: Decimal,
@@ -21,7 +21,7 @@ pub struct Broker {
 impl Broker {
     pub fn new(
         account_balance: Decimal,
-        event_producer: Box<dyn EventProducer + Sync + Send>,
+        event_producer: Arc<dyn EventProducer + Sync + Send>,
     ) -> Self {
         let commissions_per_share = Decimal::from_f64(0.0).unwrap();
         Self {

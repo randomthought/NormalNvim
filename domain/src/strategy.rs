@@ -9,6 +9,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use futures_util::future;
 use std::option::Option;
+use std::sync::Arc;
 
 #[async_trait]
 pub trait Algorithm {
@@ -16,14 +17,14 @@ pub trait Algorithm {
 }
 
 pub struct StrategyEngine {
-    event_producer: Box<dyn EventProducer + Send + Sync>,
+    event_producer: Arc<dyn EventProducer + Send + Sync>,
     algorithms: Vec<Box<dyn Algorithm + Send + Sync>>,
 }
 
 impl StrategyEngine {
     pub fn new(
         algorithms: Vec<Box<dyn Algorithm + Send + Sync>>,
-        event_producer: Box<dyn EventProducer + Send + Sync>,
+        event_producer: Arc<dyn EventProducer + Send + Sync>,
     ) -> Self {
         Self {
             algorithms,
