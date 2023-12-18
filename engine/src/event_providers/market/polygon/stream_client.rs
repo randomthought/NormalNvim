@@ -24,9 +24,6 @@ impl Stream for PolygonStream {
         match self.socket.read_message() {
             Ok(msg) => {
                 let s = msg.to_string();
-                if s.is_empty() {
-                    return std::task::Poll::Pending;
-                }
 
                 return std::task::Poll::Ready(Some(Ok(s)));
             }

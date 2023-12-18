@@ -45,12 +45,11 @@ async fn main() {
         Box::new(portfolio),
     );
 
-    let risk_engine_ = Box::new(risk_egnine);
-
     let algorithms: Vec<Box<dyn Algorithm + Send + Sync>> = vec![Box::new(FakeAlgo {})];
     let strategy_engine = StrategyEngine::new(algorithms, event_channel_.clone());
 
-    let event_handlers: Vec<Box<dyn EventHandler + Sync + Send>> = vec![Box::new(strategy_engine)];
+    let event_handlers: Vec<Box<dyn EventHandler + Sync + Send>> =
+        vec![Box::new(strategy_engine), Box::new(risk_egnine)];
 
     let t1 = async {
         let subscription = "A.*";
@@ -74,5 +73,6 @@ async fn main() {
         event_runner.run().await.unwrap()
     };
 
+    // TODO: use scope instead https://github.com/jaboatman/tokio-scoped
     let _ = tokio::join!(t1, t2);
 }

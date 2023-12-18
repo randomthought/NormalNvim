@@ -15,6 +15,10 @@ impl PolygonParser {
 
 impl Parser for PolygonParser {
     fn parse(&mut self, data: &str) -> Result<Box<dyn Iterator<Item = Event>>> {
+        if data.is_empty() {
+            return Ok(Box::new(vec![].into_iter()));
+        }
+
         let deserialized: Vec<Aggregates> = serde_json::from_str(data)
             .expect(format!("Unable to deserialize data: {}", data).as_str());
 

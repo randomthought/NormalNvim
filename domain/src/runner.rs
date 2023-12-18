@@ -1,8 +1,11 @@
 use crate::event::{event::EventHandler, model::Event};
 use anyhow::Result;
+use core::time;
 use futures_util::future;
 use futures_util::{Stream, StreamExt};
 use std::pin::Pin;
+use std::thread;
+use std::time::Duration;
 
 pub struct Runner {
     event_handlers: Vec<Box<dyn EventHandler + Sync + Send>>,
@@ -30,7 +33,9 @@ impl Runner {
                 future::try_join_all(futures).await?;
             }
 
-            // TODO:! sleep for 500 millis if no tasks
+            // TODO: use https://dtantsur.github.io/rust-openstack/tokio/time/fn.delay_for.html
+            let ten_millis = time::Duration::from_millis(500);
+            thread::sleep(ten_millis);
         }
     }
 }
