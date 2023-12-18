@@ -1,9 +1,10 @@
-use crate::data_providers::polygon::models::ResponseMessage;
 use anyhow::{Context, Result};
 use futures_util::Stream;
 use std::{net::TcpStream, pin::Pin};
 use tungstenite::{connect, stream::MaybeTlsStream, Message, WebSocket};
 use url::Url;
+
+use crate::event_providers::market::polygon::models::ResponseMessage;
 
 static POLYGON_STOCKS_WS_API: &str = "wss://delayed.polygon.io/stocks";
 
@@ -23,9 +24,6 @@ impl Stream for PolygonStream {
         match self.socket.read_message() {
             Ok(msg) => {
                 let s = msg.to_string();
-                if s.is_empty() {
-                    return std::task::Poll::Pending;
-                }
 
                 return std::task::Poll::Ready(Some(Ok(s)));
             }

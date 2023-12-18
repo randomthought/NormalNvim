@@ -1,13 +1,13 @@
-use core::f64;
 use std::collections::HashMap;
 
 use anyhow::Context;
 use anyhow::Ok;
 use anyhow::Result;
 use async_trait::async_trait;
+use domain::event::model::Event;
+use domain::event::model::Market;
 use domain::{
     data::QouteProvider,
-    engine::Parser,
     models::{
         price::{PriceHistory, Quote},
         security::Security,
@@ -15,6 +15,8 @@ use domain::{
 };
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
+
+use super::provider::Parser;
 
 struct BackTestProvider {
     spread: Decimal,
@@ -52,15 +54,17 @@ impl BackTestProvider {
 }
 
 impl Parser for BackTestProvider {
-    fn parse(&mut self, data: &str) -> anyhow::Result<Box<dyn Iterator<Item = PriceHistory>>> {
+    fn parse(&mut self, data: &str) -> anyhow::Result<Box<dyn Iterator<Item = Event>>> {
         // TODO: iterator overloading mwould be better since this would be done on every price history twice
 
-        let price_histories = self.parser.parse(data)?;
+        let events = self.parser.parse(data)?;
 
-        let mut vec: Vec<PriceHistory> = Vec::new();
-        for ph in price_histories {
-            self.add(&ph)?;
-            vec.push(ph);
+        let mut vec: Vec<Event> = Vec::new();
+        for e in events {
+            if let Event::Market(Market::DataEvent(ph)) = e.clone() {
+                self.add(&ph)?;
+            }
+            vec.push(e);
         }
 
         let result = Box::new(vec.into_iter());
@@ -81,4 +85,3 @@ impl QouteProvider for BackTestProvider {
         Ok(quote)
     }
 }
-

@@ -1,11 +1,15 @@
-use crate::models::event::Event;
-use crate::models::event::Signal;
+use crate::event::event::EventHandler;
+use crate::event::event::EventProducer;
+use crate::event::model::Event;
+use crate::event::model::Market;
+use crate::event::model::Signal;
 use crate::models::price::PriceHistory;
-use crate::risk::risk_engine::RiskEngine;
+use anyhow::Ok;
 use anyhow::Result;
 use async_trait::async_trait;
 use futures_util::future;
 use std::option::Option;
+use std::sync::Arc;
 
 #[async_trait]
 pub trait Algorithm {
@@ -13,39 +17,43 @@ pub trait Algorithm {
 }
 
 pub struct StrategyEngine {
-    risk_egnine: Box<RiskEngine>,
+    event_producer: Arc<dyn EventProducer + Send + Sync>,
     algorithms: Vec<Box<dyn Algorithm + Send + Sync>>,
 }
 
 impl StrategyEngine {
     pub fn new(
-        risk_egnine: Box<RiskEngine>,
         algorithms: Vec<Box<dyn Algorithm + Send + Sync>>,
+        event_producer: Arc<dyn EventProducer + Send + Sync>,
     ) -> Self {
         Self {
-            risk_egnine,
             algorithms,
+            event_producer,
         }
     }
 
     pub async fn process(&self, price_history: &PriceHistory) -> Result<()> {
-        let futures: Vec<_> = self
-            .algorithms
-            .iter()
-            .map(|algo| async {
-                // TODO: Make sure you ar actually returning on a failed process error
-                if let Some(signal) = algo.process(price_history).await? {
-                    self.risk_egnine.process_signal(signal.clone()).await?;
+        let futures = self.algorithms.iter().map(|algo| async {
+            if let Some(signal) = algo.process(price_history).await? {
+                let se = Event::Signal(signal);
+                self.event_producer.produce(se).await?;
+            }
 
-                    // TODO: add way to send signals to some stream
-                    let se = Event::Signal(signal);
-                }
-
-                Ok(()) as Result<()>
-            })
-            .collect();
+            Ok(()) as Result<()>
+        });
 
         let _ = future::try_join_all(futures).await?;
+
+        Ok(())
+    }
+}
+
+#[async_trait]
+impl EventHandler for StrategyEngine {
+    async fn handle(&self, event: &Event) -> Result<()> {
+        if let Event::Market(Market::DataEvent(ph)) = event {
+            self.process(ph).await?;
+        }
 
         Ok(())
     }

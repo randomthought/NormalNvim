@@ -1,8 +1,8 @@
 use anyhow::{Context, Result};
 use async_trait::async_trait;
 use domain::{
+    event::model::Signal,
     models::{
-        event::Signal,
         order::{Side, TimesInForce},
         price::PriceHistory,
     },

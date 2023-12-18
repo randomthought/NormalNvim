@@ -1,22 +1,31 @@
 use crate::{
+    event::{
+        event::{EventHandler, EventProducer},
+        model::Event,
+    },
     models::order::{Order, OrderResult, OrderTicket},
     order::{Account, OrderManager, OrderReader},
 };
 use anyhow::Result;
 use async_trait::async_trait;
 use rust_decimal::{prelude::FromPrimitive, Decimal};
-use std::sync::RwLock;
+use std::sync::{Arc, RwLock};
 
 pub struct Broker {
+    event_producer: Arc<dyn EventProducer + Sync + Send>,
     account_balance: RwLock<Decimal>,
     orders: Vec<OrderResult>,
     commissions_per_share: Decimal,
 }
 
 impl Broker {
-    pub fn new(account_balance: Decimal) -> Self {
+    pub fn new(
+        account_balance: Decimal,
+        event_producer: Arc<dyn EventProducer + Sync + Send>,
+    ) -> Self {
         let commissions_per_share = Decimal::from_f64(0.0).unwrap();
         Self {
+            event_producer,
             account_balance: RwLock::new(account_balance),
             orders: vec![],
             commissions_per_share,
@@ -59,5 +68,21 @@ impl OrderManager for Broker {
 
     async fn cancel(&self, order: &OrderTicket) -> Result<()> {
         todo!()
+    }
+}
+
+#[async_trait]
+impl EventHandler for Broker {
+    async fn handle(&self, event: &Event) -> Result<()> {
+        if let Event::Order(o) = event {
+            let e = match self.place_order(o).await? {
+                OrderResult::FilledOrder(o) => Event::FilledOrder(o),
+                OrderResult::OrderTicket(o) => Event::OrderTicket(o),
+            };
+
+            self.event_producer.produce(e).await?
+        }
+
+        Ok(())
     }
 }

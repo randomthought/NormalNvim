@@ -1,14 +1,17 @@
+use std::sync::Arc;
+
 use super::config::RiskEngineConfig;
 use crate::data::QouteProvider;
-use crate::models::event::Signal;
+use crate::event::event::EventHandler;
+use crate::event::model::{Event, Signal};
 use crate::models::order::{self, Order, StopLimitMarket};
 use crate::models::price::Quote;
 use crate::order::OrderManager;
 use crate::portfolio::Portfolio;
 use anyhow::{Context, Ok, Result};
+use async_trait::async_trait;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
-use std::sync::Arc;
 
 pub enum SignalResult {
     Rejected(String), // TODO: maybe make Rejected(String) so you can add a reason for rejection
@@ -26,16 +29,16 @@ pub struct RiskEngine {
     risk_engine_config: RiskEngineConfig,
     // TODO: state has to be mutable.
     trading_state: TradingState,
-    qoute_provider: Arc<dyn QouteProvider>,
-    order_manager: Arc<dyn OrderManager>,
+    qoute_provider: Arc<dyn QouteProvider + Send + Sync>,
+    order_manager: Arc<dyn OrderManager + Send + Sync>,
     portfolio: Box<Portfolio>,
 }
 
 impl RiskEngine {
     pub fn new(
         risk_engine_config: RiskEngineConfig,
-        qoute_provider: Arc<dyn QouteProvider>,
-        order_manager: Arc<dyn OrderManager>,
+        qoute_provider: Arc<dyn QouteProvider + Send + Sync>,
+        order_manager: Arc<dyn OrderManager + Send + Sync>,
         portfolio: Box<Portfolio>,
     ) -> Self {
         Self {
@@ -47,7 +50,7 @@ impl RiskEngine {
         }
     }
 
-    pub async fn process_signal(&self, signal: Signal) -> Result<SignalResult> {
+    pub async fn process_signal(&self, signal: &Signal) -> Result<SignalResult> {
         println!("risk_engine processed signal");
         if let TradingState::Halted = self.trading_state {
             return Ok(SignalResult::Rejected(
@@ -151,9 +154,20 @@ impl RiskEngine {
     }
 }
 
-fn _to_order(signal: Signal, quantity: u64) -> Result<Order> {
+#[async_trait]
+impl EventHandler for RiskEngine {
+    async fn handle(&self, event: &Event) -> Result<()> {
+        if let Event::Signal(s) = event {
+            self.process_signal(s).await?;
+        }
+
+        Ok(())
+    }
+}
+
+fn _to_order(signal: &Signal, quantity: u64) -> Result<Order> {
     let stop_limit_market = StopLimitMarket::new(
-        signal.security,
+        signal.security.clone(),
         quantity,
         signal.side,
         signal.stop,

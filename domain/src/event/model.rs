@@ -1,9 +1,10 @@
-use super::{
-    order::{FilledOrder, Order, Side, TimesInForce},
+use anyhow::{ensure, Result};
+
+use crate::models::{
+    order::{FilledOrder, Order, OrderTicket, Side, TimesInForce},
     price::{Price, PriceHistory},
     security::Security,
 };
-use anyhow::{ensure, Context, Result};
 
 #[derive(Debug, Clone)]
 pub enum Market {
@@ -70,4 +71,5 @@ pub enum Event {
     Signal(Signal),
     Order(Order),
     FilledOrder(FilledOrder),
+    OrderTicket(OrderTicket),
 }
