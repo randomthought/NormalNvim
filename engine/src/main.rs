@@ -1,4 +1,4 @@
-use std::{env, sync::Arc};
+use std::{env, path::Path, sync::Arc};
 
 use domain::{
     broker::Broker,
@@ -49,30 +49,31 @@ async fn main() {
     let strategy_engine = StrategyEngine::new(algorithms, event_channel_.clone());
 
     let event_handlers: Vec<Box<dyn EventHandler + Sync + Send>> =
-        vec![Box::new(strategy_engine), Box::new(risk_egnine)];
+        // vec![Box::new(strategy_engine), Box::new(risk_egnine)];
+        vec![Box::new(strategy_engine), ];
 
-    let t1 = async {
-        let subscription = "A.*";
-        let data_stream = engine::event_providers::market::polygon::stream_client::create_stream(
-            &api_key,
-            &subscription,
-        )
-        .unwrap();
+    let t1 = tokio::spawn(async move {
+        // let subscription = "A.*";
+        // let data_stream = engine::event_providers::market::polygon::stream_client::create_stream(
+        //     &api_key,
+        //     &subscription,
+        // )
+        // .unwrap();
         let parser = Box::new(PolygonParser::new());
 
-        // let path = Path::new("/Users/randomthought/Downloads/stock_quotes_sample.csv");
-        // let data_stream = file_provider::create_stream(path).unwrap();
+        let path = Path::new("/Users/randomthought/Downloads/data_sample.jsonln");
+        let data_stream = file_provider::create_stream(path).unwrap();
 
         let mut event_stream = EventStream::new(event_channel_.clone(), data_stream, parser);
         event_stream.start().await.unwrap();
-    };
+    });
 
-    let t2 = async {
+    let t2 = tokio::spawn(async move {
         let stream = Box::pin(event_channel.clone());
         let mut event_runner = Runner::new(event_handlers, stream);
         event_runner.run().await.unwrap()
-    };
+    });
 
-    // TODO: use scope instead https://github.com/jaboatman/tokio-scoped
-    let _ = tokio::join!(t1, t2);
+    t2.await.unwrap();
+    t1.await.unwrap();
 }

@@ -8,7 +8,9 @@ use std::{
 use anyhow::Result;
 use futures_util::{stream, Stream};
 
-pub fn create_stream(path: &Path) -> Result<Pin<Box<dyn Stream<Item = Result<String>>>>> {
+pub fn create_stream(
+    path: &Path,
+) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Sync + Send>>> {
     // TODO: You can use chain for multiple files https://doc.rust-lang.org/std/iter/trait.Iterator.html#method.chain
     let file = File::options().write(false).read(true).open(path)?;
     let reader = BufReader::new(file);

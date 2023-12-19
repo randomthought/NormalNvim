@@ -8,14 +8,14 @@ use anyhow::Result;
 
 pub struct EventStream {
     event_producer: Arc<dyn EventProducer>,
-    data_stream: Pin<Box<dyn Stream<Item = Result<String>>>>,
+    data_stream: Pin<Box<dyn Stream<Item = Result<String>> + Sync + Send>>,
     parser: Box<dyn Parser>,
 }
 
 impl EventStream {
     pub fn new(
         event_producer: Arc<dyn EventProducer>,
-        data_stream: Pin<Box<dyn Stream<Item = Result<String>>>>,
+        data_stream: Pin<Box<dyn Stream<Item = Result<String>> + Sync + Send>>,
         parser: Box<dyn Parser>,
     ) -> Self {
         Self {

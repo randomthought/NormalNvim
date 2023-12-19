@@ -14,7 +14,7 @@ impl PolygonParser {
 }
 
 impl Parser for PolygonParser {
-    fn parse(&mut self, data: &str) -> Result<Box<dyn Iterator<Item = Event>>> {
+    fn parse(&mut self, data: &str) -> Result<Box<dyn Iterator<Item = Event> + Sync + Send>> {
         if data.is_empty() {
             return Ok(Box::new(vec![].into_iter()));
         }

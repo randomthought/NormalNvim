@@ -54,7 +54,10 @@ impl BackTestProvider {
 }
 
 impl Parser for BackTestProvider {
-    fn parse(&mut self, data: &str) -> anyhow::Result<Box<dyn Iterator<Item = Event>>> {
+    fn parse(
+        &mut self,
+        data: &str,
+    ) -> anyhow::Result<Box<dyn Iterator<Item = Event> + Sync + Send>> {
         // TODO: iterator overloading mwould be better since this would be done on every price history twice
 
         let events = self.parser.parse(data)?;
