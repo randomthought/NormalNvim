@@ -7,16 +7,16 @@ use super::provider::Parser;
 use anyhow::Result;
 
 pub struct EventStream {
-    event_producer: Arc<dyn EventProducer>,
+    event_producer: Arc<dyn EventProducer + Sync + Send>,
     data_stream: Pin<Box<dyn Stream<Item = Result<String>> + Sync + Send>>,
-    parser: Box<dyn Parser>,
+    parser: Box<dyn Parser + Sync + Send>,
 }
 
 impl EventStream {
     pub fn new(
-        event_producer: Arc<dyn EventProducer>,
+        event_producer: Arc<dyn EventProducer + Sync + Send>,
         data_stream: Pin<Box<dyn Stream<Item = Result<String>> + Sync + Send>>,
-        parser: Box<dyn Parser>,
+        parser: Box<dyn Parser + Sync + Send>,
     ) -> Self {
         Self {
             event_producer,

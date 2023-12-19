@@ -1,7 +1,7 @@
 use super::{event::EventProducer, model::Event};
 use anyhow::Result;
 use async_trait::async_trait;
-use crossbeam::channel::{bounded, Receiver, Sender};
+use crossbeam::channel::{unbounded, Receiver, Sender};
 use futures_util::Stream;
 use std::sync::Arc;
 
@@ -13,7 +13,7 @@ pub struct Channel {
 
 impl Channel {
     pub fn new() -> Self {
-        let (sender, receiver) = bounded(1000);
+        let (sender, receiver) = unbounded();
         Self {
             sender: Arc::new(sender),
             receiver: Arc::new(receiver),

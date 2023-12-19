@@ -40,7 +40,7 @@ impl Stream for PolygonStream {
 pub fn create_stream(
     api_key: &str,
     subsciption: &str,
-) -> Result<Pin<Box<dyn Stream<Item = Result<String>>>>> {
+) -> Result<Pin<Box<dyn Stream<Item = Result<String>> + Sync + Send>>> {
     let (mut socket, _) =
         connect(Url::parse(POLYGON_STOCKS_WS_API).unwrap()).expect("Can't connect");
 
