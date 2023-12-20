@@ -16,8 +16,10 @@ pub struct FakeAlgo {}
 #[async_trait]
 impl Algorithm for FakeAlgo {
     async fn process(&self, price_history: &PriceHistory) -> Result<Option<Signal>> {
-        let num = rand::thread_rng().gen_range(0..100);
-        if num > 50 {
+        println!("fake_algo saw event");
+
+        let rm = rand::thread_rng().gen_range(0.0..1.0);
+        if rm > 0.50 {
             println!("fake_algo sending signal");
             let signal = Signal::new(
                 "fake_algo".to_owned(),
@@ -33,7 +35,6 @@ impl Algorithm for FakeAlgo {
             return Ok(Some(signal));
         }
 
-        println!("fake_algo saw event");
         return Ok(None);
     }
 }

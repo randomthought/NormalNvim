@@ -1,24 +1,22 @@
 use super::{event::EventProducer, model::Event};
 use anyhow::Result;
 use async_trait::async_trait;
+use crossbeam::channel::{unbounded, Receiver, Sender};
 use futures_util::Stream;
-use std::sync::{
-    mpsc::{Receiver, Sender},
-    Arc, Mutex,
-};
+use std::sync::Arc;
 
 #[derive(Clone)]
 pub struct Channel {
-    receiver: Arc<Mutex<Receiver<Event>>>,
-    sender: Arc<Mutex<Sender<Event>>>,
+    receiver: Arc<Receiver<Event>>,
+    sender: Arc<Sender<Event>>,
 }
 
 impl Channel {
     pub fn new() -> Self {
-        let (sender, receiver) = std::sync::mpsc::channel();
+        let (sender, receiver) = unbounded();
         Self {
-            sender: Arc::new(Mutex::new(sender)),
-            receiver: Arc::new(Mutex::new(receiver)),
+            sender: Arc::new(sender),
+            receiver: Arc::new(receiver),
         }
     }
 }
@@ -26,7 +24,7 @@ impl Channel {
 #[async_trait]
 impl EventProducer for Channel {
     async fn produce(&self, event: Event) -> Result<()> {
-        let sender = self.sender.lock().unwrap();
+        let sender = self.sender.clone();
         sender.send(event.clone())?;
         Ok(())
     }
@@ -39,8 +37,7 @@ impl Stream for Channel {
         self: std::pin::Pin<&mut Self>,
         cx: &mut std::task::Context<'_>,
     ) -> std::task::Poll<Option<Self::Item>> {
-        // TODO: Look why could potentially fail here
-        match self.receiver.lock().unwrap().recv() {
+        match self.receiver.recv() {
             Ok(data) => return std::task::Poll::Ready(Some(data)),
             _ => std::task::Poll::Ready(None),
         }

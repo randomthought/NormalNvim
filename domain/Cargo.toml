@@ -6,6 +6,8 @@ edition = "2021"
 # See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
 
 [dependencies]
+tokio = { version = "1", features = ["full"] }
+crossbeam = "0.8"
 async-trait = "0.1.72"
 futures-util = "0.3.28"
 rust_decimal = "1.32"

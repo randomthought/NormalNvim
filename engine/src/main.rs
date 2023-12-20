@@ -1,4 +1,8 @@
-use std::{env, sync::Arc};
+use std::{
+    env,
+    path::Path,
+    sync::{atomic::AtomicBool, Arc},
+};
 
 use domain::{
     broker::Broker,
@@ -51,7 +55,9 @@ async fn main() {
     let event_handlers: Vec<Box<dyn EventHandler + Sync + Send>> =
         vec![Box::new(strategy_engine), Box::new(risk_egnine)];
 
-    let t1 = async {
+    let exit_signal = Arc::new(AtomicBool::from(false));
+    let exit_signal_t1 = exit_signal.clone();
+    let t1 = tokio::spawn(async move {
         let subscription = "A.*";
         let data_stream = engine::event_providers::market::polygon::stream_client::create_stream(
             &api_key,
@@ -60,19 +66,23 @@ async fn main() {
         .unwrap();
         let parser = Box::new(PolygonParser::new());
 
-        // let path = Path::new("/Users/randomthought/Downloads/stock_quotes_sample.csv");
+        // let file = env::var("FILE").unwrap();
+        // let path = Path::new(&file);
         // let data_stream = file_provider::create_stream(path).unwrap();
 
-        let mut event_stream = EventStream::new(event_channel_.clone(), data_stream, parser);
+        let mut event_stream =
+            EventStream::new(event_channel_.clone(), data_stream, parser, exit_signal_t1);
         event_stream.start().await.unwrap();
-    };
+    });
 
-    let t2 = async {
+    let exit_signal_t2 = exit_signal.clone();
+    let t2 = tokio::spawn(async move {
         let stream = Box::pin(event_channel.clone());
-        let mut event_runner = Runner::new(event_handlers, stream);
+        let mut event_runner = Runner::new(event_handlers, stream, exit_signal_t2);
         event_runner.run().await.unwrap()
-    };
+    });
 
-    // TODO: use scope instead https://github.com/jaboatman/tokio-scoped
-    let _ = tokio::join!(t1, t2);
+    // TODO: findout how to 'race' threads or stop all thereads on the first one to finish
+    t1.await.unwrap();
+    t2.await.unwrap();
 }
