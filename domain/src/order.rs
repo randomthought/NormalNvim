@@ -5,6 +5,7 @@ use rust_decimal::Decimal;
 
 #[async_trait]
 pub trait Account {
+    // TODO: think of making the return type Result<Box<Decimal>>
     async fn get_account_balance(&self) -> Result<Decimal>;
     async fn get_buying_power(&self) -> Result<Decimal>;
 }

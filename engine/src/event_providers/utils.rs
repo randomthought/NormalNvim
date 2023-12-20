@@ -1,4 +1,10 @@
-use std::{pin::Pin, sync::Arc};
+use std::{
+    pin::Pin,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+};
 
 use domain::event::event::EventProducer;
 use futures_util::{Stream, StreamExt};
@@ -10,6 +16,7 @@ pub struct EventStream {
     event_producer: Arc<dyn EventProducer + Sync + Send>,
     data_stream: Pin<Box<dyn Stream<Item = Result<String>> + Sync + Send>>,
     parser: Box<dyn Parser + Sync + Send>,
+    exit_signal: Arc<AtomicBool>,
 }
 
 impl EventStream {
@@ -17,11 +24,13 @@ impl EventStream {
         event_producer: Arc<dyn EventProducer + Sync + Send>,
         data_stream: Pin<Box<dyn Stream<Item = Result<String>> + Sync + Send>>,
         parser: Box<dyn Parser + Sync + Send>,
+        exit_signal: Arc<AtomicBool>,
     ) -> Self {
         Self {
             event_producer,
             data_stream,
             parser,
+            exit_signal,
         }
     }
 
@@ -33,6 +42,8 @@ impl EventStream {
                 self.event_producer.produce(e).await?;
             }
         }
+
+        self.exit_signal.store(true, Ordering::Relaxed);
 
         Ok(())
     }
