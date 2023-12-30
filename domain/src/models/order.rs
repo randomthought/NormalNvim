@@ -82,12 +82,12 @@ impl Limit {
 
 #[derive(Debug, Clone)]
 pub struct StopLimitMarket {
-    stop: Price,
-    limit: Price,
-    side: Side,
-    quantity: u64,
-    security: Security, // TODO: Consider using lifetime pointer
-    times_in_force: TimesInForce,
+    pub stop: Price,
+    pub limit: Price,
+    pub side: Side,
+    pub quantity: u32,
+    pub security: Security, // TODO: Consider using lifetime pointer
+    pub times_in_force: TimesInForce,
 }
 
 impl StopLimitMarket {
@@ -136,7 +136,7 @@ pub enum Order {
 #[derive(Debug, Clone)]
 pub struct PendingOrder {
     pub order_id: OrderId,
-    pub limit: Limit,
+    pub order: Order,
 }
 
 #[derive(Debug, Clone)]
@@ -154,5 +154,5 @@ pub struct FilledOrder {
 #[derive(Debug, Clone)]
 pub enum OrderResult {
     FilledOrder(FilledOrder),
-    OrderTicket(PendingOrder),
+    PendingOrder(PendingOrder),
 }

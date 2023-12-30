@@ -6,7 +6,8 @@ use crate::{
     },
     models::{
         order::{self, FilledOrder, Order, OrderId, OrderResult, PendingOrder},
-        price::Quote,
+        price::{Quote, Symbol},
+        security::{self, Security},
     },
     order::{Account, OrderManager, OrderReader},
 };
@@ -45,6 +46,34 @@ impl Broker {
             qoute_provider,
         }
     }
+
+    async fn create_filled_order(
+        &self,
+        quantity: u32,
+        security: &Security,
+        side: order::Side,
+    ) -> Result<FilledOrder> {
+        let quote = self.qoute_provider.get_quote(security).await?;
+        let price = match side {
+            order::Side::Long => quote.ask,
+            order::Side::Short => quote.bid,
+        };
+        let q = Decimal::from_u32(quantity).unwrap();
+        let total_commision = self.commissions_per_share * q;
+
+        let order_id = Uuid::new_v4().to_string();
+        let fo = FilledOrder {
+            price,
+            side,
+            quantity,
+            order_id: order_id.clone(),
+            security: security.clone(),
+            commission: total_commision,
+            datetime: SystemTime::now().duration_since(UNIX_EPOCH)?,
+        };
+
+        Ok(fo)
+    }
 }
 
 #[async_trait]
@@ -74,45 +103,48 @@ impl OrderReader for Broker {
 #[async_trait]
 impl OrderManager for Broker {
     async fn place_order(&self, order: &Order) -> Result<OrderResult> {
-        match order {
-            Order::Market(o) => {
-                let quote = self.qoute_provider.get_quote(&o.security).await?;
-                let price = match o.side {
-                    order::Side::Long => quote.ask,
-                    order::Side::Short => quote.bid,
-                };
-                let cost = calculate_trade_cost(&o, &quote, self.commissions_per_share)?;
-                let mut current_balance = self.account_balance.write().await;
-                if cost > *current_balance {
-                    bail!("not enough funds to perform the trade");
-                }
-                let mut map = self.filled_orders.write().await;
-                let total_commision =
-                    self.commissions_per_share * Decimal::from_u32(o.quantity).unwrap();
-                let order_id = Uuid::new_v4().to_string();
-                let fo = FilledOrder {
-                    order_id: order_id.clone(),
-                    price,
-                    security: o.security.clone(),
-                    side: o.side,
-                    commission: total_commision,
-                    quantity: o.quantity,
-                    datetime: SystemTime::now().duration_since(UNIX_EPOCH)?,
-                };
-
-                map.insert(order_id.clone(), fo.clone());
-
-                let or = order::OrderResult::FilledOrder(fo.clone());
-
-                *current_balance = *current_balance - cost;
-
-                return Ok(or);
-            }
-            Order::Limit(o) => {}
-            Order::StopLimitMarket(o) => {}
+        if let Order::StopLimitMarket(o) = order {
+            let m = order::Market::new(o.quantity, o.side, o.security.clone(), o.times_in_force);
+            let market_order = Order::Market(m);
+            self.place_order(&market_order).await?;
         }
-        todo!()
+
+        let Order::Market(o) = order else {
+            let po = order::PendingOrder {
+                order_id: Uuid::new_v4().to_string(),
+                order: order.clone(),
+            };
+
+            let or = order::OrderResult::PendingOrder(po.clone());
+
+            let mut map = self.pending_orders.write().await;
+            map.insert(po.order_id.clone(), po.clone());
+
+            return Ok(or);
+        };
+
+        let filled_order = self
+            .create_filled_order(o.quantity, &o.security, o.side)
+            .await?;
+
+        let q = Decimal::from_u32(filled_order.quantity).unwrap();
+        let cost = filled_order.commission + (q * filled_order.price);
+
+        let mut current_balance = self.account_balance.write().await;
+        if cost > *current_balance {
+            bail!("not enough funds to perform the trade");
+        }
+
+        let mut map = self.filled_orders.write().await;
+        map.insert(filled_order.order_id.clone(), filled_order.clone());
+
+        let or = order::OrderResult::FilledOrder(filled_order.clone());
+
+        *current_balance = *current_balance - cost;
+
+        return Ok(or);
     }
+
     async fn update(&self, pending_order: &PendingOrder) -> Result<()> {
         let mut map = self.pending_orders.write().await;
         let Some(_) = map.get(&pending_order.order_id) else {
@@ -122,7 +154,7 @@ impl OrderManager for Broker {
 
         let p = PendingOrder {
             order_id: pending_order.order_id.clone(),
-            limit: pending_order.limit.clone(),
+            order: pending_order.order.clone(),
         };
         map.insert(pending_order.order_id.clone(), p);
 
@@ -142,23 +174,13 @@ impl OrderManager for Broker {
     }
 }
 
-fn calculate_trade_cost(
-    order: &order::Market,
-    quote: &Quote,
-    commision_per_share: Decimal,
-) -> Result<Decimal> {
-    // let total_commision = (commissions_per_share * o.quantity);
-    // let cost = total_commision + (price.)
-    todo!()
-}
-
 #[async_trait]
 impl EventHandler for Broker {
     async fn handle(&self, event: &Event) -> Result<()> {
         if let Event::Order(o) = event {
             let e = match self.place_order(o).await? {
                 OrderResult::FilledOrder(o) => Event::FilledOrder(o),
-                OrderResult::OrderTicket(o) => Event::OrderTicket(o),
+                OrderResult::PendingOrder(o) => Event::OrderTicket(o),
             };
 
             self.event_producer.produce(e).await?
