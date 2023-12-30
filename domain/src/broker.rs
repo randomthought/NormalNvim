@@ -49,7 +49,7 @@ impl Broker {
 
     async fn create_filled_order(
         &self,
-        quantity: u32,
+        quantity: u64,
         security: &Security,
         side: order::Side,
     ) -> Result<FilledOrder> {
@@ -58,7 +58,7 @@ impl Broker {
             order::Side::Long => quote.ask,
             order::Side::Short => quote.bid,
         };
-        let q = Decimal::from_u32(quantity).unwrap();
+        let q = Decimal::from_u64(quantity).unwrap();
         let total_commision = self.commissions_per_share * q;
 
         let order_id = Uuid::new_v4().to_string();
@@ -127,7 +127,7 @@ impl OrderManager for Broker {
             .create_filled_order(o.quantity, &o.security, o.side)
             .await?;
 
-        let q = Decimal::from_u32(filled_order.quantity).unwrap();
+        let q = Decimal::from_u64(filled_order.quantity).unwrap();
         let cost = filled_order.commission + (q * filled_order.price);
 
         let mut current_balance = self.account_balance.write().await;

@@ -15,7 +15,7 @@ pub enum Side {
 
 #[derive(Debug, Clone)]
 pub struct Market {
-    pub quantity: u32,
+    pub quantity: u64,
     pub side: Side,
     pub security: Security, // TODO: Consider using lifetime pointer
     pub times_in_force: TimesInForce,
@@ -24,7 +24,7 @@ pub struct Market {
 impl Market {
     // constructor
     pub fn new(
-        quantity: u32,
+        quantity: u64,
         side: Side,
         security: Security,
         times_in_force: TimesInForce,
@@ -54,7 +54,7 @@ pub enum TimesInForce {
 // TODO: Add order durtation example, day order
 #[derive(Debug, Clone)]
 pub struct Limit {
-    quantity: i32,
+    quantity: u64,
     price: Price,
     side: Side,
     security: Security, // TODO: Consider using lifetime pointer
@@ -64,7 +64,7 @@ pub struct Limit {
 impl Limit {
     // constructor
     pub fn new(
-        quantity: i32,
+        quantity: u64,
         price: Price,
         side: Side,
         security: Security,
@@ -85,7 +85,7 @@ pub struct StopLimitMarket {
     pub stop: Price,
     pub limit: Price,
     pub side: Side,
-    pub quantity: u32,
+    pub quantity: u64,
     pub security: Security, // TODO: Consider using lifetime pointer
     pub times_in_force: TimesInForce,
 }
@@ -147,7 +147,7 @@ pub struct FilledOrder {
     pub side: Side,
     pub commission: Price,
     pub price: Price,
-    pub quantity: u32,
+    pub quantity: u64,
     pub datetime: Duration,
 }
 
