@@ -43,7 +43,7 @@ impl Portfolio {
     }
 
     pub async fn get_open_positions(&self) -> Result<Vec<Position>> {
-        let orders = self.order_reader.orders().await?;
+        let orders = self.order_reader.open_orders().await?;
 
         // let futures: Vec<impl Future<Output = Result<Option<Position>, io::Error>>> = orders
         let futures: Vec<_> = orders

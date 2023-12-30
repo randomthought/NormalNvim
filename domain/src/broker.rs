@@ -6,8 +6,7 @@ use crate::{
     },
     models::{
         order::{self, FilledOrder, Order, OrderId, OrderResult, PendingOrder},
-        price::{Quote, Symbol},
-        security::{self, Security},
+        security::Security,
     },
     order::{Account, OrderManager, OrderReader},
 };
@@ -22,6 +21,7 @@ use uuid::Uuid;
 pub struct Broker {
     event_producer: Arc<dyn EventProducer + Sync + Send>,
     qoute_provider: Arc<dyn QouteProvider + Sync + Send>,
+    // TODO: leveage needs to be float for example 1.5 leverage
     leverage: u32,
     account_balance: RwLock<Decimal>,
     filled_orders: RwLock<HashMap<OrderId, FilledOrder>>,
@@ -80,7 +80,7 @@ impl Broker {
 impl Account for Broker {
     async fn get_account_balance(&self) -> Result<Decimal> {
         let balance = self.account_balance.read().await;
-        todo!()
+        Ok(*balance)
     }
     async fn get_buying_power(&self) -> Result<Decimal> {
         let balance = self.account_balance.read().await;
@@ -92,11 +92,24 @@ impl Account for Broker {
 
 #[async_trait]
 impl OrderReader for Broker {
-    async fn orders(&self) -> Result<Vec<OrderResult>> {
+    async fn open_orders(&self) -> Result<Vec<OrderResult>> {
         let orders = self.filled_orders.read().await;
-        let results: Vec<_> = orders.values().map(|o| o.clone()).collect();
+        let results: Vec<_> = orders
+            .values()
+            .map(|o| order::OrderResult::FilledOrder(o.clone()))
+            .collect();
 
-        todo!()
+        Ok(results)
+    }
+
+    async fn pending_orders(&self) -> Result<Vec<OrderResult>> {
+        let orders = self.pending_orders.read().await;
+        let results: Vec<_> = orders
+            .values()
+            .map(|o| order::OrderResult::PendingOrder(o.clone()))
+            .collect();
+
+        Ok(results)
     }
 }
 
@@ -148,8 +161,7 @@ impl OrderManager for Broker {
     async fn update(&self, pending_order: &PendingOrder) -> Result<()> {
         let mut map = self.pending_orders.write().await;
         let Some(_) = map.get(&pending_order.order_id) else {
-            // TODO: what about limit market orders
-            bail!("can only update limit orders");
+            bail!("order not found");
         };
 
         let p = PendingOrder {
@@ -164,8 +176,7 @@ impl OrderManager for Broker {
     async fn cancel(&self, pending_order: &PendingOrder) -> Result<()> {
         let mut map = self.pending_orders.write().await;
         let Some(_) = map.get(&pending_order.order_id) else {
-            // TODO: what about limit market orders
-            bail!("can only cancel limit orders");
+            bail!("order not found");
         };
 
         map.remove(&pending_order.order_id);

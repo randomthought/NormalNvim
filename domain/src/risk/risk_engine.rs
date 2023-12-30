@@ -88,7 +88,7 @@ impl RiskEngine {
     }
 
     async fn get_open_trades(&self) -> Result<u32> {
-        let results = self.order_manager.orders().await?.len();
+        let results = self.order_manager.open_orders().await?.len();
 
         Ok(results as u32)
     }
@@ -158,7 +158,7 @@ impl RiskEngine {
 impl EventHandler for RiskEngine {
     async fn handle(&self, event: &Event) -> Result<()> {
         if let Event::Signal(s) = event {
-            // self.process_signal(s).await?;
+            self.process_signal(s).await?;
         }
 
         Ok(())
