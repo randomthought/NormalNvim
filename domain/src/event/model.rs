@@ -1,7 +1,7 @@
 use anyhow::{ensure, Result};
 
 use crate::models::{
-    order::{FilledOrder, Order, OrderTicket, Side, TimesInForce},
+    order::{FilledOrder, Order, PendingOrder, Side, TimesInForce},
     price::{Price, PriceHistory},
     security::Security,
 };
@@ -71,5 +71,5 @@ pub enum Event {
     Signal(Signal),
     Order(Order),
     FilledOrder(FilledOrder),
-    OrderTicket(OrderTicket),
+    OrderTicket(PendingOrder),
 }

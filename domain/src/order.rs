@@ -1,4 +1,4 @@
-use super::models::order::{Order, OrderResult, OrderTicket};
+use super::models::order::{Order, OrderResult, PendingOrder};
 use anyhow::Result;
 use async_trait::async_trait;
 use rust_decimal::Decimal;
@@ -21,6 +21,6 @@ pub trait OrderReader {
 pub trait OrderManager: OrderReader {
     async fn place_order(&self, order: &Order) -> Result<OrderResult>;
     // TODO: model order not exisiting error
-    async fn update(&self, order_ticket: &OrderTicket) -> Result<()>;
-    async fn cancel(&self, order: &OrderTicket) -> Result<()>;
+    async fn update(&self, order_ticket: &PendingOrder) -> Result<()>;
+    async fn cancel(&self, order: &PendingOrder) -> Result<()>;
 }

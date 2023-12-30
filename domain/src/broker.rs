@@ -1,34 +1,48 @@
 use crate::{
+    data::QouteProvider,
     event::{
         event::{EventHandler, EventProducer},
         model::Event,
     },
-    models::order::{Order, OrderResult, OrderTicket},
+    models::{
+        order::{self, FilledOrder, Order, OrderId, OrderResult, PendingOrder},
+        price::Quote,
+    },
     order::{Account, OrderManager, OrderReader},
 };
-use anyhow::Result;
+use anyhow::{bail, Ok, Result};
 use async_trait::async_trait;
 use rust_decimal::{prelude::FromPrimitive, Decimal};
-use std::sync::{Arc, RwLock};
+use std::time::{SystemTime, UNIX_EPOCH};
+use std::{collections::HashMap, ops::Mul, sync::Arc};
+use tokio::sync::RwLock;
+use uuid::Uuid;
 
 pub struct Broker {
     event_producer: Arc<dyn EventProducer + Sync + Send>,
+    qoute_provider: Arc<dyn QouteProvider + Sync + Send>,
+    leverage: u32,
     account_balance: RwLock<Decimal>,
-    orders: Vec<OrderResult>,
+    filled_orders: RwLock<HashMap<OrderId, FilledOrder>>,
+    pending_orders: RwLock<HashMap<OrderId, PendingOrder>>,
     commissions_per_share: Decimal,
 }
 
 impl Broker {
     pub fn new(
         account_balance: Decimal,
+        qoute_provider: Arc<dyn QouteProvider + Sync + Send>,
         event_producer: Arc<dyn EventProducer + Sync + Send>,
     ) -> Self {
         let commissions_per_share = Decimal::from_f64(0.0).unwrap();
         Self {
+            leverage: 10,
             event_producer,
             account_balance: RwLock::new(account_balance),
-            orders: vec![],
             commissions_per_share,
+            filled_orders: RwLock::new(HashMap::new()),
+            pending_orders: RwLock::new(HashMap::new()),
+            qoute_provider,
         }
     }
 }
@@ -36,19 +50,24 @@ impl Broker {
 #[async_trait]
 impl Account for Broker {
     async fn get_account_balance(&self) -> Result<Decimal> {
-        let results = self.account_balance.read().unwrap();
-        Ok(*results)
+        let balance = self.account_balance.read().await;
+        todo!()
     }
     async fn get_buying_power(&self) -> Result<Decimal> {
-        let results = self.account_balance.read().unwrap();
-        Ok(*results)
+        let balance = self.account_balance.read().await;
+        let l = Decimal::from_u32(self.leverage).unwrap();
+
+        Ok(balance.mul(l))
     }
 }
 
 #[async_trait]
 impl OrderReader for Broker {
     async fn orders(&self) -> Result<Vec<OrderResult>> {
-        Ok(self.orders.clone())
+        let orders = self.filled_orders.read().await;
+        let results: Vec<_> = orders.values().map(|o| o.clone()).collect();
+
+        todo!()
     }
 }
 
@@ -56,19 +75,81 @@ impl OrderReader for Broker {
 impl OrderManager for Broker {
     async fn place_order(&self, order: &Order) -> Result<OrderResult> {
         match order {
-            Order::Market(o) => {}
+            Order::Market(o) => {
+                let quote = self.qoute_provider.get_quote(&o.security).await?;
+                let price = match o.side {
+                    order::Side::Long => quote.ask,
+                    order::Side::Short => quote.bid,
+                };
+                let cost = calculate_trade_cost(&o, &quote, self.commissions_per_share)?;
+                let mut current_balance = self.account_balance.write().await;
+                if cost > *current_balance {
+                    bail!("not enough funds to perform the trade");
+                }
+                let mut map = self.filled_orders.write().await;
+                let total_commision =
+                    self.commissions_per_share * Decimal::from_u32(o.quantity).unwrap();
+                let order_id = Uuid::new_v4().to_string();
+                let fo = FilledOrder {
+                    order_id: order_id.clone(),
+                    price,
+                    security: o.security.clone(),
+                    side: o.side,
+                    commission: total_commision,
+                    quantity: o.quantity,
+                    datetime: SystemTime::now().duration_since(UNIX_EPOCH)?,
+                };
+
+                map.insert(order_id.clone(), fo.clone());
+
+                let or = order::OrderResult::FilledOrder(fo.clone());
+
+                *current_balance = *current_balance - cost;
+
+                return Ok(or);
+            }
             Order::Limit(o) => {}
             Order::StopLimitMarket(o) => {}
         }
         todo!()
     }
-    async fn update(&self, order_ticket: &OrderTicket) -> Result<()> {
-        todo!()
+    async fn update(&self, pending_order: &PendingOrder) -> Result<()> {
+        let mut map = self.pending_orders.write().await;
+        let Some(_) = map.get(&pending_order.order_id) else {
+            // TODO: what about limit market orders
+            bail!("can only update limit orders");
+        };
+
+        let p = PendingOrder {
+            order_id: pending_order.order_id.clone(),
+            limit: pending_order.limit.clone(),
+        };
+        map.insert(pending_order.order_id.clone(), p);
+
+        Ok(())
     }
 
-    async fn cancel(&self, order: &OrderTicket) -> Result<()> {
-        todo!()
+    async fn cancel(&self, pending_order: &PendingOrder) -> Result<()> {
+        let mut map = self.pending_orders.write().await;
+        let Some(_) = map.get(&pending_order.order_id) else {
+            // TODO: what about limit market orders
+            bail!("can only cancel limit orders");
+        };
+
+        map.remove(&pending_order.order_id);
+
+        Ok(())
     }
+}
+
+fn calculate_trade_cost(
+    order: &order::Market,
+    quote: &Quote,
+    commision_per_share: Decimal,
+) -> Result<Decimal> {
+    // let total_commision = (commissions_per_share * o.quantity);
+    // let cost = total_commision + (price.)
+    todo!()
 }
 
 #[async_trait]

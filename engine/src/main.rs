@@ -32,7 +32,11 @@ async fn main() {
     let event_channel = event::channel::Channel::new();
     let event_channel_ = Arc::new(event_channel.clone());
 
-    let broker = Broker::new(Decimal::from_u64(100_000).unwrap(), event_channel_.clone());
+    let broker = Broker::new(
+        Decimal::from_u64(100_000).unwrap(),
+        quite_provider_.clone(),
+        event_channel_.clone(),
+    );
     let broker_ = Arc::new(broker);
     let risk_engine_config = RiskEngineConfig {
         max_trade_portfolio_accumulaton: 0.10,

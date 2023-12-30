@@ -158,7 +158,7 @@ impl RiskEngine {
 impl EventHandler for RiskEngine {
     async fn handle(&self, event: &Event) -> Result<()> {
         if let Event::Signal(s) = event {
-            self.process_signal(s).await?;
+            // self.process_signal(s).await?;
         }
 
         Ok(())
