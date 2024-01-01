@@ -6,6 +6,7 @@ use std::{
 
 use domain::{
     broker::Broker,
+    data::QouteProvider,
     event::{self, event::EventHandler},
     portfolio::Portfolio,
     risk::{config::RiskEngineConfig, risk_engine::RiskEngine},
@@ -15,26 +16,31 @@ use domain::{
 use engine::{
     algorithms::fake_algo::FakeAlgo,
     event_providers::{
+        back_test::BackTester,
         file_provider,
         market::polygon::{api_client, parser::PolygonParser},
         utils::EventStream,
     },
 };
 use rust_decimal::{prelude::FromPrimitive, Decimal};
+use tokio::sync::Mutex;
 
 #[tokio::main]
 async fn main() {
     let client = reqwest::Client::new();
     let api_key = env::var("API_KEY").unwrap();
-    let quite_provider = api_client::ApiClient::new(api_key.clone(), client);
-    let quite_provider_ = Arc::new(quite_provider);
+
+    let back_tester = BackTester::new(0.05, Box::new(PolygonParser::new()));
+    let back_tester_ = Arc::new(back_tester);
+    let qoute_provider = back_tester_.clone();
+    let parser = back_tester_.clone();
 
     let event_channel = event::channel::Channel::new();
     let event_channel_ = Arc::new(event_channel.clone());
 
     let broker = Broker::new(
         Decimal::from_u64(100_000).unwrap(),
-        quite_provider_.clone(),
+        qoute_provider.clone(),
         event_channel_.clone(),
     );
     let broker_ = Arc::new(broker);
@@ -45,10 +51,10 @@ async fn main() {
         max_open_trades: None,
     };
 
-    let portfolio = Portfolio::new(broker_.clone(), broker_.clone(), quite_provider_.clone());
+    let portfolio = Portfolio::new(broker_.clone(), broker_.clone(), qoute_provider.clone());
     let risk_egnine = RiskEngine::new(
         risk_engine_config,
-        quite_provider_.clone(),
+        qoute_provider.clone(),
         broker_.clone(),
         Box::new(portfolio),
     );
@@ -63,19 +69,22 @@ async fn main() {
     let exit_signal_t1 = exit_signal.clone();
     let t1 = tokio::spawn(async move {
         let subscription = "A.*";
-        let data_stream = engine::event_providers::market::polygon::stream_client::create_stream(
-            &api_key,
-            &subscription,
-        )
-        .unwrap();
-        let parser = Box::new(PolygonParser::new());
+        // let data_stream = engine::event_providers::market::polygon::stream_client::create_stream(
+        //     &api_key,
+        //     &subscription,
+        // )
+        // .unwrap();
 
-        // let file = env::var("FILE").unwrap();
-        // let path = Path::new(&file);
-        // let data_stream = file_provider::create_stream(path).unwrap();
+        let file = env::var("FILE").unwrap();
+        let path = Path::new(&file);
+        let data_stream = file_provider::create_stream(path).unwrap();
 
-        let mut event_stream =
-            EventStream::new(event_channel_.clone(), data_stream, parser, exit_signal_t1);
+        let mut event_stream = EventStream::new(
+            event_channel_.clone(),
+            data_stream,
+            parser.clone(),
+            exit_signal_t1,
+        );
         event_stream.start().await.unwrap();
     });
 

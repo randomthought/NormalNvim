@@ -13,6 +13,7 @@ use async_trait::async_trait;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 
+#[derive(Debug)]
 pub enum SignalResult {
     Rejected(String), // TODO: maybe make Rejected(String) so you can add a reason for rejection
     PlacedOrder(Order),
@@ -63,9 +64,9 @@ impl RiskEngine {
         if let Some(max) = config.max_open_trades {
             let open_trades = self.get_open_trades().await?;
             if open_trades >= max {
-                return Ok(SignalResult::Rejected(
-                    "exceeded max number of openned".to_owned(),
-                ));
+                return Ok(SignalResult::Rejected(format!(
+                    "exceeded max number of opened_trades='{open_trades}'"
+                )));
             }
         }
 
@@ -158,7 +159,7 @@ impl RiskEngine {
 impl EventHandler for RiskEngine {
     async fn handle(&self, event: &Event) -> Result<()> {
         if let Event::Signal(s) = event {
-            self.process_signal(s).await?;
+            let signal_results = self.process_signal(s).await?;
         }
 
         Ok(())
