@@ -54,11 +54,11 @@ pub enum TimesInForce {
 // TODO: Add order durtation example, day order
 #[derive(Debug, Clone)]
 pub struct Limit {
-    quantity: u64,
-    price: Price,
-    side: Side,
-    security: Security, // TODO: Consider using lifetime pointer
-    times_in_force: TimesInForce,
+    pub quantity: u64,
+    pub price: Price,
+    pub side: Side,
+    pub security: Security, // TODO: Consider using lifetime pointer
+    pub times_in_force: TimesInForce,
 }
 
 impl Limit {

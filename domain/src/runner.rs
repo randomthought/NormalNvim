@@ -10,30 +10,33 @@ use tokio::time::sleep;
 
 pub struct Runner {
     event_handlers: Vec<Box<dyn EventHandler + Sync + Send>>,
-    data_stream: Pin<Box<dyn Stream<Item = Event> + Sync + Send>>,
+    event_stream: Pin<Box<dyn Stream<Item = Event> + Sync + Send>>,
     exit_signal: Arc<AtomicBool>,
 }
 
 impl Runner {
     pub fn new(
         event_handlers: Vec<Box<dyn EventHandler + Sync + Send>>,
-        data_stream: Pin<Box<dyn Stream<Item = Event> + Sync + Send>>,
+        event_stream: Pin<Box<dyn Stream<Item = Event> + Sync + Send>>,
         exit_signal: Arc<AtomicBool>,
     ) -> Self {
         Self {
             event_handlers,
-            data_stream,
+            event_stream,
             exit_signal,
         }
     }
 
     pub async fn run(&mut self) -> Result<()> {
+        let mut num_sleeps = 0;
         loop {
-            if self.exit_signal.load(Ordering::Relaxed) {
+            if self.exit_signal.load(Ordering::Relaxed) && num_sleeps >= 4 {
                 return Ok(());
             }
 
-            if let Some(event) = self.data_stream.next().await {
+            if let Some(event) = self.event_stream.next().await {
+                num_sleeps = 0;
+
                 let futures = self
                     .event_handlers
                     .iter()
@@ -41,6 +44,7 @@ impl Runner {
                 future::try_join_all(futures).await?;
             } else {
                 sleep(Duration::from_millis(500)).await;
+                num_sleeps += 1;
             }
         }
     }

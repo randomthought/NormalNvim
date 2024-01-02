@@ -10,7 +10,7 @@ pub fn to_price_history(aggregates: &Aggregates) -> Result<PriceHistory> {
     let exchange = if aggregates.otc {
         Exchange::OTC
     } else {
-        Exchange::Unkown
+        Exchange::Unknown
     };
 
     let security = Security {
@@ -44,7 +44,7 @@ pub fn to_quote(qoute_response: &QuoteResponse) -> Result<Quote> {
     let results = &qoute_response.results;
     let security = Security {
         asset_type: AssetType::Equity,
-        exchange: Exchange::Unkown,
+        exchange: Exchange::Unknown,
         ticker: results.t.to_owned(),
     };
 

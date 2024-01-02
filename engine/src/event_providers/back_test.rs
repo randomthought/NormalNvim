@@ -83,7 +83,7 @@ impl QouteProvider for BackTester {
         let map = self.map.read().await;
         let quote = map
             .get(&security.ticker)
-            .context("security '{security.ticker}' not found in map")?
+            .context(format!("security='{}' not found in map", security.ticker))?
             .clone();
 
         Ok(quote)

@@ -7,7 +7,7 @@ pub enum Exchange {
     NYSE,
     AMEX,
     OTC,
-    Unkown,
+    Unknown,
 }
 
 #[derive(Debug, Clone, Copy)]
