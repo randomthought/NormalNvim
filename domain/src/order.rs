@@ -1,4 +1,4 @@
-use super::models::order::{Order, OrderResult, OrderTicket};
+use super::models::order::{Order, OrderResult, PendingOrder};
 use anyhow::Result;
 use async_trait::async_trait;
 use rust_decimal::Decimal;
@@ -14,13 +14,14 @@ pub trait Account {
 // TODO: model errors here https://www.quantconnect.com/docs/v2/writing-algorithms/trading-and-orders/order-errors
 #[async_trait]
 pub trait OrderReader {
-    async fn orders(&self) -> Result<Vec<OrderResult>>;
+    async fn open_orders(&self) -> Result<Vec<OrderResult>>;
+    async fn pending_orders(&self) -> Result<Vec<OrderResult>>;
 }
 
 #[async_trait]
 pub trait OrderManager: OrderReader {
     async fn place_order(&self, order: &Order) -> Result<OrderResult>;
     // TODO: model order not exisiting error
-    async fn update(&self, order_ticket: &OrderTicket) -> Result<()>;
-    async fn cancel(&self, order: &OrderTicket) -> Result<()>;
+    async fn update(&self, order_ticket: &PendingOrder) -> Result<()>;
+    async fn cancel(&self, order: &PendingOrder) -> Result<()>;
 }

@@ -13,6 +13,7 @@ pub struct Quote {
     pub bid_size: u64,
     pub ask: Price,
     pub ask_size: u64,
+    // TODO: change the below to a rust duraction
     pub timestamp: u64,
 }
 

@@ -13,6 +13,7 @@ use async_trait::async_trait;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 
+#[derive(Debug)]
 pub enum SignalResult {
     Rejected(String), // TODO: maybe make Rejected(String) so you can add a reason for rejection
     PlacedOrder(Order),
@@ -51,6 +52,7 @@ impl RiskEngine {
     }
 
     pub async fn process_signal(&self, signal: &Signal) -> Result<SignalResult> {
+        // TODO: check the accumulation of orders
         println!("risk_engine processed signal");
         if let TradingState::Halted = self.trading_state {
             return Ok(SignalResult::Rejected(
@@ -63,62 +65,37 @@ impl RiskEngine {
         if let Some(max) = config.max_open_trades {
             let open_trades = self.get_open_trades().await?;
             if open_trades >= max {
-                return Ok(SignalResult::Rejected(
-                    "exceeded max number of openned".to_owned(),
-                ));
+                return Ok(SignalResult::Rejected(format!(
+                    "exceeded max number of opened_trades='{open_trades}'"
+                )));
             }
         }
 
+        let (security, quantity, side) = match signal.order.clone() {
+            Order::Market(o) => (o.security, o.quantity, o.side),
+            Order::Limit(o) => (o.security, o.quantity, o.side),
+            Order::StopLimitMarket(o) => (o.security, o.quantity, o.side),
+        };
+
         let account_value = self.portfolio.account_value().await?;
-        let qoute = self.qoute_provider.get_quote(&signal.security).await?;
+        let qoute = self.qoute_provider.get_quote(&security).await?;
 
-        let quantity = self.calulate_risk_quantity(account_value, &qoute, &signal)?;
-
-        if !self.quantity_within_risks_params(quantity, signal.side, &qoute, account_value)? {
+        if !self.quantity_within_risks_params(quantity, side, &qoute, account_value)? {
             return Ok(SignalResult::Rejected(
                 "unable to afford this trade according to portfolio risk params".to_owned(),
             ));
         }
 
-        let order = _to_order(signal, quantity)?;
-
+        let order = signal.order.clone();
         self.order_manager.place_order(&order).await?;
 
         Ok(SignalResult::PlacedOrder(order))
     }
 
     async fn get_open_trades(&self) -> Result<u32> {
-        let results = self.order_manager.orders().await?.len();
+        let results = self.order_manager.open_orders().await?.len();
 
         Ok(results as u32)
-    }
-
-    fn calulate_risk_quantity(
-        &self,
-        account_value: Decimal,
-        qoute: &Quote,
-        signal: &Signal,
-    ) -> Result<u64> {
-        let obtain_price = match signal.side {
-            order::Side::Long => qoute.ask,
-            order::Side::Short => qoute.bid,
-        };
-
-        // TODO: think about making risk engine values all decimals?
-        let max_risk_per_trade = Decimal::from_f64(self.risk_engine_config.max_risk_per_trade)
-            .context(format!(
-                "unable to parse '{}' to decimal",
-                self.risk_engine_config.max_risk_per_trade
-            ))?;
-
-        let max_trade_loss = account_value * max_risk_per_trade;
-
-        let risk_amount = (obtain_price - signal.stop).abs();
-
-        let quantity = (max_trade_loss / risk_amount).trunc();
-
-        let result = u64::try_from(quantity)?;
-        Ok(result)
     }
 
     fn quantity_within_risks_params(
@@ -158,22 +135,10 @@ impl RiskEngine {
 impl EventHandler for RiskEngine {
     async fn handle(&self, event: &Event) -> Result<()> {
         if let Event::Signal(s) = event {
-            self.process_signal(s).await?;
+            let signal_results = self.process_signal(s).await?;
+            println!("{:?}", signal_results);
         }
 
         Ok(())
     }
-}
-
-fn _to_order(signal: &Signal, quantity: u64) -> Result<Order> {
-    let stop_limit_market = StopLimitMarket::new(
-        signal.security.clone(),
-        quantity,
-        signal.side,
-        signal.stop,
-        signal.limit,
-        signal.times_in_force,
-    )?;
-
-    Ok(Order::StopLimitMarket(stop_limit_market))
 }

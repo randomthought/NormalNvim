@@ -1,36 +1,36 @@
-use anyhow::{Context, Result};
+use std::time::{SystemTime, UNIX_EPOCH};
+
+use anyhow::Result;
 use async_trait::async_trait;
 use domain::{
     event::model::Signal,
     models::{
-        order::{Side, TimesInForce},
+        order::{self, TimesInForce},
         price::PriceHistory,
     },
     strategy::Algorithm,
 };
-use rand::Rng;
-use rust_decimal::{prelude::FromPrimitive, Decimal};
+use rand::{rngs::StdRng, Rng, SeedableRng};
 
 pub struct FakeAlgo {}
 
 #[async_trait]
 impl Algorithm for FakeAlgo {
     async fn process(&self, price_history: &PriceHistory) -> Result<Option<Signal>> {
-        println!("fake_algo saw event");
+        // println!("fake_algo saw event");
 
-        let rm = rand::thread_rng().gen_range(0.0..1.0);
+        let mut rng = StdRng::seed_from_u64(4);
+        let rm = rng.gen_range(0.0..1.0);
+
+        // let rm = rand::thread_rng().gen_range(0.0..1.0);
         if rm > 0.50 {
             println!("fake_algo sending signal");
-            let signal = Signal::new(
-                "fake_algo".to_owned(),
-                price_history.security.to_owned(),
-                Decimal::from_f64(0.0).unwrap(),
-                Decimal::from_f64(2000000.0).unwrap(),
-                Side::Long,
-                TimesInForce::GTC,
-                0,
-                0.99,
-            )?;
+            let security = price_history.security.to_owned();
+            let market = order::Market::new(1, order::Side::Long, security, TimesInForce::GTC);
+            let order = order::Order::Market(market);
+            let strategy_id = "fake_algo".to_owned();
+            let datetime = SystemTime::now().duration_since(UNIX_EPOCH)?;
+            let signal = Signal::new(strategy_id, order, datetime, 0.99);
 
             return Ok(Some(signal));
         }

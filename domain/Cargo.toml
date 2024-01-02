@@ -7,8 +7,9 @@ edition = "2021"
 
 [dependencies]
 tokio = { version = "1", features = ["full"] }
+uuid = { version = "1.6.1", features = [ "v4", "fast-rng", "macro-diagnostics", ] }
 crossbeam = "0.8"
 async-trait = "0.1.72"
 futures-util = "0.3.28"
 rust_decimal = "1.32"
-anyhow = "1.0.75"
+anyhow = { version = "1.0", features = ["backtrace"] }

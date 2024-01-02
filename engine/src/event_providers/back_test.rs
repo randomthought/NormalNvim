@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::sync::Arc;
 
 use anyhow::Context;
 use anyhow::Ok;
@@ -15,26 +16,29 @@ use domain::{
 };
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
+use tokio::sync::RwLock;
 
 use super::provider::Parser;
 
-struct BackTestProvider {
+pub struct BackTester {
     spread: Decimal,
-    map: HashMap<String, Quote>,
+    map: Arc<RwLock<HashMap<String, Quote>>>,
     parser: Box<dyn Parser + Sync + Send>,
 }
 
-impl BackTestProvider {
+impl BackTester {
     pub fn new(spread: f64, parser: Box<dyn Parser + Sync + Send>) -> Self {
+        let hash_map = HashMap::new();
+        let map = Arc::new(RwLock::new(hash_map));
         Self {
             // TODO: should we consider error handling if we cannot parse floating?
             spread: Decimal::from_f64(spread).unwrap(),
-            map: HashMap::new(),
+            map,
             parser,
         }
     }
 
-    fn add(&mut self, price_history: &PriceHistory) -> Result<()> {
+    async fn add(&self, price_history: &PriceHistory) -> Result<()> {
         let c = price_history
             .history
             .last()
@@ -47,22 +51,24 @@ impl BackTestProvider {
         let security = price_history.security.clone();
 
         let q = Quote::new(security, bid, ask, 0, 0, c.end_time)?;
-        self.map.insert(ticker, q);
+        let mut map = self.map.write().await;
+        map.insert(ticker, q);
 
         Ok(())
     }
 }
 
-impl Parser for BackTestProvider {
-    fn parse(&mut self, data: &str) -> anyhow::Result<Vec<Event>> {
+#[async_trait]
+impl Parser for BackTester {
+    async fn parse(&self, data: &str) -> anyhow::Result<Vec<Event>> {
         // TODO: iterator overloading mwould be better since this would be done on every price history twice
 
-        let events = self.parser.parse(data)?;
+        let events = self.parser.parse(data).await?;
 
         let mut vec: Vec<Event> = Vec::new();
         for e in events {
             if let Event::Market(Market::DataEvent(ph)) = e.clone() {
-                self.add(&ph)?;
+                self.add(&ph).await?;
             }
             vec.push(e);
         }
@@ -72,12 +78,12 @@ impl Parser for BackTestProvider {
 }
 
 #[async_trait]
-impl QouteProvider for BackTestProvider {
+impl QouteProvider for BackTester {
     async fn get_quote(&self, security: &Security) -> Result<Quote> {
-        let quote = self
-            .map
+        let map = self.map.read().await;
+        let quote = map
             .get(&security.ticker)
-            .context("security '{security.ticker}' not found in map")?
+            .context(format!("security='{}' not found in map", security.ticker))?
             .clone();
 
         Ok(quote)

@@ -1,6 +1,8 @@
 // TODO: helpful to model more complex order types: https://tlc.thinkorswim.com/center/howToTos/thinkManual/Trade/Order-Entry-Tools/Order-Types
 // TODO: heloful for more order types: https://www.quantconnect.com/docs/v2/writing-algorithms/trading-and-orders/key-concepts
 
+use std::time::Duration;
+
 use super::price::Price;
 use super::security::Security;
 use anyhow::{ensure, Result};
@@ -13,16 +15,16 @@ pub enum Side {
 
 #[derive(Debug, Clone)]
 pub struct Market {
-    quantity: u32,
-    side: Side,
-    security: Security, // TODO: Consider using lifetime pointer
-    times_in_force: TimesInForce,
+    pub quantity: u64,
+    pub side: Side,
+    pub security: Security, // TODO: Consider using lifetime pointer
+    pub times_in_force: TimesInForce,
 }
 
 impl Market {
     // constructor
     pub fn new(
-        quantity: u32,
+        quantity: u64,
         side: Side,
         security: Security,
         times_in_force: TimesInForce,
@@ -52,17 +54,17 @@ pub enum TimesInForce {
 // TODO: Add order durtation example, day order
 #[derive(Debug, Clone)]
 pub struct Limit {
-    quantity: i32,
-    price: Price,
-    side: Side,
-    security: Security, // TODO: Consider using lifetime pointer
-    times_in_force: TimesInForce,
+    pub quantity: u64,
+    pub price: Price,
+    pub side: Side,
+    pub security: Security, // TODO: Consider using lifetime pointer
+    pub times_in_force: TimesInForce,
 }
 
 impl Limit {
     // constructor
     pub fn new(
-        quantity: i32,
+        quantity: u64,
         price: Price,
         side: Side,
         security: Security,
@@ -80,12 +82,12 @@ impl Limit {
 
 #[derive(Debug, Clone)]
 pub struct StopLimitMarket {
-    stop: Price,
-    limit: Price,
-    side: Side,
-    quantity: u64,
-    security: Security, // TODO: Consider using lifetime pointer
-    times_in_force: TimesInForce,
+    pub stop: Price,
+    pub limit: Price,
+    pub side: Side,
+    pub quantity: u64,
+    pub security: Security, // TODO: Consider using lifetime pointer
+    pub times_in_force: TimesInForce,
 }
 
 impl StopLimitMarket {
@@ -122,7 +124,7 @@ impl StopLimitMarket {
     }
 }
 
-type OrderId = String;
+pub type OrderId = String;
 
 #[derive(Debug, Clone)]
 pub enum Order {
@@ -132,24 +134,25 @@ pub enum Order {
 }
 
 #[derive(Debug, Clone)]
-pub struct OrderTicket {
-    order_id: OrderId,
-    limit: Limit,
+pub struct PendingOrder {
+    pub order_id: OrderId,
+    pub order: Order,
 }
 
 #[derive(Debug, Clone)]
 #[non_exhaustive]
 pub struct FilledOrder {
+    pub order_id: OrderId,
     pub security: Security,
     pub side: Side,
     pub commission: Price,
     pub price: Price,
-    pub quantity: i32,
-    pub datetime: i32,
+    pub quantity: u64,
+    pub datetime: Duration,
 }
 
 #[derive(Debug, Clone)]
 pub enum OrderResult {
     FilledOrder(FilledOrder),
-    OrderTicket(OrderTicket),
+    PendingOrder(PendingOrder),
 }

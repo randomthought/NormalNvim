@@ -1,4 +1,5 @@
 use anyhow::Result;
+use async_trait::async_trait;
 use domain::event::model::{Event, Market};
 
 use crate::event_providers::provider::Parser;
@@ -13,13 +14,14 @@ impl PolygonParser {
     }
 }
 
+#[async_trait]
 impl Parser for PolygonParser {
-    fn parse(&mut self, data: &str) -> Result<Vec<Event>> {
+    async fn parse(&self, data: &str) -> Result<Vec<Event>> {
         if data.is_empty() {
             return Ok(vec![]);
         }
 
-        println!("{data}");
+        // println!("{data}");
         let deserialized: Vec<Aggregates> = serde_json::from_str(data)
             .expect(format!("Unable to deserialize data: {}", data).as_str());
 

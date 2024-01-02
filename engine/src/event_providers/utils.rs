@@ -15,7 +15,7 @@ use anyhow::Result;
 pub struct EventStream {
     event_producer: Arc<dyn EventProducer + Sync + Send>,
     data_stream: Pin<Box<dyn Stream<Item = Result<String>> + Sync + Send>>,
-    parser: Box<dyn Parser + Sync + Send>,
+    parser: Arc<dyn Parser + Sync + Send>,
     exit_signal: Arc<AtomicBool>,
 }
 
@@ -23,7 +23,7 @@ impl EventStream {
     pub fn new(
         event_producer: Arc<dyn EventProducer + Sync + Send>,
         data_stream: Pin<Box<dyn Stream<Item = Result<String>> + Sync + Send>>,
-        parser: Box<dyn Parser + Sync + Send>,
+        parser: Arc<dyn Parser + Sync + Send>,
         exit_signal: Arc<AtomicBool>,
     ) -> Self {
         Self {
@@ -37,7 +37,7 @@ impl EventStream {
     pub async fn start(&mut self) -> Result<()> {
         while let Some(dr) = self.data_stream.next().await {
             let raw_data = dr?;
-            let events = self.parser.parse(&raw_data)?;
+            let events = self.parser.parse(&raw_data).await?;
             for e in events {
                 self.event_producer.produce(e).await?;
             }
