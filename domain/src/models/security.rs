@@ -1,4 +1,4 @@
-type Ticker = String;
+pub type Ticker = String;
 
 #[derive(Debug, Clone, Copy)]
 pub enum Exchange {
@@ -23,7 +23,7 @@ pub enum AssetType {
 pub struct Security {
     pub asset_type: AssetType,
     pub exchange: Exchange,
-    pub ticker: String,
+    pub ticker: Ticker,
 }
 
 impl Security {

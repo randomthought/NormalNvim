@@ -45,6 +45,8 @@ impl EventStream {
 
         self.exit_signal.store(true, Ordering::Relaxed);
 
+        println!("finish processing stream");
+
         Ok(())
     }
 }

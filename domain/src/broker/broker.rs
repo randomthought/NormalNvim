@@ -5,7 +5,7 @@ use crate::{
         model::Event,
     },
     models::{
-        order::{self, FilledOrder, Order, OrderId, OrderResult, PendingOrder},
+        order::{self, FilledOrder, Order, OrderResult, PendingOrder},
         security::Security,
     },
     order::{Account, OrderManager, OrderReader},
@@ -18,14 +18,15 @@ use std::{collections::HashMap, ops::Mul, sync::Arc};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
+use super::orders::Orders;
+
 pub struct Broker {
     event_producer: Arc<dyn EventProducer + Sync + Send>,
     qoute_provider: Arc<dyn QouteProvider + Sync + Send>,
     // TODO: leveage needs to be float for example 1.5 leverage
     leverage: u32,
     account_balance: RwLock<Decimal>,
-    filled_orders: RwLock<HashMap<OrderId, FilledOrder>>,
-    pending_orders: RwLock<HashMap<OrderId, PendingOrder>>,
+    orders: Orders,
     commissions_per_share: Decimal,
 }
 
@@ -41,8 +42,7 @@ impl Broker {
             event_producer,
             account_balance: RwLock::new(account_balance),
             commissions_per_share,
-            filled_orders: RwLock::new(HashMap::new()),
-            pending_orders: RwLock::new(HashMap::new()),
+            orders: Orders::new(),
             qoute_provider,
         }
     }
@@ -74,6 +74,17 @@ impl Broker {
 
         Ok(fo)
     }
+
+    async fn process_order(&self, order: &Order) -> Result<()> {
+        let e = match self.place_order(order).await? {
+            OrderResult::FilledOrder(o) => Event::FilledOrder(o),
+            OrderResult::PendingOrder(o) => Event::OrderTicket(o),
+        };
+
+        self.event_producer.produce(e).await?;
+
+        Ok(())
+    }
 }
 
 #[async_trait]
@@ -93,23 +104,23 @@ impl Account for Broker {
 #[async_trait]
 impl OrderReader for Broker {
     async fn open_orders(&self) -> Result<Vec<OrderResult>> {
-        let orders = self.filled_orders.read().await;
+        let orders = self.orders.get_orders().await;
         let results: Vec<_> = orders
-            .values()
-            .map(|o| order::OrderResult::FilledOrder(o.clone()))
+            .iter()
+            .filter(|o| matches!(o, OrderResult::FilledOrder(_)))
             .collect();
 
-        Ok(results)
+        Ok(orders)
     }
 
     async fn pending_orders(&self) -> Result<Vec<OrderResult>> {
-        let orders = self.pending_orders.read().await;
+        let orders = self.orders.get_orders().await;
         let results: Vec<_> = orders
-            .values()
-            .map(|o| order::OrderResult::PendingOrder(o.clone()))
+            .iter()
+            .filter(|o| matches!(o, OrderResult::PendingOrder(_)))
             .collect();
 
-        Ok(results)
+        Ok(orders)
     }
 }
 
@@ -130,8 +141,7 @@ impl OrderManager for Broker {
 
             let or = order::OrderResult::PendingOrder(po.clone());
 
-            let mut map = self.pending_orders.write().await;
-            map.insert(po.order_id.clone(), po.clone());
+            self.orders.insert(&or).await;
 
             return Ok(or);
         };
@@ -148,40 +158,23 @@ impl OrderManager for Broker {
             bail!("not enough funds to perform the trade");
         }
 
-        let mut map = self.filled_orders.write().await;
-        map.insert(filled_order.order_id.clone(), filled_order.clone());
+        *current_balance = *current_balance - cost;
 
         let or = order::OrderResult::FilledOrder(filled_order.clone());
-
-        *current_balance = *current_balance - cost;
+        self.orders.insert(&or).await;
 
         return Ok(or);
     }
 
     async fn update(&self, pending_order: &PendingOrder) -> Result<()> {
-        let mut map = self.pending_orders.write().await;
-        let Some(_) = map.get(&pending_order.order_id) else {
-            bail!("order not found");
-        };
-
-        let p = PendingOrder {
-            order_id: pending_order.order_id.clone(),
-            order: pending_order.order.clone(),
-        };
-        map.insert(pending_order.order_id.clone(), p);
+        let or = order::OrderResult::PendingOrder(pending_order.to_owned());
+        self.orders.insert(&or).await;
 
         Ok(())
     }
 
     async fn cancel(&self, pending_order: &PendingOrder) -> Result<()> {
-        let mut map = self.pending_orders.write().await;
-        let Some(_) = map.get(&pending_order.order_id) else {
-            bail!("order not found");
-        };
-
-        map.remove(&pending_order.order_id);
-
-        Ok(())
+        self.orders.remove(&pending_order.order_id).await
     }
 }
 
@@ -189,13 +182,12 @@ impl OrderManager for Broker {
 impl EventHandler for Broker {
     async fn handle(&self, event: &Event) -> Result<()> {
         if let Event::Order(o) = event {
-            let e = match self.place_order(o).await? {
-                OrderResult::FilledOrder(o) => Event::FilledOrder(o),
-                OrderResult::PendingOrder(o) => Event::OrderTicket(o),
-            };
-
-            self.event_producer.produce(e).await?
+            self.process_order(o).await?
         }
+
+        let Event::Market(m) = event else {
+          return Ok(())
+        };
 
         Ok(())
     }

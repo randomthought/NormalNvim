@@ -133,6 +133,16 @@ pub enum Order {
     StopLimitMarket(StopLimitMarket),
 }
 
+impl Order {
+    pub fn get_security(&self) -> &Security {
+        match self {
+            Order::Market(o) => &o.security,
+            Order::Limit(o) => &o.security,
+            Order::StopLimitMarket(o) => &o.security,
+        }
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct PendingOrder {
     pub order_id: OrderId,

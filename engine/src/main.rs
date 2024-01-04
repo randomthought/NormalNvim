@@ -5,7 +5,7 @@ use std::{
 };
 
 use domain::{
-    broker::Broker,
+    broker::broker::Broker,
     data::QouteProvider,
     event::{self, event::EventHandler},
     portfolio::Portfolio,
