@@ -1,6 +1,7 @@
 use crate::{
     data::QouteProvider,
     event::{
+        self,
         event::{EventHandler, EventProducer},
         model::Event,
     },
@@ -195,7 +196,7 @@ impl OrderManager for Broker {
     }
 
     async fn cancel(&self, pending_order: &PendingOrder) -> Result<()> {
-        self.orders.remove(&pending_order.order_id).await
+        self.orders.remove(&pending_order).await
     }
 }
 
@@ -203,14 +204,43 @@ impl OrderManager for Broker {
 impl EventHandler for Broker {
     async fn handle(&self, event: &Event) -> Result<()> {
         if let Event::Order(o) = event {
-            self.process_order(o).await?
+            self.process_order(o).await?;
+            return Ok(());
         }
 
-        let Event::Market(m) = event else {
+        let Event::Market(event::model::Market::DataEvent(d)) = event else {
           return Ok(())
         };
 
-        Ok(())
+        let Some(candle) = d.history.last() else {
+          return Ok(())
+        };
+
+        let security = &d.security;
+        let pending = self.orders.get_pending_orders(security).await;
+
+        for p in pending {
+            match p.order {
+                Order::Limit(o) => {
+                    let met = match o.side {
+                        order::Side::Long => o.price >= candle.close,
+                        order::Side::Short => o.price <= candle.close,
+                    };
+                    if !met {
+                        continue;
+                    }
+
+                    // TODO: with this implementation, you would not get the exact limit price
+                    let m = order::Market::new(o.quantity, o.side, o.security, o.times_in_force);
+                    let order = Order::Market(m);
+                    self.place_order(&order).await?;
+                }
+                Order::StopLimitMarket(o) => todo!(),
+                _ => continue,
+            };
+        }
+
+        todo!()
     }
 }
 

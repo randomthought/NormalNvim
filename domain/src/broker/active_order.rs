@@ -4,7 +4,7 @@ use rust_decimal::{prelude::FromPrimitive, Decimal};
 
 use crate::models::{
     order::{OrderDetails, Quantity, Side},
-    price::{Price, Quote},
+    price::Price,
     security::Security,
 };
 
@@ -17,6 +17,7 @@ enum OrderState {
 pub struct ActiveOrder {
     pub security: Security,
 
+    // TODO: maybe keep current order state here?
     // TODO: sort by datetime
     pub order_details: Vec<OrderDetails>,
 }
@@ -56,19 +57,5 @@ impl ActiveOrder {
 
     pub fn insert(&mut self, order_details: OrderDetails) {
         self.order_details.push(order_details);
-    }
-
-    pub fn cost(&self, quote: &Quote) -> Price {
-        let mut sorted = self.order_details.to_vec();
-        sorted.sort_by_key(|o| o.datetime);
-
-        let init = Decimal::from_u64(0).unwrap();
-        self.order_details.iter().fold(init, |acc, ad| {
-            let q = Decimal::from_u64(ad.quantity).unwrap();
-            match ad.side {
-                Side::Long => acc + (q * (ad.price - quote.ask)),
-                Side::Short => acc + (q * (quote.bid - ad.price)),
-            }
-        })
     }
 }

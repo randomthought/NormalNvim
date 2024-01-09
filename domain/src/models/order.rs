@@ -8,7 +8,7 @@ use super::security::Security;
 use anyhow::{ensure, Result};
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 
-#[derive(Debug, Clone, Copy, PartialEq)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Side {
     Long,
     Short,
@@ -176,7 +176,7 @@ pub enum OrderResult {
     PendingOrder(PendingOrder),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OrderDetails {
     // TODO: consider created_time, filled_time
     pub datetime: Duration,
