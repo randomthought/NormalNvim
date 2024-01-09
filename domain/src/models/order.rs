@@ -1,17 +1,20 @@
 // TODO: helpful to model more complex order types: https://tlc.thinkorswim.com/center/howToTos/thinkManual/Trade/Order-Entry-Tools/Order-Types
 // TODO: heloful for more order types: https://www.quantconnect.com/docs/v2/writing-algorithms/trading-and-orders/key-concepts
 
-use std::time::Duration;
+use std::{time::Duration, u64};
 
 use super::price::Price;
 use super::security::Security;
 use anyhow::{ensure, Result};
+use rust_decimal::{prelude::FromPrimitive, Decimal};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq)]
 pub enum Side {
     Long,
     Short,
 }
+
+pub type Quantity = u64;
 
 #[derive(Debug, Clone)]
 pub struct Market {
@@ -155,14 +158,30 @@ pub struct FilledOrder {
     pub order_id: OrderId,
     pub security: Security,
     pub side: Side,
-    pub commission: Price,
     pub price: Price,
-    pub quantity: u64,
+    pub quantity: Quantity,
     pub datetime: Duration,
+}
+
+impl FilledOrder {
+    pub fn cost(&self, commission_per_share: Price) -> Price {
+        let q = Decimal::from_u64(self.quantity).unwrap();
+        (q * commission_per_share) + (q * self.price)
+    }
 }
 
 #[derive(Debug, Clone)]
 pub enum OrderResult {
     FilledOrder(FilledOrder),
     PendingOrder(PendingOrder),
+}
+
+#[derive(Debug, Clone)]
+pub struct OrderDetails {
+    // TODO: consider created_time, filled_time
+    pub datetime: Duration,
+    pub order_id: OrderId,
+    pub price: Price,
+    pub quantity: Quantity,
+    pub side: Side,
 }

@@ -6,11 +6,12 @@ use crate::{
     },
     models::{
         order::{self, FilledOrder, Order, OrderResult, PendingOrder},
+        price::{Price, Quote},
         security::Security,
     },
     order::{Account, OrderManager, OrderReader},
 };
-use anyhow::{bail, Ok, Result};
+use anyhow::{bail, ensure, Ok, Result};
 use async_trait::async_trait;
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use std::time::{SystemTime, UNIX_EPOCH};
@@ -24,7 +25,7 @@ pub struct Broker {
     event_producer: Arc<dyn EventProducer + Sync + Send>,
     qoute_provider: Arc<dyn QouteProvider + Sync + Send>,
     // TODO: leveage needs to be float for example 1.5 leverage
-    leverage: u32,
+    leverage: f64,
     account_balance: RwLock<Decimal>,
     orders: Orders,
     commissions_per_share: Decimal,
@@ -38,7 +39,7 @@ impl Broker {
     ) -> Self {
         let commissions_per_share = Decimal::from_f64(0.0).unwrap();
         Self {
-            leverage: 10,
+            leverage: 10.0,
             event_producer,
             account_balance: RwLock::new(account_balance),
             commissions_per_share,
@@ -47,32 +48,51 @@ impl Broker {
         }
     }
 
-    async fn create_filled_order(
-        &self,
-        quantity: u64,
-        security: &Security,
-        side: order::Side,
-    ) -> Result<FilledOrder> {
-        let quote = self.qoute_provider.get_quote(security).await?;
-        let price = match side {
-            order::Side::Long => quote.ask,
-            order::Side::Short => quote.bid,
-        };
-        let q = Decimal::from_u64(quantity).unwrap();
-        let total_commision = self.commissions_per_share * q;
+    async fn create_trade(&self, market_order: &order::Market) -> Result<(Price, FilledOrder)> {
+        let quote = self
+            .qoute_provider
+            .get_quote(&market_order.security)
+            .await?;
 
-        let order_id = Uuid::new_v4().to_string();
-        let fo = FilledOrder {
-            price,
-            side,
-            quantity,
-            order_id: order_id.clone(),
-            security: security.clone(),
-            commission: total_commision,
-            datetime: SystemTime::now().duration_since(UNIX_EPOCH)?,
+        let price = match market_order.side {
+            order::Side::Long => quote.bid,
+            order::Side::Short => quote.ask,
+        };
+        let Some(active) = self.orders.get_order(&market_order.security).await else {
+            let cost = Decimal::from_u64(market_order.quantity).unwrap() * price;
+            let filled_order = create_filled_order(market_order.quantity, &market_order.security, market_order.side, &quote)?;
+            return Ok((cost, filled_order));
         };
 
-        Ok(fo)
+        // TODO: what if quantity are equal and side are different
+
+        if active.side == market_order.side {
+            let cost = Decimal::from_u64(market_order.quantity).unwrap() * price;
+            let filled_order = create_filled_order(
+                market_order.quantity,
+                &market_order.security,
+                market_order.side,
+                &quote,
+            )?;
+            return Ok((cost, filled_order));
+        }
+
+        if active.quantity == market_order.quantity {
+            let cost = Decimal::from_u64(0).unwrap();
+            let filled_order = create_filled_order(
+                market_order.quantity,
+                &market_order.security,
+                market_order.side,
+                &quote,
+            )?;
+            return Ok((cost, filled_order));
+        }
+
+        let (quantity, side) = get_new_order_specs(&active, market_order)?;
+        let cost = Decimal::from_u64(market_order.quantity).unwrap() * price;
+        let filled_order = create_filled_order(quantity, &market_order.security, side, &quote)?;
+
+        return Ok((cost, filled_order));
     }
 
     async fn process_order(&self, order: &Order) -> Result<()> {
@@ -95,7 +115,7 @@ impl Account for Broker {
     }
     async fn get_buying_power(&self) -> Result<Decimal> {
         let balance = self.account_balance.read().await;
-        let l = Decimal::from_u32(self.leverage).unwrap();
+        let l = Decimal::from_f64(self.leverage).unwrap();
 
         Ok(balance.mul(l))
     }
@@ -129,11 +149,13 @@ impl OrderManager for Broker {
     async fn place_order(&self, order: &Order) -> Result<OrderResult> {
         if let Order::StopLimitMarket(o) = order {
             let m = order::Market::new(o.quantity, o.side, o.security.clone(), o.times_in_force);
+
             let market_order = Order::Market(m);
             self.place_order(&market_order).await?;
+            // TODO: handle limit orders
         }
 
-        let Order::Market(o) = order else {
+        let Order::Market(market_order) = order else {
             let po = order::PendingOrder {
                 order_id: Uuid::new_v4().to_string(),
                 order: order.clone(),
@@ -146,24 +168,23 @@ impl OrderManager for Broker {
             return Ok(or);
         };
 
-        let filled_order = self
-            .create_filled_order(o.quantity, &o.security, o.side)
-            .await?;
+        // TODO: check if you can afford the trade first
 
-        let q = Decimal::from_u64(filled_order.quantity).unwrap();
-        let cost = filled_order.commission + (q * filled_order.price);
+        let mut account_balance = self.account_balance.write().await;
 
-        let mut current_balance = self.account_balance.write().await;
-        if cost > *current_balance {
-            bail!("not enough funds to perform the trade");
+        let (cost, filled_order) = self.create_trade(market_order).await?;
+
+        if cost >= *account_balance {
+            bail!("do not have enough funds to peform trade");
         }
 
-        *current_balance = *current_balance - cost;
+        let order_result = order::OrderResult::FilledOrder(filled_order.clone());
+        self.orders.insert(&order_result);
+        let commision =
+            Decimal::from_u64(market_order.quantity).unwrap() * self.commissions_per_share;
+        *account_balance = *account_balance - (commision + cost);
 
-        let or = order::OrderResult::FilledOrder(filled_order.clone());
-        self.orders.insert(&or).await;
-
-        return Ok(or);
+        Ok(order_result)
     }
 
     async fn update(&self, pending_order: &PendingOrder) -> Result<()> {
@@ -191,4 +212,50 @@ impl EventHandler for Broker {
 
         Ok(())
     }
+}
+
+fn create_filled_order(
+    quantity: u64,
+    security: &Security,
+    side: order::Side,
+    quote: &Quote,
+) -> Result<FilledOrder> {
+    let price = match side {
+        order::Side::Long => quote.ask,
+        order::Side::Short => quote.bid,
+    };
+
+    let order_id = Uuid::new_v4().to_string();
+    let fo = FilledOrder {
+        price,
+        side,
+        quantity,
+        order_id: order_id.clone(),
+        security: security.clone(),
+        datetime: SystemTime::now().duration_since(UNIX_EPOCH)?,
+    };
+
+    Ok(fo)
+}
+
+fn get_new_order_specs(
+    active_order: &FilledOrder,
+    market_order: &order::Market,
+) -> Result<(u64, order::Side)> {
+    ensure!(
+        active_order.quantity != market_order.quantity,
+        "quantities cannot be equal"
+    );
+    ensure!(
+        active_order.side != market_order.side,
+        "side cannot be equal"
+    );
+
+    if active_order.quantity > market_order.quantity {
+        let quantity = active_order.quantity - market_order.quantity;
+        return Ok((quantity, active_order.side));
+    }
+
+    let quantity = market_order.quantity - active_order.quantity;
+    return Ok((quantity, market_order.side));
 }
