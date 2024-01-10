@@ -52,9 +52,10 @@ impl Portfolio {
 
                 let init = Decimal::from_u64(0).unwrap();
                 let profit = sp.holding_details.iter().fold(init, |acc, next| {
+                    let q = Decimal::from_u64(next.quantity).unwrap();
                     let profit = match sp.side {
-                        Side::Long => next.price - quote.ask,
-                        Side::Short => quote.bid - next.price,
+                        Side::Long => (next.price - quote.ask) * q,
+                        Side::Short => (quote.bid - next.price) * q,
                     };
                     profit + acc
                 });
