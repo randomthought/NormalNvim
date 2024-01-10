@@ -41,15 +41,11 @@ impl Orders {
 
     pub async fn get_positions(&self) -> Vec<SecurityPosition> {
         let active_map = self.active.read().await;
-        let mut results = vec![];
 
-        for a in active_map.values() {
-            if let Some(p) = a.get_position() {
-                results.push(p);
-            }
-        }
-
-        results
+        active_map
+            .values()
+            .flat_map(|ao| ao.get_position())
+            .collect()
     }
 
     pub async fn get_pending_orders(&self, security: &Security) -> Vec<PendingOrder> {
