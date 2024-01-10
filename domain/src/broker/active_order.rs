@@ -1,61 +1,73 @@
-use std::i64;
+use std::{i64, time::Duration};
 
-use rust_decimal::{prelude::FromPrimitive, Decimal};
+use anyhow::{bail, Result};
+use rust_decimal::prelude::FromPrimitive;
 
 use crate::models::{
-    order::{OrderDetails, Quantity, Side},
-    price::Price,
+    order::{FilledOrder, OrderDetails, OrderId, SecurityPosition, Side},
     security::Security,
 };
 
-enum OrderState {
-    Filled,
-    Closed,
+// TODO: make struct private
+#[derive(Debug, Clone)]
+pub struct Transation {
+    order_id: OrderId,
+    order_details: OrderDetails,
+    date_time: Duration,
 }
 
 #[derive(Debug, Clone)]
 pub struct ActiveOrder {
     pub security: Security,
-
-    // TODO: maybe keep current order state here?
-    // TODO: sort by datetime
-    pub order_details: Vec<OrderDetails>,
-}
-
-pub struct SecurityPosition {
-    pub side: Side,
-    pub quantity: Quantity,
+    pub order_history: Vec<Transation>,
 }
 
 impl ActiveOrder {
     pub fn new(security: Security) -> Self {
         Self {
             security,
-            order_details: Vec::new(),
+            order_history: Vec::new(),
         }
     }
     pub fn get_position(&self) -> Option<SecurityPosition> {
-        let quantity: i64 = self.order_details.iter().fold(0, |acc, ad| match ad.side {
-            Side::Long => acc + i64::from_u64(ad.quantity).unwrap(),
-            Side::Short => acc - i64::from_u64(ad.quantity).unwrap(),
-        });
+        let quantity: i64 =
+            self.order_history
+                .iter()
+                .fold(0, |acc, ad| match ad.order_details.side {
+                    Side::Long => acc + i64::from_u64(ad.order_details.quantity).unwrap(),
+                    Side::Short => acc - i64::from_u64(ad.order_details.quantity).unwrap(),
+                });
 
-        if quantity > 0 {
-            return Some(SecurityPosition {
-                quantity: u64::from_i64(quantity).unwrap(),
-                side: Side::Long,
-            });
-        } else if quantity < 0 {
-            return Some(SecurityPosition {
-                quantity: u64::from_i64(quantity * -1).unwrap(),
-                side: Side::Short,
-            });
+        if quantity == 0 {
+            return None;
         }
 
-        None
+        todo!()
+
+        // Some(SecurityPosition {
+        //     security: self.security.to_owned(),
+        //     quantity: u64::from_i64(quantity.abs()).unwrap(),
+        //     side: if quantity < 0 {
+        //         Side::Short
+        //     } else {
+        //         Side::Long
+        //     },
+        // })
     }
 
-    pub fn insert(&mut self, order_details: OrderDetails) {
-        self.order_details.push(order_details);
+    pub fn insert(&mut self, filled_order: &FilledOrder) -> Result<()> {
+        if filled_order.security != self.security {
+            bail!("security must match");
+        }
+
+        let transation = Transation {
+            order_id: filled_order.order_id.to_owned(),
+            order_details: filled_order.order_details.to_owned(),
+            date_time: filled_order.date_time,
+        };
+
+        self.order_history.push(transation);
+
+        Ok(())
     }
 }

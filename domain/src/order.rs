@@ -1,3 +1,5 @@
+use crate::models::order::SecurityPosition;
+
 use super::models::order::{Order, OrderResult, PendingOrder};
 use anyhow::Result;
 use async_trait::async_trait;
@@ -14,7 +16,7 @@ pub trait Account {
 // TODO: model errors here https://www.quantconnect.com/docs/v2/writing-algorithms/trading-and-orders/order-errors
 #[async_trait]
 pub trait OrderReader {
-    async fn open_orders(&self) -> Result<Vec<OrderResult>>;
+    async fn get_positions(&self) -> Result<Vec<SecurityPosition>>;
     async fn pending_orders(&self) -> Result<Vec<OrderResult>>;
 }
 

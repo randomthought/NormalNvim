@@ -6,7 +6,7 @@ use crate::{
         model::Event,
     },
     models::{
-        order::{self, FilledOrder, Order, OrderResult, PendingOrder},
+        order::{self, FilledOrder, Order, OrderResult, PendingOrder, SecurityPosition},
         price::{Price, Quote},
         security::Security,
     },
@@ -16,7 +16,7 @@ use anyhow::{bail, ensure, Ok, Result};
 use async_trait::async_trait;
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use std::time::{SystemTime, UNIX_EPOCH};
-use std::{collections::HashMap, ops::Mul, sync::Arc};
+use std::{ops::Mul, sync::Arc};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
@@ -55,42 +55,42 @@ impl Broker {
             .get_quote(&market_order.security)
             .await?;
 
-        let price = match market_order.side {
+        let price = match market_order.order_details.side {
             order::Side::Long => quote.bid,
             order::Side::Short => quote.ask,
         };
-        let Some(active) = self.orders.get_order(&market_order.security).await else {
-            let cost = Decimal::from_u64(market_order.quantity).unwrap() * price;
-            let filled_order = create_filled_order(market_order.quantity, &market_order.security, market_order.side, &quote)?;
+        let Some(active) = self.orders.get_position(&market_order.security).await else {
+            let cost = Decimal::from_u64(market_order.order_details.quantity).unwrap() * price;
+            let filled_order = create_filled_order(market_order.order_details.quantity, &market_order.security, market_order.order_details.side, &quote)?;
             return Ok((cost, filled_order));
         };
 
         // TODO: what if quantity are equal and side are different
 
-        if active.side == market_order.side {
-            let cost = Decimal::from_u64(market_order.quantity).unwrap() * price;
+        if active.side == market_order.order_details.side {
+            let cost = Decimal::from_u64(market_order.order_details.quantity).unwrap() * price;
             let filled_order = create_filled_order(
-                market_order.quantity,
+                market_order.order_details.quantity,
                 &market_order.security,
-                market_order.side,
+                market_order.order_details.side,
                 &quote,
             )?;
             return Ok((cost, filled_order));
         }
 
-        if active.quantity == market_order.quantity {
+        if active.get_quantity() == market_order.order_details.quantity {
             let cost = Decimal::from_u64(0).unwrap();
             let filled_order = create_filled_order(
-                market_order.quantity,
+                market_order.order_details.quantity,
                 &market_order.security,
-                market_order.side,
+                market_order.order_details.side,
                 &quote,
             )?;
             return Ok((cost, filled_order));
         }
 
         let (quantity, side) = get_new_order_specs(&active, market_order)?;
-        let cost = Decimal::from_u64(market_order.quantity).unwrap() * price;
+        let cost = Decimal::from_u64(market_order.order_details.quantity).unwrap() * price;
         let filled_order = create_filled_order(quantity, &market_order.security, side, &quote)?;
 
         return Ok((cost, filled_order));
@@ -124,24 +124,13 @@ impl Account for Broker {
 
 #[async_trait]
 impl OrderReader for Broker {
-    async fn open_orders(&self) -> Result<Vec<OrderResult>> {
-        let orders = self.orders.get_orders().await;
-        let results: Vec<_> = orders
-            .iter()
-            .filter(|o| matches!(o, OrderResult::FilledOrder(_)))
-            .collect();
-
+    async fn get_positions(&self) -> Result<Vec<SecurityPosition>> {
+        let orders = self.orders.get_positions().await;
         Ok(orders)
     }
 
     async fn pending_orders(&self) -> Result<Vec<OrderResult>> {
-        let orders = self.orders.get_orders().await;
-        let results: Vec<_> = orders
-            .iter()
-            .filter(|o| matches!(o, OrderResult::PendingOrder(_)))
-            .collect();
-
-        Ok(orders)
+        todo!()
     }
 }
 
@@ -149,11 +138,9 @@ impl OrderReader for Broker {
 impl OrderManager for Broker {
     async fn place_order(&self, order: &Order) -> Result<OrderResult> {
         if let Order::StopLimitMarket(o) = order {
-            let m = order::Market::new(o.quantity, o.side, o.security.clone(), o.times_in_force);
-
-            let market_order = Order::Market(m);
+            let market_order = Order::Market(o.market.to_owned());
             self.place_order(&market_order).await?;
-            // TODO: handle limit orders
+            todo!() // TODO: handle limit orders
         }
 
         let Order::Market(market_order) = order else {
@@ -169,8 +156,6 @@ impl OrderManager for Broker {
             return Ok(or);
         };
 
-        // TODO: check if you can afford the trade first
-
         let mut account_balance = self.account_balance.write().await;
 
         let (cost, filled_order) = self.create_trade(market_order).await?;
@@ -180,9 +165,9 @@ impl OrderManager for Broker {
         }
 
         let order_result = order::OrderResult::FilledOrder(filled_order.clone());
-        self.orders.insert(&order_result);
-        let commision =
-            Decimal::from_u64(market_order.quantity).unwrap() * self.commissions_per_share;
+        self.orders.insert(&order_result).await;
+        let commision = Decimal::from_u64(market_order.order_details.quantity).unwrap()
+            * self.commissions_per_share;
         *account_balance = *account_balance - (commision + cost);
 
         Ok(order_result)
@@ -222,7 +207,7 @@ impl EventHandler for Broker {
         for p in pending {
             match p.order {
                 Order::Limit(o) => {
-                    let met = match o.side {
+                    let met = match o.order_details.side {
                         order::Side::Long => o.price >= candle.close,
                         order::Side::Short => o.price <= candle.close,
                     };
@@ -231,7 +216,11 @@ impl EventHandler for Broker {
                     }
 
                     // TODO: with this implementation, you would not get the exact limit price
-                    let m = order::Market::new(o.quantity, o.side, o.security, o.times_in_force);
+                    let m = order::Market::new(
+                        o.order_details.quantity,
+                        o.order_details.side,
+                        o.security,
+                    );
                     let order = Order::Market(m);
                     self.place_order(&order).await?;
                 }
@@ -256,36 +245,39 @@ fn create_filled_order(
     };
 
     let order_id = Uuid::new_v4().to_string();
-    let fo = FilledOrder {
+
+    let datetime = SystemTime::now().duration_since(UNIX_EPOCH)?;
+    let fo = FilledOrder::new(
+        security.to_owned(),
+        order_id,
         price,
-        side,
         quantity,
-        order_id: order_id.clone(),
-        security: security.clone(),
-        datetime: SystemTime::now().duration_since(UNIX_EPOCH)?,
-    };
+        side,
+        datetime,
+    );
 
     Ok(fo)
 }
 
 fn get_new_order_specs(
-    active_order: &FilledOrder,
+    security_position: &SecurityPosition,
     market_order: &order::Market,
 ) -> Result<(u64, order::Side)> {
+    let security_position_quantity = security_position.get_quantity();
     ensure!(
-        active_order.quantity != market_order.quantity,
+        security_position_quantity != market_order.order_details.quantity,
         "quantities cannot be equal"
     );
     ensure!(
-        active_order.side != market_order.side,
+        security_position.side != market_order.order_details.side,
         "side cannot be equal"
     );
 
-    if active_order.quantity > market_order.quantity {
-        let quantity = active_order.quantity - market_order.quantity;
-        return Ok((quantity, active_order.side));
+    if security_position_quantity > market_order.order_details.quantity {
+        let quantity = security_position_quantity - market_order.order_details.quantity;
+        return Ok((quantity, security_position.side));
     }
 
-    let quantity = market_order.quantity - active_order.quantity;
-    return Ok((quantity, market_order.side));
+    let quantity = market_order.order_details.quantity - security_position_quantity;
+    return Ok((quantity, market_order.order_details.side));
 }

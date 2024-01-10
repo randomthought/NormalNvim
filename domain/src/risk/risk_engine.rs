@@ -53,7 +53,6 @@ impl RiskEngine {
 
     pub async fn process_signal(&self, signal: &Signal) -> Result<SignalResult> {
         // TODO: check the accumulation of orders
-        println!("risk_engine processed signal");
         if let TradingState::Halted = self.trading_state {
             return Ok(SignalResult::Rejected(
                 "trading state is in 'halted'".to_owned(),
@@ -72,9 +71,13 @@ impl RiskEngine {
         }
 
         let (security, quantity, side) = match signal.order.clone() {
-            Order::Market(o) => (o.security, o.quantity, o.side),
-            Order::Limit(o) => (o.security, o.quantity, o.side),
-            Order::StopLimitMarket(o) => (o.security, o.quantity, o.side),
+            Order::Market(o) => (o.security, o.order_details.quantity, o.order_details.side),
+            Order::Limit(o) => (o.security, o.order_details.quantity, o.order_details.side),
+            Order::StopLimitMarket(o) => (
+                o.market.security,
+                o.market.order_details.quantity,
+                o.market.order_details.side,
+            ),
         };
 
         let account_value = self.portfolio.account_value().await?;
@@ -93,7 +96,7 @@ impl RiskEngine {
     }
 
     async fn get_open_trades(&self) -> Result<u32> {
-        let results = self.order_manager.open_orders().await?.len();
+        let results = self.order_manager.get_positions().await?.len();
 
         Ok(results as u32)
     }
@@ -136,7 +139,7 @@ impl EventHandler for RiskEngine {
     async fn handle(&self, event: &Event) -> Result<()> {
         if let Event::Signal(s) = event {
             let signal_results = self.process_signal(s).await?;
-            println!("{:?}", signal_results);
+            // println!("{:?}", signal_results);
         }
 
         Ok(())

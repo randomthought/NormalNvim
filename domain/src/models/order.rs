@@ -6,7 +6,6 @@ use std::{time::Duration, u64};
 use super::price::Price;
 use super::security::Security;
 use anyhow::{ensure, Result};
-use rust_decimal::{prelude::FromPrimitive, Decimal};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Side {
@@ -18,25 +17,16 @@ pub type Quantity = u64;
 
 #[derive(Debug, Clone)]
 pub struct Market {
-    pub quantity: u64,
-    pub side: Side,
-    pub security: Security, // TODO: Consider using lifetime pointer
-    pub times_in_force: TimesInForce,
+    pub security: Security,
+    pub order_details: OrderDetails,
 }
 
 impl Market {
     // constructor
-    pub fn new(
-        quantity: u64,
-        side: Side,
-        security: Security,
-        times_in_force: TimesInForce,
-    ) -> Self {
+    pub fn new(quantity: u64, side: Side, security: Security) -> Self {
         Self {
-            quantity,
-            side,
             security,
-            times_in_force,
+            order_details: OrderDetails { quantity, side },
         }
     }
 }
@@ -54,18 +44,15 @@ pub enum TimesInForce {
     // Fill/Trigger Outside RTH
 }
 
-// TODO: Add order durtation example, day order
 #[derive(Debug, Clone)]
 pub struct Limit {
-    pub quantity: u64,
     pub price: Price,
-    pub side: Side,
-    pub security: Security, // TODO: Consider using lifetime pointer
+    pub security: Security,
     pub times_in_force: TimesInForce,
+    pub order_details: OrderDetails,
 }
 
 impl Limit {
-    // constructor
     pub fn new(
         quantity: u64,
         price: Price,
@@ -74,23 +61,19 @@ impl Limit {
         times_in_force: TimesInForce,
     ) -> Self {
         Self {
-            quantity,
             price,
-            side,
             security,
             times_in_force,
+            order_details: OrderDetails { quantity, side },
         }
     }
 }
 
 #[derive(Debug, Clone)]
 pub struct StopLimitMarket {
-    pub stop: Price,
-    pub limit: Price,
-    pub side: Side,
-    pub quantity: u64,
-    pub security: Security, // TODO: Consider using lifetime pointer
-    pub times_in_force: TimesInForce,
+    pub stop: Limit,
+    pub limit: Limit,
+    pub market: Market,
 }
 
 impl StopLimitMarket {
@@ -100,7 +83,6 @@ impl StopLimitMarket {
         side: Side,
         stop: Price,
         limit: Price,
-        times_in_force: TimesInForce,
     ) -> Result<Self> {
         if let Side::Long = side {
             ensure!(
@@ -116,13 +98,19 @@ impl StopLimitMarket {
             );
         }
 
+        let times_in_force = TimesInForce::GTC;
+        let market_order = Market::new(quantity, side, security.to_owned());
+        let profit_limit = Limit::new(quantity, limit, side, security.to_owned(), times_in_force);
+        let stop_side = match side {
+            Side::Long => Side::Short,
+            Side::Short => Side::Long,
+        };
+        let stop_limit = Limit::new(quantity, stop, stop_side, security, times_in_force);
+
         Ok(Self {
-            stop,
-            limit,
-            side,
-            quantity,
-            security,
-            times_in_force,
+            stop: stop_limit,
+            market: market_order,
+            limit: profit_limit,
         })
     }
 }
@@ -141,7 +129,7 @@ impl Order {
         match self {
             Order::Market(o) => &o.security,
             Order::Limit(o) => &o.security,
-            Order::StopLimitMarket(o) => &o.security,
+            Order::StopLimitMarket(o) => &o.market.security,
         }
     }
 }
@@ -152,21 +140,33 @@ pub struct PendingOrder {
     pub order: Order,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct FilledOrder {
-    pub order_id: OrderId,
     pub security: Security,
-    pub side: Side,
+    pub order_id: OrderId,
     pub price: Price,
-    pub quantity: Quantity,
-    pub datetime: Duration,
+    pub date_time: Duration,
+    pub order_details: OrderDetails,
 }
 
 impl FilledOrder {
-    pub fn cost(&self, commission_per_share: Price) -> Price {
-        let q = Decimal::from_u64(self.quantity).unwrap();
-        (q * commission_per_share) + (q * self.price)
+    pub fn new(
+        security: Security,
+        order_id: OrderId,
+        price: Price,
+        quantity: Quantity,
+        side: Side,
+        datetime: Duration,
+    ) -> Self {
+        let order_details = OrderDetails { quantity, side };
+        Self {
+            security,
+            order_id,
+            price,
+            date_time: datetime,
+            order_details,
+        }
     }
 }
 
@@ -178,10 +178,28 @@ pub enum OrderResult {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OrderDetails {
-    // TODO: consider created_time, filled_time
-    pub datetime: Duration,
-    pub order_id: OrderId,
-    pub price: Price,
     pub quantity: Quantity,
     pub side: Side,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SecurityPosition {
+    pub security: Security,
+    pub side: Side,
+    pub holding_details: Vec<HoldingDetail>,
+}
+
+impl SecurityPosition {
+    pub fn get_quantity(&self) -> Quantity {
+        self.holding_details
+            .iter()
+            .fold(0, |acc, next| acc + next.quantity)
+    }
+}
+
+// TODO: think of a beter name
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HoldingDetail {
+    pub quantity: Quantity,
+    pub price: Price,
 }

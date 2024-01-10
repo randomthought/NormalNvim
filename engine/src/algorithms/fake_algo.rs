@@ -19,14 +19,14 @@ impl Algorithm for FakeAlgo {
     async fn process(&self, price_history: &PriceHistory) -> Result<Option<Signal>> {
         // println!("fake_algo saw event");
 
-        let mut rng = StdRng::seed_from_u64(4);
-        let rm = rng.gen_range(0.0..1.0);
+        // let mut rng = StdRng::seed_from_u64(4);
+        // let rm = rng.gen_range(0.0..1.0);
 
-        // let rm = rand::thread_rng().gen_range(0.0..1.0);
-        if rm > 0.50 {
+        let rm = rand::thread_rng().gen_range(0.0..1.0);
+        if rm <= 0.0001 {
             println!("fake_algo sending signal");
             let security = price_history.security.to_owned();
-            let market = order::Market::new(1, order::Side::Long, security, TimesInForce::GTC);
+            let market = order::Market::new(1, order::Side::Long, security);
             let order = order::Order::Market(market);
             let strategy_id = "fake_algo".to_owned();
             let datetime = SystemTime::now().duration_since(UNIX_EPOCH)?;
