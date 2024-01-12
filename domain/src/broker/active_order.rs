@@ -85,6 +85,7 @@ fn add_to_position(security_position: &mut SecurityPosition, transaction: &Trans
     }
 
     if current_quantity == hd.quantity {
+        security_position.holding_details.clear();
         return;
     }
 
