@@ -1,3 +1,5 @@
+use std::time::Duration;
+
 use super::security::Security;
 use anyhow::{ensure, Result};
 use rust_decimal::Decimal;
@@ -13,8 +15,7 @@ pub struct Quote {
     pub bid_size: u64,
     pub ask: Price,
     pub ask_size: u64,
-    // TODO: change the below to a rust duraction
-    pub timestamp: u64,
+    pub timestamp: Duration,
 }
 
 impl Quote {
@@ -24,7 +25,7 @@ impl Quote {
         ask: Price,
         bid_size: u64,
         ask_size: u64,
-        timestamp: u64,
+        timestamp: Duration,
     ) -> Result<Self> {
         ensure!(bid < ask, "bid price should be lower than ask price");
 
@@ -57,9 +58,8 @@ pub struct Candle {
     pub open: Price,
     pub low: Price,
     pub close: Price,
-    // The Unix Msec timestamp for the start of the aggregate window.
-    pub start_time: u64,
-    pub end_time: u64,
+    pub start_time: Duration,
+    pub end_time: Duration,
     // The trading volume of the symbol in the given time period.
     pub volume: u64,
 }
@@ -71,8 +71,8 @@ impl Candle {
         low: Price,
         close: Price,
         volume: u64,
-        start_time: u64,
-        end_time: u64,
+        start_time: Duration,
+        end_time: Duration,
     ) -> Result<Self> {
         ensure!(high >= low, "high cannot be less than low");
 

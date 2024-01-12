@@ -23,7 +23,7 @@ pub trait OrderReader {
 #[async_trait]
 pub trait OrderManager: OrderReader {
     async fn place_order(&self, order: &Order) -> Result<OrderResult>;
-    // TODO: model order not exisiting error
     async fn update(&self, order_ticket: &PendingOrder) -> Result<()>;
+    // TODO: don't you think having the ID should be good enought to cancel the order?
     async fn cancel(&self, order: &PendingOrder) -> Result<()>;
 }

@@ -1,5 +1,5 @@
 use core::time;
-use std::thread::sleep;
+use std::{thread::sleep, time::Duration};
 
 use domain::models::{
     price::{Candle, PriceHistory},
@@ -37,8 +37,8 @@ impl Stream for FakePriceHistoryStream {
             Decimal::from_f64(99.95).unwrap(),
             Decimal::from_f64(99.7).unwrap(),
             100,
-            888,
-            0,
+            Duration::from_millis(888),
+            Duration::from_millis(0),
         )
         .unwrap()];
 

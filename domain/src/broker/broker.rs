@@ -26,7 +26,6 @@ pub struct Broker {
     event_producer: Arc<dyn EventProducer + Sync + Send>,
     qoute_provider: Arc<dyn QouteProvider + Sync + Send>,
     // TODO: leveage needs to be float for example 1.5 leverage
-    leverage: f64,
     account_balance: RwLock<Decimal>,
     orders: Orders,
     commissions_per_share: Decimal,
@@ -40,7 +39,6 @@ impl Broker {
     ) -> Self {
         let commissions_per_share = Decimal::from_f64(0.0).unwrap();
         Self {
-            leverage: 10.0,
             event_producer,
             account_balance: RwLock::new(account_balance),
             commissions_per_share,
@@ -79,7 +77,7 @@ impl Broker {
         }
 
         if active.get_quantity() == market_order.order_details.quantity {
-            let cost = Decimal::from_u64(0).unwrap();
+            let cost = Decimal::new(0, 0);
             let filled_order = create_filled_order(
                 market_order.order_details.quantity,
                 &market_order.security,
@@ -116,9 +114,7 @@ impl Account for Broker {
     }
     async fn get_buying_power(&self) -> Result<Decimal> {
         let balance = self.account_balance.read().await;
-        let l = Decimal::from_f64(self.leverage).unwrap();
-
-        Ok(balance.mul(l))
+        Ok(*balance)
     }
 }
 
@@ -151,7 +147,7 @@ impl OrderManager for Broker {
 
             let or = order::OrderResult::PendingOrder(po.clone());
 
-            self.orders.insert(&or).await;
+            self.orders.insert(&or).await?;
 
             return Ok(or);
         };
@@ -165,7 +161,7 @@ impl OrderManager for Broker {
         }
 
         let order_result = order::OrderResult::FilledOrder(filled_order.clone());
-        self.orders.insert(&order_result).await;
+        self.orders.insert(&order_result).await?;
         let commision = Decimal::from_u64(market_order.order_details.quantity).unwrap()
             * self.commissions_per_share;
         *account_balance = *account_balance - (commision + cost);
@@ -175,7 +171,7 @@ impl OrderManager for Broker {
 
     async fn update(&self, pending_order: &PendingOrder) -> Result<()> {
         let or = order::OrderResult::PendingOrder(pending_order.to_owned());
-        self.orders.insert(&or).await;
+        self.orders.insert(&or).await?;
 
         Ok(())
     }

@@ -23,7 +23,7 @@ pub struct Market {
 
 impl Market {
     // constructor
-    pub fn new(quantity: u64, side: Side, security: Security) -> Self {
+    pub fn new(quantity: Quantity, side: Side, security: Security) -> Self {
         Self {
             security,
             order_details: OrderDetails { quantity, side },
