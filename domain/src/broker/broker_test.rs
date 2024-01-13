@@ -376,13 +376,12 @@ async fn cancel_pending_order() {
         order::TimesInForce::GTC,
     ));
 
-    let OrderResult::FilledOrder(filled_order) = broker.place_order(&limit_order).await.unwrap()
-    else {
+    let OrderResult::PendingOrder(po) = broker.place_order(&limit_order).await.unwrap() else {
         panic!("must get a filled result")
     };
 
     let pending_order = PendingOrder {
-        order_id: filled_order.order_id.to_owned(),
+        order_id: po.order_id.to_owned(),
         order: limit_order.to_owned(),
     };
     broker.cancel(&pending_order).await.unwrap();

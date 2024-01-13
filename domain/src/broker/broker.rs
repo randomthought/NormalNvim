@@ -6,9 +6,7 @@ use crate::{
         model::Event,
     },
     models::{
-        order::{
-            self, FilledOrder, HoldingDetail, Order, OrderResult, PendingOrder, SecurityPosition,
-        },
+        order::{self, FilledOrder, Order, OrderResult, PendingOrder, SecurityPosition},
         price::{Price, Quote},
         security::Security,
     },
@@ -143,7 +141,13 @@ impl OrderReader for Broker {
     }
 
     async fn get_pending_orders(&self) -> Result<Vec<OrderResult>> {
-        todo!()
+        let orders = self.orders.get_pending_orders().await;
+        let order_results = orders
+            .iter()
+            .map(|p| OrderResult::PendingOrder(p.to_owned()))
+            .collect();
+
+        Ok(order_results)
     }
 }
 
@@ -157,8 +161,10 @@ impl OrderManager for Broker {
         if let Order::StopLimitMarket(o) = order {
             let market_order = Order::Market(o.market.to_owned());
             self.place_order(&market_order).await?;
+
             let oca = Order::OCA(o.one_cancels_other.to_owned());
             self.place_order(&oca).await?;
+
             todo!("write order result retun type");
         }
 
@@ -222,7 +228,7 @@ impl EventHandler for Broker {
         };
 
         let security = &d.security;
-        let pending = self.orders.get_pending_orders(security).await;
+        let pending = self.orders.get_pending_order(security).await;
 
         for p in pending {
             match p.order {
