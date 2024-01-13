@@ -59,7 +59,12 @@ impl Broker {
         };
         let Some(active) = self.orders.get_position(&market_order.security).await else {
             let cost = Decimal::from_u64(market_order.order_details.quantity).unwrap() * price;
-            let filled_order = create_filled_order(market_order.order_details.quantity, &market_order.security, market_order.order_details.side, &quote)?;
+            let filled_order = create_filled_order(
+                market_order.order_details.quantity,
+                &market_order.security,
+                market_order.order_details.side,
+                &quote,
+            )?;
             return Ok((cost, filled_order));
         };
 
@@ -89,7 +94,12 @@ impl Broker {
 
         let (quantity, side) = get_new_order_specs(&active, market_order)?;
         let cost = Decimal::from_u64(market_order.order_details.quantity).unwrap() * price;
-        let filled_order = create_filled_order(quantity, &market_order.security, side, &quote)?;
+        let filled_order = create_filled_order(
+            market_order.order_details.quantity,
+            &market_order.security,
+            side,
+            &quote,
+        )?;
 
         return Ok((cost, filled_order));
     }
@@ -190,11 +200,11 @@ impl EventHandler for Broker {
         }
 
         let Event::Market(event::model::Market::DataEvent(d)) = event else {
-          return Ok(())
+            return Ok(());
         };
 
         let Some(candle) = d.history.last() else {
-          return Ok(())
+            return Ok(());
         };
 
         let security = &d.security;
