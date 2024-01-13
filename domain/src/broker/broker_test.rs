@@ -1,8 +1,17 @@
 use core::panic;
-use std::{sync::Arc, time::Duration};
+use std::{
+    borrow::BorrowMut,
+    cell::{Cell, RefCell},
+    ops::Add,
+    sync::Arc,
+    time::Duration,
+};
 
 use async_trait::async_trait;
+use crossbeam::epoch::Pointable;
+use futures_util::lock::Mutex;
 use rust_decimal::{prelude::FromPrimitive, Decimal};
+use tokio::sync::RwLock;
 
 use crate::{
     broker::broker::Broker,
@@ -13,7 +22,7 @@ use crate::{
             self, FilledOrder, HoldingDetail, Market, OneCancelsOther, Order, OrderResult,
             PendingOrder, SecurityPosition, Side, StopLimitMarket,
         },
-        price::{Price, Quote},
+        price::{self, Price, Quote},
         security::{AssetType, Exchange, Security},
     },
     order::{Account, OrderManager, OrderReader},
@@ -29,6 +38,7 @@ struct Setup {
 impl Setup {
     pub fn new() -> Self {
         let security = Security::new(AssetType::Equity, Exchange::NYSE, "GE".into());
+        let price = Decimal::new(1000, 0);
         Self {
             security,
             price: Decimal::new(1000, 0),
@@ -36,16 +46,32 @@ impl Setup {
     }
 }
 
-struct Stub;
+struct Stub {
+    price: RwLock<Price>,
+}
+
+impl Stub {
+    pub fn new() -> Self {
+        Self {
+            price: RwLock::new(Decimal::new(1000, 0)),
+        }
+    }
+    pub async fn add_to_price(&self, price: Price) {
+        let mut p = self.price.write().await;
+        *p = *p + price
+    }
+}
 
 #[cfg(test)]
 #[async_trait]
 impl QouteProvider for Stub {
     async fn get_quote(&self, security: &Security) -> Result<Quote> {
+        let price = self.price.read().await;
+
         let quote = Quote {
             security: security.to_owned(),
-            bid: Decimal::new(1000, 0),
-            ask: Decimal::new(1000, 0),
+            bid: *price,
+            ask: *price,
             ask_size: 0,
             bid_size: 0,
             timestamp: Duration::new(5, 0),
@@ -57,7 +83,7 @@ impl QouteProvider for Stub {
 
 #[async_trait]
 impl EventProducer for Stub {
-    async fn produce(&self, event: Event) -> Result<()> {
+    async fn produce(&self, _: Event) -> Result<()> {
         Ok(())
     }
 }
@@ -66,7 +92,7 @@ impl EventProducer for Stub {
 async fn get_account_balance() {
     let setup = Setup::new();
 
-    let stub = Arc::new(Stub {});
+    let stub = Arc::new(Stub::new());
     let balance = Decimal::new(100_000, 0);
     let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
 
@@ -79,7 +105,7 @@ async fn get_account_balance() {
 async fn close_order() {
     let setup = Setup::new();
 
-    let stub = Arc::new(Stub {});
+    let stub = Arc::new(Stub::new());
     let balance = Decimal::new(100_000, 0);
     let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
 
@@ -113,7 +139,7 @@ async fn close_order() {
 async fn flip_order() {
     let setup = Setup::new();
 
-    let stub = Arc::new(Stub {});
+    let stub = Arc::new(Stub::new());
     let balance = Decimal::new(100_000, 0);
     let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
 
@@ -157,7 +183,7 @@ async fn flip_order() {
 async fn get_balance_after_order() {
     let setup = Setup::new();
 
-    let stub = Arc::new(Stub {});
+    let stub = Arc::new(Stub::new());
     let balance = Decimal::new(100_000, 0);
     let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
     let quantity = 10;
@@ -175,19 +201,71 @@ async fn get_balance_after_order() {
 
 #[tokio::test]
 async fn get_balance_after_profit() {
-    todo!()
+    let setup = Setup::new();
+
+    let stub = Arc::new(Stub::new());
+    let balance = Decimal::new(100_000, 0);
+    let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
+    let quantity = 10;
+    let side = Side::Long;
+    let balance_before_trade = broker.get_account_balance().await.unwrap();
+    let market = Market::new(quantity, side, setup.security.to_owned());
+    let market_order = Order::Market(market);
+    let _ = broker.place_order(&market_order).await.unwrap();
+    stub.add_to_price(Decimal::new(10, 0)).await;
+    let market_order_close = Order::Market(Market::new(
+        quantity,
+        Side::Short,
+        setup.security.to_owned(),
+    ));
+    let _ = broker.place_order(&market_order_close).await.unwrap();
+    let balance_after_trade = broker.get_account_balance().await.unwrap();
+
+    assert!(
+        balance_after_trade > balance_before_trade,
+        "profit should have been made"
+    );
+
+    let expected = Decimal::new(101_000, 0);
+    assert_eq!(balance_after_trade, expected)
 }
 
 #[tokio::test]
 async fn get_balance_after_loss() {
-    todo!()
+    let setup = Setup::new();
+
+    let stub = Arc::new(Stub::new());
+    let balance = Decimal::new(100_000, 0);
+    let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
+    let quantity = 10;
+    let side = Side::Long;
+    let balance_before_trade = broker.get_account_balance().await.unwrap();
+    let market = Market::new(quantity, side, setup.security.to_owned());
+    let market_order = Order::Market(market);
+    let _ = broker.place_order(&market_order).await.unwrap();
+    stub.add_to_price(Decimal::new(-10, 0)).await;
+    let market_order_close = Order::Market(Market::new(
+        quantity,
+        Side::Short,
+        setup.security.to_owned(),
+    ));
+    let _ = broker.place_order(&market_order_close).await.unwrap();
+    let balance_after_trade = broker.get_account_balance().await.unwrap();
+
+    assert!(
+        balance_after_trade < balance_before_trade,
+        "loss should have been made"
+    );
+
+    let expected = Decimal::new(99_900, 0);
+    assert_eq!(balance_after_trade, expected)
 }
 
 #[tokio::test]
 async fn get_positions() {
     let setup = Setup::new();
 
-    let stub = Arc::new(Stub {});
+    let stub = Arc::new(Stub::new());
     let balance = Decimal::new(100_000, 0);
     let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
     let quantity = 10;
@@ -214,7 +292,7 @@ async fn get_positions() {
 async fn get_pending_orders() {
     let setup = Setup::new();
 
-    let stub = Arc::new(Stub {});
+    let stub = Arc::new(Stub::new());
     let balance = Decimal::new(100_000, 0);
     let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
     let quantity = 10;
@@ -240,7 +318,7 @@ async fn get_pending_orders() {
 async fn insert_market_stop_limit_order() {
     let setup = Setup::new();
 
-    let stub = Arc::new(Stub {});
+    let stub = Arc::new(Stub::new());
     let balance = Decimal::new(100_000, 0);
     let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
 
@@ -297,7 +375,7 @@ async fn insert_market_stop_limit_order() {
 async fn cancel_pending_order() {
     let setup = Setup::new();
 
-    let stub = Arc::new(Stub {});
+    let stub = Arc::new(Stub::new());
     let balance = Decimal::new(100_000, 0);
     let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
     let quantity = 10;
@@ -333,7 +411,7 @@ async fn cancel_pending_order() {
 async fn update_pending_order() {
     let setup = Setup::new();
 
-    let stub = Arc::new(Stub {});
+    let stub = Arc::new(Stub::new());
     let balance = Decimal::new(100_000, 0);
     let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
     let quantity = 10;
@@ -376,7 +454,7 @@ async fn update_pending_order() {
 async fn close_existing_trade_on_low_balance() {
     let setup = Setup::new();
 
-    let stub = Arc::new(Stub {});
+    let stub = Arc::new(Stub::new());
     let balance = Decimal::new(100_000, 0);
     let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
 
