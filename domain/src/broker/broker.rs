@@ -68,8 +68,6 @@ impl Broker {
             return Ok((cost, filled_order));
         };
 
-        // TODO: what if quantity are equal and side are different
-
         if active.side == market_order.order_details.side {
             let cost = Decimal::from_u64(market_order.order_details.quantity).unwrap() * price;
             let filled_order = create_filled_order(
@@ -81,7 +79,8 @@ impl Broker {
             return Ok((cost, filled_order));
         }
 
-        if active.get_quantity() == market_order.order_details.quantity {
+        let active_position_quantity = active.get_quantity();
+        if active_position_quantity == market_order.order_details.quantity {
             let cost = Decimal::new(0, 0);
             let filled_order = create_filled_order(
                 market_order.order_details.quantity,
@@ -92,7 +91,12 @@ impl Broker {
             return Ok((cost, filled_order));
         }
 
-        let (quantity, side) = get_new_order_specs(&active, market_order)?;
+        let side = if active_position_quantity > market_order.order_details.quantity {
+            active.side
+        } else {
+            market_order.order_details.side
+        };
+
         let cost = Decimal::from_u64(market_order.order_details.quantity).unwrap() * price;
         let filled_order = create_filled_order(
             market_order.order_details.quantity,
@@ -263,27 +267,4 @@ fn create_filled_order(
     );
 
     Ok(fo)
-}
-
-fn get_new_order_specs(
-    security_position: &SecurityPosition,
-    market_order: &order::Market,
-) -> Result<(u64, order::Side)> {
-    let security_position_quantity = security_position.get_quantity();
-    ensure!(
-        security_position_quantity != market_order.order_details.quantity,
-        "quantities cannot be equal"
-    );
-    ensure!(
-        security_position.side != market_order.order_details.side,
-        "side cannot be equal"
-    );
-
-    if security_position_quantity > market_order.order_details.quantity {
-        let quantity = security_position_quantity - market_order.order_details.quantity;
-        return Ok((quantity, security_position.side));
-    }
-
-    let quantity = market_order.order_details.quantity - security_position_quantity;
-    return Ok((quantity, market_order.order_details.side));
 }
