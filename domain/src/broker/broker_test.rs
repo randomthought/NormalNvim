@@ -294,10 +294,10 @@ async fn get_pending_orders() {
     ));
     broker.place_order(&pending_order).await.unwrap();
 
-    let results = broker.get_pending_orders().await.unwrap();
+    let result = broker.get_pending_orders().await.unwrap();
 
     assert!(
-        results.is_empty(),
+        result.is_empty() == false,
         "pending order was inserted but none is returned"
     )
 }
