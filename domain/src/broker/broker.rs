@@ -6,7 +6,9 @@ use crate::{
         model::Event,
     },
     models::{
-        order::{self, FilledOrder, Order, OrderResult, PendingOrder, SecurityPosition},
+        order::{
+            self, FilledOrder, HoldingDetail, Order, OrderResult, PendingOrder, SecurityPosition,
+        },
         price::{Price, Quote},
         security::Security,
     },
@@ -58,7 +60,7 @@ impl Broker {
             order::Side::Short => quote.ask,
         };
         let Some(active) = self.orders.get_position(&market_order.security).await else {
-            let cost = Decimal::from_u64(market_order.order_details.quantity).unwrap() * price;
+            let cost = Decimal::from_u64(market_order.order_details.quantity).unwrap() * -price;
             let filled_order = create_filled_order(
                 market_order.order_details.quantity,
                 &market_order.security,
@@ -69,25 +71,26 @@ impl Broker {
         };
 
         if active.side == market_order.order_details.side {
-            let cost = Decimal::from_u64(market_order.order_details.quantity).unwrap() * price;
             let filled_order = create_filled_order(
                 market_order.order_details.quantity,
                 &market_order.security,
                 market_order.order_details.side,
                 &quote,
             )?;
+            let cost = calculate_cost(&active, &filled_order);
             return Ok((cost, filled_order));
         }
 
         let active_position_quantity = active.get_quantity();
         if active_position_quantity == market_order.order_details.quantity {
-            let cost = Decimal::new(0, 0);
             let filled_order = create_filled_order(
                 market_order.order_details.quantity,
                 &market_order.security,
                 market_order.order_details.side,
                 &quote,
             )?;
+
+            let cost = calculate_cost(&active, &filled_order);
             return Ok((cost, filled_order));
         }
 
@@ -97,7 +100,6 @@ impl Broker {
             market_order.order_details.side
         };
 
-        let cost = Decimal::from_u64(market_order.order_details.quantity).unwrap() * price;
         let filled_order = create_filled_order(
             market_order.order_details.quantity,
             &market_order.security,
@@ -105,6 +107,7 @@ impl Broker {
             &quote,
         )?;
 
+        let cost = calculate_cost(&active, &filled_order);
         return Ok((cost, filled_order));
     }
 
@@ -176,7 +179,7 @@ impl OrderManager for Broker {
 
         let (cost, filled_order) = self.create_trade(market_order).await?;
 
-        if cost >= *account_balance {
+        if (cost + *account_balance) < Decimal::new(0, 0) {
             bail!("do not have enough funds to peform trade");
         }
 
@@ -184,7 +187,8 @@ impl OrderManager for Broker {
         self.orders.insert(&order_result).await?;
         let commision = Decimal::from_u64(market_order.order_details.quantity).unwrap()
             * self.commissions_per_share;
-        *account_balance = *account_balance - (commision + cost);
+        let trade_cost = commision + cost;
+        *account_balance += trade_cost;
 
         Ok(order_result)
     }
@@ -273,4 +277,14 @@ fn create_filled_order(
     );
 
     Ok(fo)
+}
+
+fn calculate_cost(security_position: &SecurityPosition, filled_order: &FilledOrder) -> Price {
+    let quantity = if security_position.side == filled_order.order_details.side {
+        -Decimal::from_u64(filled_order.order_details.quantity).unwrap()
+    } else {
+        Decimal::from_u64(filled_order.order_details.quantity).unwrap()
+    };
+
+    quantity * filled_order.price
 }

@@ -204,15 +204,14 @@ async fn get_balance_after_profit() {
     let setup = Setup::new();
 
     let stub = Arc::new(Stub::new());
-    let balance = Decimal::new(100_000, 0);
+    let balance = Decimal::new(1000, 0);
     let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
-    let quantity = 10;
+    let quantity = 1;
     let side = Side::Long;
-    let balance_before_trade = broker.get_account_balance().await.unwrap();
     let market = Market::new(quantity, side, setup.security.to_owned());
     let market_order = Order::Market(market);
     let _ = broker.place_order(&market_order).await.unwrap();
-    stub.add_to_price(Decimal::new(10, 0)).await;
+    stub.add_to_price(Decimal::new(1000, 0)).await;
     let market_order_close = Order::Market(Market::new(
         quantity,
         Side::Short,
@@ -221,12 +220,7 @@ async fn get_balance_after_profit() {
     let _ = broker.place_order(&market_order_close).await.unwrap();
     let balance_after_trade = broker.get_account_balance().await.unwrap();
 
-    assert!(
-        balance_after_trade > balance_before_trade,
-        "profit should have been made"
-    );
-
-    let expected = Decimal::new(101_000, 0);
+    let expected = Decimal::new(2000, 0);
     assert_eq!(balance_after_trade, expected)
 }
 
@@ -235,15 +229,14 @@ async fn get_balance_after_loss() {
     let setup = Setup::new();
 
     let stub = Arc::new(Stub::new());
-    let balance = Decimal::new(100_000, 0);
+    let balance = Decimal::new(1000, 0);
     let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
-    let quantity = 10;
+    let quantity = 1;
     let side = Side::Long;
-    let balance_before_trade = broker.get_account_balance().await.unwrap();
     let market = Market::new(quantity, side, setup.security.to_owned());
     let market_order = Order::Market(market);
     let _ = broker.place_order(&market_order).await.unwrap();
-    stub.add_to_price(Decimal::new(-10, 0)).await;
+    stub.add_to_price(Decimal::new(-1000, 0)).await;
     let market_order_close = Order::Market(Market::new(
         quantity,
         Side::Short,
@@ -252,12 +245,7 @@ async fn get_balance_after_loss() {
     let _ = broker.place_order(&market_order_close).await.unwrap();
     let balance_after_trade = broker.get_account_balance().await.unwrap();
 
-    assert!(
-        balance_after_trade < balance_before_trade,
-        "loss should have been made"
-    );
-
-    let expected = Decimal::new(99_900, 0);
+    let expected = Decimal::new(0, 0);
     assert_eq!(balance_after_trade, expected)
 }
 
