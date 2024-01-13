@@ -12,11 +12,11 @@ use crate::{
     },
     order::{Account, OrderManager, OrderReader},
 };
-use anyhow::{bail, ensure, Ok, Result};
+use anyhow::{bail, Ok, Result};
 use async_trait::async_trait;
 use rust_decimal::{prelude::FromPrimitive, Decimal};
+use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
-use std::{ops::Mul, sync::Arc};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
@@ -139,7 +139,7 @@ impl OrderReader for Broker {
         Ok(orders)
     }
 
-    async fn pending_orders(&self) -> Result<Vec<OrderResult>> {
+    async fn get_pending_orders(&self) -> Result<Vec<OrderResult>> {
         todo!()
     }
 }
@@ -147,10 +147,16 @@ impl OrderReader for Broker {
 #[async_trait]
 impl OrderManager for Broker {
     async fn place_order(&self, order: &Order) -> Result<OrderResult> {
+        if let Order::OCA(o) = order {
+            todo!()
+        }
+
         if let Order::StopLimitMarket(o) = order {
             let market_order = Order::Market(o.market.to_owned());
             self.place_order(&market_order).await?;
-            todo!() // TODO: handle limit orders
+            let oca = Order::OCA(o.one_cancels_other.to_owned());
+            self.place_order(&oca).await?;
+            todo!("write order result retun type");
         }
 
         let Order::Market(market_order) = order else {

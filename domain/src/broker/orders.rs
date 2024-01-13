@@ -3,7 +3,7 @@ use std::collections::HashMap;
 use tokio::sync::RwLock;
 
 use crate::models::{
-    order::{FilledOrder, OrderDetails, OrderId, OrderResult, PendingOrder, SecurityPosition},
+    order::{FilledOrder, Order, OrderId, OrderResult, PendingOrder, SecurityPosition},
     security::Security,
 };
 use anyhow::{bail, Ok, Result};
@@ -58,7 +58,7 @@ impl Orders {
     }
 
     pub async fn remove(&self, pending_order: &PendingOrder) -> Result<()> {
-        let security = pending_order.order.get_security();
+        let security = get_security(&pending_order.order);
         let mut map = self.pendig.write().await;
         let Some(security_orders) = map.get_mut(security) else {
             bail!("order doesn't exist");
@@ -86,6 +86,11 @@ impl Orders {
     }
 }
 
-fn to_order_results(active_order: &ActiveOrder) -> OrderResult {
-    todo!()
+fn get_security(order: &Order) -> &Security {
+    match order {
+        Order::Market(o) => &o.security,
+        Order::Limit(o) => &o.security,
+        Order::StopLimitMarket(o) => &o.market.security,
+        Order::OCA(o) => todo!(),
+    }
 }

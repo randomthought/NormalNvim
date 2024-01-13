@@ -4,7 +4,7 @@ use super::config::RiskEngineConfig;
 use crate::data::QouteProvider;
 use crate::event::event::EventHandler;
 use crate::event::model::{Event, Signal};
-use crate::models::order::{self, Order, StopLimitMarket};
+use crate::models::order::{self, Order};
 use crate::models::price::Quote;
 use crate::order::OrderManager;
 use crate::portfolio::Portfolio;
@@ -78,6 +78,7 @@ impl RiskEngine {
                 o.market.order_details.quantity,
                 o.market.order_details.side,
             ),
+            Order::OCA(_) => todo!(),
         };
 
         let account_value = self.portfolio.account_value().await?;
@@ -139,7 +140,7 @@ impl EventHandler for RiskEngine {
     async fn handle(&self, event: &Event) -> Result<()> {
         if let Event::Signal(s) = event {
             let signal_results = self.process_signal(s).await?;
-            // println!("{:?}", signal_results);
+            println!("signal result: {:?}", signal_results);
         }
 
         Ok(())

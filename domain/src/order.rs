@@ -17,7 +17,7 @@ pub trait Account {
 #[async_trait]
 pub trait OrderReader {
     async fn get_positions(&self) -> Result<Vec<SecurityPosition>>;
-    async fn pending_orders(&self) -> Result<Vec<OrderResult>>;
+    async fn get_pending_orders(&self) -> Result<Vec<OrderResult>>;
 }
 
 #[async_trait]

@@ -1,7 +1,6 @@
-use std::{i64, time::Duration};
+use std::time::Duration;
 
 use anyhow::{bail, Result};
-use rust_decimal::prelude::FromPrimitive;
 
 use crate::models::{
     order::{FilledOrder, HoldingDetail, OrderDetails, OrderId, SecurityPosition, Side},

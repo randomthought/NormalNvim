@@ -1,6 +1,6 @@
 use crate::{
     data::QouteProvider,
-    models::order::{FilledOrder, OrderResult, SecurityPosition, Side},
+    models::order::{SecurityPosition, Side},
     order::{Account, OrderReader},
 };
 use anyhow::Result;

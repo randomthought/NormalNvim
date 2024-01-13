@@ -5,7 +5,7 @@ use std::{time::Duration, u64};
 
 use super::price::Price;
 use super::security::Security;
-use anyhow::{ensure, Result};
+use anyhow::{bail, ensure, Result};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Side {
@@ -15,7 +15,7 @@ pub enum Side {
 
 pub type Quantity = u64;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Market {
     pub security: Security,
     pub order_details: OrderDetails,
@@ -32,7 +32,7 @@ impl Market {
 }
 
 // https://ibkrguides.com/tws/usersguidebook/ordertypes/time%20in%20force%20for%20orders.htm
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TimesInForce {
     Day,
     GTC,
@@ -44,7 +44,7 @@ pub enum TimesInForce {
     // Fill/Trigger Outside RTH
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Limit {
     pub price: Price,
     pub security: Security,
@@ -69,10 +69,24 @@ impl Limit {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OneCancelsOther {
+    pub limit_orders: Vec<Limit>,
+}
+
+impl OneCancelsOther {
+    pub fn new(limit_orders: Vec<Limit>) -> Result<Self> {
+        if limit_orders.is_empty() {
+            bail!("cannot provide an empty list of limit orders")
+        }
+
+        Ok(Self { limit_orders })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StopLimitMarket {
-    pub stop: Limit,
-    pub limit: Limit,
+    pub one_cancels_other: OneCancelsOther,
     pub market: Market,
 }
 
@@ -99,7 +113,7 @@ impl StopLimitMarket {
         }
 
         let times_in_force = TimesInForce::GTC;
-        let market_order = Market::new(quantity, side, security.to_owned());
+        let market = Market::new(quantity, side, security.to_owned());
         let profit_limit = Limit::new(quantity, limit, side, security.to_owned(), times_in_force);
         let stop_side = match side {
             Side::Long => Side::Short,
@@ -107,34 +121,26 @@ impl StopLimitMarket {
         };
         let stop_limit = Limit::new(quantity, stop, stop_side, security, times_in_force);
 
+        let one_cancels_other = OneCancelsOther::new(vec![profit_limit, stop_limit])?;
+
         Ok(Self {
-            stop: stop_limit,
-            market: market_order,
-            limit: profit_limit,
+            market,
+            one_cancels_other,
         })
     }
 }
 
 pub type OrderId = String;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Order {
     Market(Market),
     Limit(Limit),
+    OCA(OneCancelsOther),
     StopLimitMarket(StopLimitMarket),
 }
 
-impl Order {
-    pub fn get_security(&self) -> &Security {
-        match self {
-            Order::Market(o) => &o.security,
-            Order::Limit(o) => &o.security,
-            Order::StopLimitMarket(o) => &o.market.security,
-        }
-    }
-}
-
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PendingOrder {
     pub order_id: OrderId,
     pub order: Order,
@@ -170,7 +176,7 @@ impl FilledOrder {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OrderResult {
     FilledOrder(FilledOrder),
     PendingOrder(PendingOrder),

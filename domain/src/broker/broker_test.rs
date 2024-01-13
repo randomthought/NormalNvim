@@ -10,8 +10,8 @@ use crate::{
     event::{event::EventProducer, model::Event},
     models::{
         order::{
-            self, FilledOrder, HoldingDetail, Market, Order, OrderResult, PendingOrder,
-            SecurityPosition, Side,
+            self, FilledOrder, HoldingDetail, Market, OneCancelsOther, Order, OrderResult,
+            PendingOrder, SecurityPosition, Side, StopLimitMarket,
         },
         price::{Price, Quote},
         security::{AssetType, Exchange, Security},
@@ -228,12 +228,69 @@ async fn get_pending_orders() {
     ));
     broker.place_order(&pending_order).await.unwrap();
 
-    let results = broker.pending_orders().await.unwrap();
+    let results = broker.get_pending_orders().await.unwrap();
 
     assert!(
         results.is_empty(),
         "pending order was inserted but none is returned"
     )
+}
+
+#[tokio::test]
+async fn insert_market_stop_limit_order() {
+    let setup = Setup::new();
+
+    let stub = Arc::new(Stub {});
+    let balance = Decimal::new(100_000, 0);
+    let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
+
+    let quantity = 10;
+    let side = Side::Long;
+    let limit_price = Decimal::new(100, 0);
+    let stop_price = Decimal::new(90, 0);
+    let stop_limit_market = StopLimitMarket::new(
+        setup.security.to_owned(),
+        quantity,
+        side,
+        stop_price,
+        limit_price,
+    )
+    .unwrap();
+    let order = Order::StopLimitMarket(stop_limit_market);
+    let order_result = broker.place_order(&order).await.unwrap();
+
+    let expected_1 = vec![SecurityPosition {
+        security: setup.security.to_owned(),
+        side,
+        holding_details: vec![HoldingDetail {
+            quantity,
+            price: setup.price,
+        }],
+    }];
+
+    let results_1 = broker.get_positions().await.unwrap();
+
+    assert_eq!(expected_1, results_1);
+
+    let p = PendingOrder {
+        order_id: "todo".to_owned(),
+        order: order.to_owned(),
+    };
+
+    let expected_2: Vec<OrderResult> = vec![OrderResult::PendingOrder(PendingOrder {
+        order_id: "todo".to_owned(),
+        order: order.to_owned(),
+    })];
+
+    let Some(OrderResult::PendingOrder(pending_order)) =
+        broker.get_pending_orders().await.unwrap().pop()
+    else {
+        panic!("expected a pending order")
+    };
+
+    let Order::OCA(oca) = pending_order.order else {
+        panic!("expected a once cancels others (OCA) order")
+    };
 }
 
 #[tokio::test]
@@ -253,7 +310,8 @@ async fn cancel_pending_order() {
         order::TimesInForce::GTC,
     ));
 
-    let OrderResult::FilledOrder(filled_order) = broker.place_order(&limit_order).await.unwrap() else {
+    let OrderResult::FilledOrder(filled_order) = broker.place_order(&limit_order).await.unwrap()
+    else {
         panic!("must get a filled result")
     };
 
@@ -263,7 +321,7 @@ async fn cancel_pending_order() {
     };
     broker.cancel(&pending_order).await.unwrap();
 
-    let pending_orders = broker.pending_orders().await.unwrap();
+    let pending_orders = broker.get_pending_orders().await.unwrap();
 
     assert!(
         pending_orders.is_empty(),
@@ -288,11 +346,59 @@ async fn update_pending_order() {
         order::TimesInForce::GTC,
     ));
 
-    todo!()
+    let order_result = broker.place_order(&limit_order).await.unwrap();
+    let OrderResult::PendingOrder(p) = order_result else {
+        panic!("failed to get a pending order when placing a limit order")
+    };
+
+    let pending_order = PendingOrder {
+        order_id: p.order_id.to_owned(),
+        order: Order::Limit(order::Limit::new(
+            20,
+            setup.price,
+            side,
+            setup.security.to_owned(),
+            order::TimesInForce::GTC,
+        )),
+    };
+
+    broker.update(&pending_order).await.unwrap();
+
+    let Some(OrderResult::PendingOrder(result)) = broker.get_pending_orders().await.unwrap().pop()
+    else {
+        panic!("failed get updated pending order")
+    };
+
+    assert_eq!(pending_order, result)
 }
 
 #[tokio::test]
 async fn close_existing_trade_on_low_balance() {
-    // Close existing trade when balance is 0
-    todo!()
+    let setup = Setup::new();
+
+    let stub = Arc::new(Stub {});
+    let balance = Decimal::new(100_000, 0);
+    let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
+
+    let quantity_1 = 100;
+    let market_order_1 = Order::Market(Market::new(
+        quantity_1,
+        Side::Long,
+        setup.security.to_owned(),
+    ));
+    broker.place_order(&market_order_1).await.unwrap();
+    let quantity_2 = 100;
+    let market_order_2 = Order::Market(Market::new(
+        quantity_2,
+        Side::Short,
+        setup.security.to_owned(),
+    ));
+    broker.place_order(&market_order_2).await.unwrap();
+
+    let result = broker.get_positions().await.unwrap();
+
+    assert!(
+        result.is_empty(),
+        "trade should be closed regardless of low balance"
+    )
 }
