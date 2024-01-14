@@ -100,7 +100,7 @@ impl Orders {
     pub async fn remove(&self, pending_order: &PendingOrder) -> Result<()> {
         let Order::Limit(_) = pending_order.order.to_owned() else {
             let mut map = self.chained.write().await;
-            if let Some(_) = map.remove(&pending_order.order_id) {
+            let Some(_) = map.remove(&pending_order.order_id) else {
                 bail!("order doesn't exist")
             };
 
