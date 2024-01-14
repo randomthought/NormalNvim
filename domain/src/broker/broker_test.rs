@@ -323,7 +323,9 @@ async fn insert_market_stop_limit_order() {
     )
     .unwrap();
     let order = Order::StopLimitMarket(stop_limit_market);
-    let order_result = broker.place_order(&order).await.unwrap();
+    let OrderResult::PendingOrder(pending_order) = broker.place_order(&order).await.unwrap() else {
+        panic!("expected a pending order")
+    };
 
     let expected_1 = vec![SecurityPosition {
         security: setup.security.to_owned(),
@@ -338,25 +340,33 @@ async fn insert_market_stop_limit_order() {
 
     assert_eq!(expected_1, results_1);
 
-    let p = PendingOrder {
-        order_id: "todo".to_owned(),
-        order: order.to_owned(),
-    };
+    let oca = OneCancelsOther::new(vec![
+        order::Limit::new(
+            quantity,
+            limit_price,
+            side,
+            setup.security.to_owned(),
+            order::TimesInForce::GTC,
+        ),
+        order::Limit::new(
+            quantity,
+            stop_price,
+            Side::Short,
+            setup.security.to_owned(),
+            order::TimesInForce::GTC,
+        ),
+    ])
+    .unwrap();
 
     let expected_2: Vec<OrderResult> = vec![OrderResult::PendingOrder(PendingOrder {
-        order_id: "todo".to_owned(),
-        order: order.to_owned(),
+        order_id: pending_order.order_id.to_owned(),
+        order: Order::OCA(oca),
     })];
 
-    let Some(OrderResult::PendingOrder(pending_order)) =
-        broker.get_pending_orders().await.unwrap().pop()
-    else {
-        panic!("expected a pending order")
-    };
+    let result_2 = broker.get_pending_orders().await.unwrap();
 
-    let Order::OCA(oca) = pending_order.order else {
-        panic!("expected a once cancels others (OCA) order")
-    };
+    assert_eq!(expected_2, result_2);
+    // assert!(expected_2.iter().all(|item| result_2.contains(item)));
 }
 
 #[tokio::test]

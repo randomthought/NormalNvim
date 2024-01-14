@@ -154,18 +154,12 @@ impl OrderReader for Broker {
 #[async_trait]
 impl OrderManager for Broker {
     async fn place_order(&self, order: &Order) -> Result<OrderResult> {
-        if let Order::OCA(o) = order {
-            todo!()
-        }
-
         if let Order::StopLimitMarket(o) = order {
             let market_order = Order::Market(o.market.to_owned());
             self.place_order(&market_order).await?;
 
             let oca = Order::OCA(o.one_cancels_other.to_owned());
-            self.place_order(&oca).await?;
-
-            todo!("write order result retun type");
+            return self.place_order(&oca).await;
         }
 
         let Order::Market(market_order) = order else {

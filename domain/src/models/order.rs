@@ -163,14 +163,14 @@ impl FilledOrder {
         price: Price,
         quantity: Quantity,
         side: Side,
-        datetime: Duration,
+        date_time: Duration,
     ) -> Self {
         let order_details = OrderDetails { quantity, side };
         Self {
             security,
             order_id,
             price,
-            date_time: datetime,
+            date_time,
             order_details,
         }
     }
