@@ -360,6 +360,80 @@ async fn insert_market_stop_limit_order() {
 }
 
 #[tokio::test]
+async fn cancel_oco_order() {
+    let setup = Setup::new();
+
+    let stub = Arc::new(Stub::new());
+    let balance = Decimal::new(100_000, 0);
+    let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
+
+    let quantity = 10;
+    let side = Side::Long;
+    let limit_price = Decimal::new(100, 0);
+    let stop_price = Decimal::new(90, 0);
+    let stop_limit_market = StopLimitMarket::new(
+        setup.security.to_owned(),
+        quantity,
+        side,
+        stop_price,
+        limit_price,
+    )
+    .unwrap();
+    let order = Order::StopLimitMarket(stop_limit_market);
+    let order_result = broker.place_order(&order).await.unwrap();
+
+    let OrderResult::PendingOrder(pending_order) = order_result else {
+        panic!("pending order should be returned when placing limit order")
+    };
+
+    broker.cancel(&pending_order).await.unwrap();
+
+    let pending_orders = broker.get_pending_orders().await.unwrap();
+
+    assert!(
+        pending_orders.is_empty() == true,
+        "pending order was noce properly canceled"
+    );
+}
+
+#[tokio::test]
+async fn cancel_market_stop_limit_order() {
+    let setup = Setup::new();
+
+    let stub = Arc::new(Stub::new());
+    let balance = Decimal::new(100_000, 0);
+    let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
+
+    let quantity = 10;
+    let side = Side::Long;
+    let limit_price = Decimal::new(100, 0);
+    let stop_price = Decimal::new(90, 0);
+    let stop_limit_market = StopLimitMarket::new(
+        setup.security.to_owned(),
+        quantity,
+        side,
+        stop_price,
+        limit_price,
+    )
+    .unwrap();
+    let order = Order::StopLimitMarket(stop_limit_market);
+    let order_result = broker.place_order(&order).await.unwrap();
+
+    let OrderResult::PendingOrder(pending_order) = order_result else {
+        panic!("pending order should be returned when placing limit order")
+    };
+
+    broker.cancel(&pending_order).await.unwrap();
+
+    let pending_orders = broker.get_pending_orders().await.unwrap();
+
+    assert!(
+        pending_orders.is_empty() == true,
+        "pending order was noce properly canceled"
+    );
+}
+
+#[tokio::test]
 async fn cancel_pending_order() {
     let setup = Setup::new();
 

@@ -78,6 +78,10 @@ impl Orders {
             bail!("order doesn't exist");
         };
 
+        if security_orders.is_empty() {
+            map.remove(security);
+        }
+
         Ok(())
     }
 
