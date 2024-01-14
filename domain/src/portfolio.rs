@@ -1,23 +1,23 @@
 use crate::{
     data::QouteProvider,
-    models::order::{FilledOrder, OrderResult, Side},
+    models::order::{SecurityPosition, Side},
     order::{Account, OrderReader},
 };
 use anyhow::Result;
 use futures_util::future;
-use rust_decimal::Decimal;
+use rust_decimal::{prelude::FromPrimitive, Decimal};
 use std::sync::Arc;
 
 #[derive(Debug)]
 pub struct Position {
-    filled_order: FilledOrder,
+    security_position: SecurityPosition,
     unlrealized_profit: Decimal,
 }
 
 impl Position {
-    pub fn new(filled_order: FilledOrder, unlrealized_profit: Decimal) -> Self {
+    pub fn new(security_position: SecurityPosition, unlrealized_profit: Decimal) -> Self {
         Self {
-            filled_order,
+            security_position,
             unlrealized_profit,
         }
     }
@@ -43,24 +43,24 @@ impl Portfolio {
     }
 
     pub async fn get_open_positions(&self) -> Result<Vec<Position>> {
-        let orders = self.order_reader.open_orders().await?;
+        let orders = self.order_reader.get_positions().await?;
 
-        // let futures: Vec<impl Future<Output = Result<Option<Position>, io::Error>>> = orders
         let futures: Vec<_> = orders
             .iter()
-            .flat_map(|order| match order {
-                OrderResult::FilledOrder(o) => Some(o),
-                _ => None,
-            })
-            .map(|order| async move {
-                let quote = self.qoute_provider.get_quote(&order.security).await?;
+            .map(|sp| async move {
+                let quote = self.qoute_provider.get_quote(&sp.security).await?;
 
-                let profit = match order.side {
-                    Side::Long => order.price - quote.ask,
-                    Side::Short => quote.bid - order.price,
-                };
+                let init = Decimal::from_u64(0).unwrap();
+                let profit = sp.holding_details.iter().fold(init, |acc, next| {
+                    let q = Decimal::from_u64(next.quantity).unwrap();
+                    let profit = match sp.side {
+                        Side::Long => (next.price - quote.ask) * q,
+                        Side::Short => (quote.bid - next.price) * q,
+                    };
+                    profit + acc
+                });
 
-                let p = Position::new(order.clone(), profit);
+                let p = Position::new(sp.clone(), profit);
 
                 Ok(p) as Result<Position>
             })

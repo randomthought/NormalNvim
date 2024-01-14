@@ -1,45 +1,38 @@
 // TODO: helpful to model more complex order types: https://tlc.thinkorswim.com/center/howToTos/thinkManual/Trade/Order-Entry-Tools/Order-Types
 // TODO: heloful for more order types: https://www.quantconnect.com/docs/v2/writing-algorithms/trading-and-orders/key-concepts
 
-use std::time::Duration;
+use std::{time::Duration, u64};
 
 use super::price::Price;
 use super::security::Security;
-use anyhow::{ensure, Result};
+use anyhow::{bail, ensure, Result};
 
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Side {
     Long,
     Short,
 }
 
-#[derive(Debug, Clone)]
+pub type Quantity = u64;
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Market {
-    pub quantity: u64,
-    pub side: Side,
-    pub security: Security, // TODO: Consider using lifetime pointer
-    pub times_in_force: TimesInForce,
+    pub security: Security,
+    pub order_details: OrderDetails,
 }
 
 impl Market {
     // constructor
-    pub fn new(
-        quantity: u64,
-        side: Side,
-        security: Security,
-        times_in_force: TimesInForce,
-    ) -> Self {
+    pub fn new(quantity: Quantity, side: Side, security: Security) -> Self {
         Self {
-            quantity,
-            side,
             security,
-            times_in_force,
+            order_details: OrderDetails { quantity, side },
         }
     }
 }
 
 // https://ibkrguides.com/tws/usersguidebook/ordertypes/time%20in%20force%20for%20orders.htm
-#[derive(Debug, Clone, Copy)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum TimesInForce {
     Day,
     GTC,
@@ -51,18 +44,15 @@ pub enum TimesInForce {
     // Fill/Trigger Outside RTH
 }
 
-// TODO: Add order durtation example, day order
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Limit {
-    pub quantity: u64,
     pub price: Price,
-    pub side: Side,
-    pub security: Security, // TODO: Consider using lifetime pointer
+    pub security: Security,
     pub times_in_force: TimesInForce,
+    pub order_details: OrderDetails,
 }
 
 impl Limit {
-    // constructor
     pub fn new(
         quantity: u64,
         price: Price,
@@ -71,23 +61,33 @@ impl Limit {
         times_in_force: TimesInForce,
     ) -> Self {
         Self {
-            quantity,
             price,
-            side,
             security,
             times_in_force,
+            order_details: OrderDetails { quantity, side },
         }
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OneCancelsOther {
+    pub limit_orders: Vec<Limit>,
+}
+
+impl OneCancelsOther {
+    pub fn new(limit_orders: Vec<Limit>) -> Result<Self> {
+        if limit_orders.is_empty() {
+            bail!("cannot provide an empty list of limit orders")
+        }
+
+        Ok(Self { limit_orders })
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StopLimitMarket {
-    pub stop: Price,
-    pub limit: Price,
-    pub side: Side,
-    pub quantity: u64,
-    pub security: Security, // TODO: Consider using lifetime pointer
-    pub times_in_force: TimesInForce,
+    pub one_cancels_other: OneCancelsOther,
+    pub market: Market,
 }
 
 impl StopLimitMarket {
@@ -97,7 +97,6 @@ impl StopLimitMarket {
         side: Side,
         stop: Price,
         limit: Price,
-        times_in_force: TimesInForce,
     ) -> Result<Self> {
         if let Side::Long = side {
             ensure!(
@@ -113,46 +112,100 @@ impl StopLimitMarket {
             );
         }
 
+        let times_in_force = TimesInForce::GTC;
+        let market = Market::new(quantity, side, security.to_owned());
+        let profit_limit = Limit::new(quantity, limit, side, security.to_owned(), times_in_force);
+        let stop_side = match side {
+            Side::Long => Side::Short,
+            Side::Short => Side::Long,
+        };
+        let stop_limit = Limit::new(quantity, stop, stop_side, security, times_in_force);
+
+        let one_cancels_other = OneCancelsOther::new(vec![profit_limit, stop_limit])?;
+
         Ok(Self {
-            stop,
-            limit,
-            side,
-            quantity,
-            security,
-            times_in_force,
+            market,
+            one_cancels_other,
         })
     }
 }
 
 pub type OrderId = String;
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum Order {
     Market(Market),
     Limit(Limit),
+    OCA(OneCancelsOther),
     StopLimitMarket(StopLimitMarket),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PendingOrder {
     pub order_id: OrderId,
     pub order: Order,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct FilledOrder {
-    pub order_id: OrderId,
     pub security: Security,
-    pub side: Side,
-    pub commission: Price,
+    pub order_id: OrderId,
     pub price: Price,
-    pub quantity: u64,
-    pub datetime: Duration,
+    pub date_time: Duration,
+    pub order_details: OrderDetails,
 }
 
-#[derive(Debug, Clone)]
+impl FilledOrder {
+    pub fn new(
+        security: Security,
+        order_id: OrderId,
+        price: Price,
+        quantity: Quantity,
+        side: Side,
+        date_time: Duration,
+    ) -> Self {
+        let order_details = OrderDetails { quantity, side };
+        Self {
+            security,
+            order_id,
+            price,
+            date_time,
+            order_details,
+        }
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OrderResult {
     FilledOrder(FilledOrder),
     PendingOrder(PendingOrder),
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OrderDetails {
+    pub quantity: Quantity,
+    pub side: Side,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct SecurityPosition {
+    pub security: Security,
+    pub side: Side,
+    pub holding_details: Vec<HoldingDetail>,
+}
+
+impl SecurityPosition {
+    pub fn get_quantity(&self) -> Quantity {
+        self.holding_details
+            .iter()
+            .fold(0, |acc, next| acc + next.quantity)
+    }
+}
+
+// TODO: think of a beter name
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct HoldingDetail {
+    pub quantity: Quantity,
+    pub price: Price,
 }
