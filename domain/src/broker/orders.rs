@@ -7,7 +7,7 @@ use crate::models::{
     order::{FilledOrder, Limit, Order, OrderId, OrderResult, PendingOrder, SecurityPosition},
     security::Security,
 };
-use anyhow::{bail, Ok, Result};
+use color_eyre::eyre::{bail, Ok, Result};
 
 use super::active_order::ActiveOrder;
 

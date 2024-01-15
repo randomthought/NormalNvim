@@ -28,7 +28,7 @@ use crate::{
     order::{Account, OrderManager, OrderReader},
 };
 
-use anyhow::{Ok, Result};
+use color_eyre::eyre::{Ok, Result};
 
 struct Setup {
     pub security: Security,

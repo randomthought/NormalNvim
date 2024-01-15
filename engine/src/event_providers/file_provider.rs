@@ -5,7 +5,7 @@ use std::{
     pin::Pin,
 };
 
-use anyhow::Result;
+use color_eyre::eyre::Result;
 use futures_util::{stream, Stream};
 
 pub fn create_stream(
@@ -15,7 +15,7 @@ pub fn create_stream(
     let file = File::options().write(false).read(true).open(path)?;
     let reader = BufReader::new(file);
 
-    let fs = reader.lines().map(|line| line.map_err(anyhow::Error::from));
+    let fs = reader.lines().map(|line| line.map_err(eyre::Error::from));
 
     let stream = stream::iter(fs);
     let pin = Box::pin(stream);

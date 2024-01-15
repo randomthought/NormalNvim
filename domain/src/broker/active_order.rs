@@ -1,6 +1,6 @@
 use std::time::Duration;
 
-use anyhow::{bail, Result};
+use color_eyre::eyre::{bail, Result};
 
 use crate::models::{
     order::{FilledOrder, HoldingDetail, OrderDetails, OrderId, SecurityPosition, Side},

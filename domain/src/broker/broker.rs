@@ -12,8 +12,8 @@ use crate::{
     },
     order::{Account, OrderManager, OrderReader},
 };
-use anyhow::{bail, Ok, Result};
 use async_trait::async_trait;
+use color_eyre::eyre::{bail, Ok, Result};
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};

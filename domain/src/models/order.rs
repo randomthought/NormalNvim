@@ -5,7 +5,7 @@ use std::{time::Duration, u64};
 
 use super::price::Price;
 use super::security::Security;
-use anyhow::{bail, ensure, Result};
+use color_eyre::eyre::{bail, ensure, Result};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Side {

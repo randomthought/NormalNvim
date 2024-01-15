@@ -3,7 +3,7 @@ use crate::{
     models::order::{SecurityPosition, Side},
     order::{Account, OrderReader},
 };
-use anyhow::Result;
+use color_eyre::eyre::Result;
 use futures_util::future;
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use std::sync::Arc;

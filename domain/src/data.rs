@@ -2,8 +2,8 @@ use crate::models::{
     price::{PriceHistory, Quote, Resolution},
     security::Security,
 };
-use anyhow::Result;
 use async_trait::async_trait;
+use color_eyre::eyre::Result;
 
 #[async_trait]
 pub trait QouteProvider {

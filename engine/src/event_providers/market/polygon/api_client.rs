@@ -1,6 +1,6 @@
 use super::{models::QuoteResponse, utils};
-use anyhow::Result;
 use async_trait::async_trait;
+use color_eyre::eyre::Result;
 use domain::{
     data::QouteProvider,
     models::{price::Quote, security::Security},

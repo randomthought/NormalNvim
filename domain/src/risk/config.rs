@@ -1,4 +1,4 @@
-use anyhow::{ensure, Result};
+use color_eyre::eyre::{ensure, Result};
 
 enum TradingState {
     Active, // trading is enabled

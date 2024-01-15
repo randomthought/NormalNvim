@@ -1,10 +1,10 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use anyhow::Context;
-use anyhow::Ok;
-use anyhow::Result;
 use async_trait::async_trait;
+use color_eyre::eyre::Context;
+use color_eyre::eyre::Ok;
+use color_eyre::eyre::Result;
 use domain::event::model::Event;
 use domain::event::model::Market;
 use domain::{
@@ -14,6 +14,8 @@ use domain::{
         security::Security,
     },
 };
+use eyre::ContextCompat;
+use eyre::OptionExt;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 use tokio::sync::RwLock;
@@ -39,10 +41,10 @@ impl BackTester {
     }
 
     async fn add(&self, price_history: &PriceHistory) -> Result<()> {
-        let c = price_history
-            .history
-            .last()
-            .context("no price history in 'security={ph.security.ticker}")?;
+        let c = price_history.history.last().wrap_err(format!(
+            "no price history in 'security={}",
+            price_history.security.ticker
+        ))?;
 
         let spread_half = (c.close * self.spread) / Decimal::from(2);
         let bid = c.close - spread_half;
@@ -60,7 +62,7 @@ impl BackTester {
 
 #[async_trait]
 impl Parser for BackTester {
-    async fn parse(&self, data: &str) -> anyhow::Result<Vec<Event>> {
+    async fn parse(&self, data: &str) -> Result<Vec<Event>> {
         // TODO: iterator overloading mwould be better since this would be done on every price history twice
 
         let events = self.parser.parse(data).await?;
@@ -83,7 +85,7 @@ impl QouteProvider for BackTester {
         let map = self.map.read().await;
         let quote = map
             .get(&security.ticker)
-            .context(format!("security='{}' not found in map", security.ticker))?
+            .wrap_err(format!("security='{}' not found in map", security.ticker))?
             .clone();
 
         Ok(quote)

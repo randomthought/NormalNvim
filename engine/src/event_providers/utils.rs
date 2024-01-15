@@ -10,7 +10,7 @@ use domain::event::event::EventProducer;
 use futures_util::{Stream, StreamExt};
 
 use super::provider::Parser;
-use anyhow::Result;
+use color_eyre::eyre::Result;
 
 pub struct EventStream {
     event_producer: Arc<dyn EventProducer + Sync + Send>,

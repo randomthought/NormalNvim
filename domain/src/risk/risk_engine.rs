@@ -8,8 +8,9 @@ use crate::models::order::{self, Order};
 use crate::models::price::Quote;
 use crate::order::OrderManager;
 use crate::portfolio::Portfolio;
-use anyhow::{Context, Ok, Result};
 use async_trait::async_trait;
+use color_eyre::eyre::{eyre, Context, Result};
+use eyre::{ContextCompat, OptionExt};
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 
@@ -27,12 +28,12 @@ enum TradingState {
 }
 
 pub struct RiskEngine {
-    risk_engine_config: RiskEngineConfig,
+    pub risk_engine_config: RiskEngineConfig,
     // TODO: state has to be mutable.
-    trading_state: TradingState,
-    qoute_provider: Arc<dyn QouteProvider + Send + Sync>,
-    order_manager: Arc<dyn OrderManager + Send + Sync>,
-    portfolio: Box<Portfolio>,
+    pub trading_state: TradingState,
+    pub qoute_provider: Arc<dyn QouteProvider + Send + Sync>,
+    pub order_manager: Arc<dyn OrderManager + Send + Sync>,
+    pub portfolio: Box<Portfolio>,
 }
 
 impl RiskEngine {
@@ -115,7 +116,7 @@ impl RiskEngine {
         let max_trade_portfolio_accumulaton = Decimal::from_f64(
             self.risk_engine_config.max_trade_portfolio_accumulaton,
         )
-        .context(format!(
+        .wrap_err(format!(
             "unable to convert '{}' to a decimal",
             self.risk_engine_config.max_trade_portfolio_accumulaton
         ))?;
@@ -129,7 +130,7 @@ impl RiskEngine {
 
         let spend_total = obtain_price
             * Decimal::from_u64(quantity)
-                .context(format!("unable to convert '{}' to a decimal", quantity))?;
+                .wrap_err(format!("unable to convert '{}' to a decimal", quantity))?;
 
         Ok(spend_total <= max_spend_on_trade)
     }

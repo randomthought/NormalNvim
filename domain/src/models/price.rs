@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use super::security::Security;
-use anyhow::{ensure, Result};
+use color_eyre::eyre::{ensure, Result};
 use rust_decimal::Decimal;
 
 pub type Symbol = String;

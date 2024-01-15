@@ -1,7 +1,7 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use anyhow::Result;
 use async_trait::async_trait;
+use color_eyre::eyre::Result;
 use domain::{
     event::model::Signal,
     models::{

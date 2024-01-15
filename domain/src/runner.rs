@@ -1,5 +1,5 @@
 use crate::event::{event::EventHandler, model::Event};
-use anyhow::Result;
+use color_eyre::eyre::Result;
 use futures_util::future;
 use futures_util::{Stream, StreamExt};
 use std::pin::Pin;

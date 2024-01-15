@@ -1,11 +1,13 @@
+use core::panic;
 use std::time::Duration;
 
 use super::models::{Aggregates, QuoteResponse};
-use anyhow::{Context, Ok, Result};
+use color_eyre::eyre::{Context, Ok, Result};
 use domain::models::{
     price::{Candle, PriceHistory, Quote, Resolution},
     security::{AssetType, Exchange, Security},
 };
+use eyre::{ContextCompat, OptionExt};
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 
 pub fn to_price_history(aggregates: &Aggregates) -> Result<PriceHistory> {
@@ -22,10 +24,10 @@ pub fn to_price_history(aggregates: &Aggregates) -> Result<PriceHistory> {
     };
 
     let candle = Candle::new(
-        Decimal::from_f64(aggregates.o).context("unable to convert open to decimal")?,
-        Decimal::from_f64(aggregates.h).context("unable to convert high to decimal")?,
-        Decimal::from_f64(aggregates.l).context("unable to convert low to decimal")?,
-        Decimal::from_f64(aggregates.c).context("unable to convert close to decimal")?,
+        Decimal::from_f64(aggregates.o).wrap_err("unable to convert open to decimal")?,
+        Decimal::from_f64(aggregates.h).wrap_err("unable to convert high to decimal")?,
+        Decimal::from_f64(aggregates.l).wrap_err("unable to convert low to decimal")?,
+        Decimal::from_f64(aggregates.c).wrap_err("unable to convert close to decimal")?,
         aggregates.v,
         Duration::from_millis(aggregates.s),
         Duration::from_millis(aggregates.e),
@@ -52,8 +54,8 @@ pub fn to_quote(qoute_response: &QuoteResponse) -> Result<Quote> {
 
     let quote = Quote::new(
         security,
-        Decimal::from_f64(results.p).context("unable to convert bid to decimal")?,
-        Decimal::from_f64(results.p2).context("unable to convert ask to decimal")?,
+        Decimal::from_f64(results.p).wrap_err("unable to convert bid to decimal")?,
+        Decimal::from_f64(results.p2).wrap_err("unable to convert ask to decimal")?,
         results.s2,
         results.s,
         Duration::from_millis(results.t2),
