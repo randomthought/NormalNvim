@@ -4,7 +4,7 @@ use futures_util::future::ok;
 use tokio::sync::RwLock;
 
 use crate::models::{
-    order::{FilledOrder, Limit, Order, OrderId, OrderResult, PendingOrder, SecurityPosition},
+    order::{FilledOrder, Limit, NewOrder, OrderId, OrderResult, PendingOrder, SecurityPosition},
     security::Security,
 };
 use color_eyre::eyre::{bail, Ok, Result};
@@ -81,10 +81,10 @@ impl Orders {
         let filterd = map_2
             .values()
             .filter(|po| match po.order.to_owned() {
-                Order::Market(o) => o.security == s,
-                Order::Limit(o) => o.security == s,
-                Order::OCA(o) => o.limit_orders.iter().any(|l| l.security == s),
-                Order::StopLimitMarket(o) => o
+                NewOrder::Market(o) => o.security == s,
+                NewOrder::Limit(o) => o.security == s,
+                NewOrder::OCA(o) => o.limit_orders.iter().any(|l| l.security == s),
+                NewOrder::StopLimitMarket(o) => o
                     .one_cancels_other
                     .limit_orders
                     .iter()
@@ -98,7 +98,7 @@ impl Orders {
     }
 
     pub async fn remove(&self, pending_order: &PendingOrder) -> Result<()> {
-        let Order::Limit(_) = pending_order.order.to_owned() else {
+        let NewOrder::Limit(_) = pending_order.order.to_owned() else {
             let mut map = self.chained.write().await;
             let Some(_) = map.remove(&pending_order.order_id) else {
                 bail!("order doesn't exist")
@@ -140,11 +140,11 @@ impl Orders {
 
     async fn handle_pending(&self, pending_order: &PendingOrder) -> Result<()> {
         let order_id = pending_order.order_id.to_owned();
-        if let Order::Market(_) = pending_order.order {
+        if let NewOrder::Market(_) = pending_order.order {
             bail!("market orders should immidiatly be executed")
         }
 
-        let Order::Limit(o) = pending_order.order.to_owned() else {
+        let NewOrder::Limit(o) = pending_order.order.to_owned() else {
             let mut map = self.chained.write().await;
             map.insert(order_id, pending_order.to_owned());
             return Ok(());
@@ -163,11 +163,11 @@ impl Orders {
     }
 }
 
-fn get_security(order: &Order) -> &Security {
+fn get_security(order: &NewOrder) -> &Security {
     match order {
-        Order::Market(o) => &o.security,
-        Order::Limit(o) => &o.security,
-        Order::StopLimitMarket(o) => &o.market.security,
-        Order::OCA(o) => todo!(),
+        NewOrder::Market(o) => &o.security,
+        NewOrder::Limit(o) => &o.security,
+        NewOrder::StopLimitMarket(o) => &o.market.security,
+        NewOrder::OCA(o) => todo!(),
     }
 }

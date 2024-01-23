@@ -133,7 +133,7 @@ impl StopLimitMarket {
 pub type OrderId = String;
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub enum Order {
+pub enum NewOrder {
     Market(Market),
     Limit(Limit),
     OCA(OneCancelsOther),
@@ -143,7 +143,7 @@ pub enum Order {
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PendingOrder {
     pub order_id: OrderId,
-    pub order: Order,
+    pub order: NewOrder,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -186,6 +186,12 @@ pub enum OrderResult {
 pub struct OrderDetails {
     pub quantity: Quantity,
     pub side: Side,
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub enum Order {
+    NewOrder(NewOrder),
+    OrderResult(OrderResult),
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]

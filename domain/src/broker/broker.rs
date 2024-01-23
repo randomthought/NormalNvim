@@ -3,10 +3,10 @@ use crate::{
     event::{
         self,
         event::{EventHandler, EventProducer},
-        model::Event,
+        model::{AlgoOrder, Event},
     },
     models::{
-        order::{self, FilledOrder, Order, OrderResult, PendingOrder, SecurityPosition},
+        order::{self, FilledOrder, NewOrder, OrderResult, PendingOrder, SecurityPosition},
         price::{Price, Quote},
         security::Security,
     },
@@ -108,17 +108,6 @@ impl Broker {
         let cost = calculate_cost(&active, &filled_order);
         return Ok((cost, filled_order));
     }
-
-    async fn process_order(&self, order: &Order) -> Result<()> {
-        let e = match self.place_order(order).await? {
-            OrderResult::FilledOrder(o) => Event::FilledOrder(o),
-            OrderResult::PendingOrder(o) => Event::OrderTicket(o),
-        };
-
-        self.event_producer.produce(e).await?;
-
-        Ok(())
-    }
 }
 
 #[async_trait]
@@ -153,16 +142,16 @@ impl OrderReader for Broker {
 
 #[async_trait]
 impl OrderManager for Broker {
-    async fn place_order(&self, order: &Order) -> Result<OrderResult> {
-        if let Order::StopLimitMarket(o) = order {
-            let market_order = Order::Market(o.market.to_owned());
+    async fn place_order(&self, order: &NewOrder) -> Result<OrderResult> {
+        if let NewOrder::StopLimitMarket(o) = order {
+            let market_order = NewOrder::Market(o.market.to_owned());
             self.place_order(&market_order).await?;
 
-            let oca = Order::OCA(o.one_cancels_other.to_owned());
+            let oca = NewOrder::OCA(o.one_cancels_other.to_owned());
             return self.place_order(&oca).await;
         }
 
-        let Order::Market(market_order) = order else {
+        let NewOrder::Market(market_order) = order else {
             let po = order::PendingOrder {
                 order_id: Uuid::new_v4().to_string(),
                 order: order.clone(),
@@ -208,11 +197,6 @@ impl OrderManager for Broker {
 #[async_trait]
 impl EventHandler for Broker {
     async fn handle(&self, event: &Event) -> Result<()> {
-        if let Event::Order(o) = event {
-            self.process_order(o).await?;
-            return Ok(());
-        }
-
         let Event::Market(event::model::Market::DataEvent(d)) = event else {
             return Ok(());
         };
@@ -226,7 +210,7 @@ impl EventHandler for Broker {
 
         for p in pending {
             match p.order {
-                Order::Limit(o) => {
+                NewOrder::Limit(o) => {
                     let met = match o.order_details.side {
                         order::Side::Long => o.price >= candle.close,
                         order::Side::Short => o.price <= candle.close,
@@ -241,10 +225,10 @@ impl EventHandler for Broker {
                         o.order_details.side,
                         o.security,
                     );
-                    let order = Order::Market(m);
+                    let order = NewOrder::Market(m);
                     self.place_order(&order).await?;
                 }
-                Order::StopLimitMarket(o) => todo!(),
+                NewOrder::StopLimitMarket(o) => todo!(),
                 _ => continue,
             };
         }

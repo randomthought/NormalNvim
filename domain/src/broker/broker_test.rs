@@ -19,7 +19,7 @@ use crate::{
     event::{event::EventProducer, model::Event},
     models::{
         order::{
-            self, FilledOrder, HoldingDetail, Market, OneCancelsOther, Order, OrderResult,
+            self, FilledOrder, HoldingDetail, Market, NewOrder, OneCancelsOther, OrderResult,
             PendingOrder, SecurityPosition, Side, StopLimitMarket,
         },
         price::{self, Price, Quote},
@@ -110,20 +110,20 @@ async fn close_order() {
     let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
 
     let quantity_1 = 10;
-    let market_order_1 = Order::Market(Market::new(
+    let market_order_1 = NewOrder::Market(Market::new(
         quantity_1,
         Side::Long,
         setup.security.to_owned(),
     ));
     broker.place_order(&market_order_1).await.unwrap();
     let quantity_2 = 10;
-    let market_order_2 = Order::Market(Market::new(
+    let market_order_2 = NewOrder::Market(Market::new(
         quantity_2,
         Side::Long,
         setup.security.to_owned(),
     ));
     broker.place_order(&market_order_2).await.unwrap();
-    let market_order_3 = Order::Market(Market::new(
+    let market_order_3 = NewOrder::Market(Market::new(
         quantity_1 + quantity_2,
         Side::Short,
         setup.security.to_owned(),
@@ -144,21 +144,21 @@ async fn flip_order() {
     let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
 
     let quantity_1 = 10;
-    let market_order_1 = Order::Market(Market::new(
+    let market_order_1 = NewOrder::Market(Market::new(
         quantity_1,
         Side::Long,
         setup.security.to_owned(),
     ));
     broker.place_order(&market_order_1).await.unwrap();
     let quantity_2 = 10;
-    let market_order_2 = Order::Market(Market::new(
+    let market_order_2 = NewOrder::Market(Market::new(
         quantity_2,
         Side::Long,
         setup.security.to_owned(),
     ));
     broker.place_order(&market_order_2).await.unwrap();
     let quantity_3 = 40;
-    let market_order_3 = Order::Market(Market::new(
+    let market_order_3 = NewOrder::Market(Market::new(
         quantity_3,
         Side::Short,
         setup.security.to_owned(),
@@ -189,7 +189,7 @@ async fn get_balance_after_order() {
     let quantity = 10;
     let side = Side::Long;
     let market = Market::new(quantity, side, setup.security.to_owned());
-    let market_order = Order::Market(market);
+    let market_order = NewOrder::Market(market);
     broker.place_order(&market_order).await.unwrap();
 
     let result = broker.get_account_balance().await.unwrap();
@@ -209,10 +209,10 @@ async fn get_balance_after_profit() {
     let quantity = 1;
     let side = Side::Long;
     let market = Market::new(quantity, side, setup.security.to_owned());
-    let market_order = Order::Market(market);
+    let market_order = NewOrder::Market(market);
     let _ = broker.place_order(&market_order).await.unwrap();
     stub.add_to_price(Decimal::new(1000, 0)).await;
-    let market_order_close = Order::Market(Market::new(
+    let market_order_close = NewOrder::Market(Market::new(
         quantity,
         Side::Short,
         setup.security.to_owned(),
@@ -234,10 +234,10 @@ async fn get_balance_after_loss() {
     let quantity = 1;
     let side = Side::Long;
     let market = Market::new(quantity, side, setup.security.to_owned());
-    let market_order = Order::Market(market);
+    let market_order = NewOrder::Market(market);
     let _ = broker.place_order(&market_order).await.unwrap();
     stub.add_to_price(Decimal::new(-1000, 0)).await;
-    let market_order_close = Order::Market(Market::new(
+    let market_order_close = NewOrder::Market(Market::new(
         quantity,
         Side::Short,
         setup.security.to_owned(),
@@ -259,7 +259,7 @@ async fn get_positions() {
     let quantity = 10;
     let side = Side::Long;
     let market = Market::new(quantity, side, setup.security.to_owned());
-    let market_order = Order::Market(market);
+    let market_order = NewOrder::Market(market);
     broker.place_order(&market_order).await.unwrap();
 
     let expected = vec![SecurityPosition {
@@ -285,7 +285,7 @@ async fn get_pending_orders() {
     let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
     let quantity = 10;
     let side = Side::Long;
-    let pending_order = Order::Limit(order::Limit::new(
+    let pending_order = NewOrder::Limit(order::Limit::new(
         quantity,
         setup.price,
         side,
@@ -322,7 +322,7 @@ async fn insert_market_stop_limit_order() {
         limit_price,
     )
     .unwrap();
-    let order = Order::StopLimitMarket(stop_limit_market);
+    let order = NewOrder::StopLimitMarket(stop_limit_market);
     let OrderResult::PendingOrder(pending_order) = broker.place_order(&order).await.unwrap() else {
         panic!("expected a pending order")
     };
@@ -360,7 +360,7 @@ async fn insert_market_stop_limit_order() {
 
     let expected_2: Vec<OrderResult> = vec![OrderResult::PendingOrder(PendingOrder {
         order_id: pending_order.order_id.to_owned(),
-        order: Order::OCA(oca),
+        order: NewOrder::OCA(oca),
     })];
 
     let result_2 = broker.get_pending_orders().await.unwrap();
@@ -389,7 +389,7 @@ async fn cancel_oco_order() {
         limit_price,
     )
     .unwrap();
-    let order = Order::StopLimitMarket(stop_limit_market);
+    let order = NewOrder::StopLimitMarket(stop_limit_market);
     let order_result = broker.place_order(&order).await.unwrap();
 
     let OrderResult::PendingOrder(pending_order) = order_result else {
@@ -426,7 +426,7 @@ async fn cancel_market_stop_limit_order() {
         limit_price,
     )
     .unwrap();
-    let order = Order::StopLimitMarket(stop_limit_market);
+    let order = NewOrder::StopLimitMarket(stop_limit_market);
     let order_result = broker.place_order(&order).await.unwrap();
 
     let OrderResult::PendingOrder(pending_order) = order_result else {
@@ -452,7 +452,7 @@ async fn cancel_pending_order() {
     let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
     let quantity = 10;
     let side = Side::Long;
-    let limit_order = Order::Limit(order::Limit::new(
+    let limit_order = NewOrder::Limit(order::Limit::new(
         quantity,
         setup.price,
         side,
@@ -487,7 +487,7 @@ async fn update_pending_order() {
     let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
     let quantity = 10;
     let side = Side::Long;
-    let limit_order = Order::Limit(order::Limit::new(
+    let limit_order = NewOrder::Limit(order::Limit::new(
         quantity,
         setup.price,
         side,
@@ -502,7 +502,7 @@ async fn update_pending_order() {
 
     let pending_order = PendingOrder {
         order_id: p.order_id.to_owned(),
-        order: Order::Limit(order::Limit::new(
+        order: NewOrder::Limit(order::Limit::new(
             20,
             setup.price,
             side,
@@ -530,14 +530,14 @@ async fn close_existing_trade_on_low_balance() {
     let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
 
     let quantity_1 = 100;
-    let market_order_1 = Order::Market(Market::new(
+    let market_order_1 = NewOrder::Market(Market::new(
         quantity_1,
         Side::Long,
         setup.security.to_owned(),
     ));
     broker.place_order(&market_order_1).await.unwrap();
     let quantity_2 = 100;
-    let market_order_2 = Order::Market(Market::new(
+    let market_order_2 = NewOrder::Market(Market::new(
         quantity_2,
         Side::Short,
         setup.security.to_owned(),

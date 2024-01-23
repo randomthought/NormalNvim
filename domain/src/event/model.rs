@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use crate::models::{
-    order::{FilledOrder, Order, PendingOrder},
+    order::{NewOrder, Order},
     price::PriceHistory,
 };
 
@@ -14,13 +14,13 @@ pub enum Market {
 #[non_exhaustive]
 pub struct Signal {
     pub strategy_id: String,
-    pub order: Order,
+    pub order: NewOrder,
     pub datetime: Duration,
     pub strength: f32,
 }
 
 impl Signal {
-    pub fn new(strategy_id: String, order: Order, datetime: Duration, strength: f32) -> Self {
+    pub fn new(strategy_id: String, order: NewOrder, datetime: Duration, strength: f32) -> Self {
         Self {
             strategy_id,
             order,
@@ -30,11 +30,15 @@ impl Signal {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct AlgoOrder {
+    pub strategy_id: String,
+    pub order: Order,
+}
+
 #[derive(Debug, Clone)]
 pub enum Event {
     Market(Market),
     Signal(Signal),
-    Order(Order),
-    FilledOrder(FilledOrder),
-    OrderTicket(PendingOrder),
+    AlgoOrder(AlgoOrder),
 }

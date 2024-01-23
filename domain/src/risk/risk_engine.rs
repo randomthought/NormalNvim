@@ -2,22 +2,22 @@ use std::sync::Arc;
 
 use super::config::RiskEngineConfig;
 use crate::data::QouteProvider;
-use crate::event::event::EventHandler;
-use crate::event::model::{Event, Signal};
-use crate::models::order::{self, Order};
+use crate::event::event::{EventHandler, EventProducer};
+use crate::event::model::{AlgoOrder, Event, Signal};
+use crate::models::order::{self, NewOrder, Order};
 use crate::models::price::Quote;
 use crate::order::OrderManager;
 use crate::portfolio::Portfolio;
 use async_trait::async_trait;
-use color_eyre::eyre::{eyre, Context, Result};
-use eyre::{ContextCompat, OptionExt};
+use color_eyre::eyre::Result;
+use eyre::ContextCompat;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 
 #[derive(Debug)]
 pub enum SignalResult {
     Rejected(String), // TODO: maybe make Rejected(String) so you can add a reason for rejection
-    PlacedOrder(Order),
+    PlacedOrder(NewOrder),
 }
 
 enum TradingState {
@@ -32,6 +32,7 @@ pub struct RiskEngine {
     // TODO: state has to be mutable.
     pub trading_state: TradingState,
     pub qoute_provider: Arc<dyn QouteProvider + Send + Sync>,
+    event_producer: Arc<dyn EventProducer + Send + Sync>,
     pub order_manager: Arc<dyn OrderManager + Send + Sync>,
     pub portfolio: Box<Portfolio>,
 }
@@ -39,11 +40,13 @@ pub struct RiskEngine {
 impl RiskEngine {
     pub fn new(
         risk_engine_config: RiskEngineConfig,
+        event_producer: Arc<dyn EventProducer + Send + Sync>,
         qoute_provider: Arc<dyn QouteProvider + Send + Sync>,
         order_manager: Arc<dyn OrderManager + Send + Sync>,
         portfolio: Box<Portfolio>,
     ) -> Self {
         Self {
+            event_producer,
             risk_engine_config,
             trading_state: TradingState::Active,
             order_manager,
@@ -72,14 +75,14 @@ impl RiskEngine {
         }
 
         let (security, quantity, side) = match signal.order.clone() {
-            Order::Market(o) => (o.security, o.order_details.quantity, o.order_details.side),
-            Order::Limit(o) => (o.security, o.order_details.quantity, o.order_details.side),
-            Order::StopLimitMarket(o) => (
+            NewOrder::Market(o) => (o.security, o.order_details.quantity, o.order_details.side),
+            NewOrder::Limit(o) => (o.security, o.order_details.quantity, o.order_details.side),
+            NewOrder::StopLimitMarket(o) => (
                 o.market.security,
                 o.market.order_details.quantity,
                 o.market.order_details.side,
             ),
-            Order::OCA(_) => todo!(),
+            NewOrder::OCA(_) => todo!(),
         };
 
         let account_value = self.portfolio.account_value().await?;
@@ -92,7 +95,15 @@ impl RiskEngine {
         }
 
         let order = signal.order.clone();
-        self.order_manager.place_order(&order).await?;
+        let order_result = self.order_manager.place_order(&order).await?;
+
+        let event = Event::AlgoOrder(AlgoOrder {
+            strategy_id: signal.strategy_id.to_owned(),
+            order: Order::OrderResult(order_result),
+        });
+
+        // TODO: to prevent duplicate events, you might need to only listen for filled limit orders from broker
+        self.event_producer.produce(event).await?;
 
         Ok(SignalResult::PlacedOrder(order))
     }
