@@ -5,7 +5,6 @@ use crate::event::model::Market;
 use crate::event::model::Signal;
 use crate::models::order::Order;
 use crate::models::order::OrderResult;
-use crate::models::price::PriceHistory;
 use async_trait::async_trait;
 use color_eyre::eyre::Ok;
 use color_eyre::eyre::Result;
@@ -18,7 +17,7 @@ use std::sync::Arc;
 #[async_trait]
 pub trait Algorithm {
     fn get_id(&self) -> String;
-    async fn on_data(&self, price_history: &PriceHistory) -> Result<Option<Signal>>;
+    async fn on_data(&self, market: &Market) -> Result<Option<Signal>>;
     async fn on_order(&self, order_result: &OrderResult) -> Result<()>;
 }
 
@@ -42,9 +41,9 @@ impl StrategyEngine {
         }
     }
 
-    pub async fn process(&self, price_history: &PriceHistory) -> Result<()> {
+    pub async fn process(&self, market: &Market) -> Result<()> {
         let futures = self.algorithms.values().map(|algo| async {
-            if let Some(signal) = algo.on_data(price_history).await? {
+            if let Some(signal) = algo.on_data(market).await? {
                 let se = Event::Signal(signal);
                 self.event_producer.produce(se).await?;
             }
@@ -61,12 +60,8 @@ impl StrategyEngine {
 #[async_trait]
 impl EventHandler for StrategyEngine {
     async fn handle(&self, event: &Event) -> Result<()> {
-        if let Event::Market(Market::DataEvent(ph)) = event {
-            return self.process(ph).await;
-        }
-
         match event {
-            Event::Market(Market::DataEvent(ph)) => self.process(ph).await,
+            Event::Market(m) => self.process(m).await,
             Event::AlgoOrder(ao) => {
                 let Order::OrderResult(or) = ao.order.clone() else {
                     return Ok(());

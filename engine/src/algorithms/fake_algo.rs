@@ -3,7 +3,7 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use domain::{
-    event::model::Signal,
+    event::model::{Market, Signal},
     models::{
         order::{self, FilledOrder, OrderResult, TimesInForce},
         price::PriceHistory,
@@ -19,7 +19,10 @@ impl Algorithm for FakeAlgo {
     fn get_id(&self) -> String {
         "fake_algo".into()
     }
-    async fn on_data(&self, price_history: &PriceHistory) -> Result<Option<Signal>> {
+    async fn on_data(&self, market: &Market) -> Result<Option<Signal>> {
+        let Market::DataEvent(price_history) = market else {
+            return Ok(None);
+        };
         // println!("fake_algo saw event");
 
         // let mut rng = StdRng::seed_from_u64(4);
@@ -27,7 +30,7 @@ impl Algorithm for FakeAlgo {
 
         let rm = rand::thread_rng().gen_range(0.0..1.0);
         if rm <= 0.01 {
-            println!("fake_algo sending signal");
+            // println!("fake_algo sending signal");
             let security = price_history.security.to_owned();
             let market = order::Market::new(1, order::Side::Long, security);
             let order = order::NewOrder::Market(market);
