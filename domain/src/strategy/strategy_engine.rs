@@ -2,24 +2,16 @@ use crate::event::event::EventHandler;
 use crate::event::event::EventProducer;
 use crate::event::model::Event;
 use crate::event::model::Market;
-use crate::event::model::Signal;
 use crate::models::order::Order;
-use crate::models::order::OrderResult;
 use async_trait::async_trait;
 use color_eyre::eyre::Ok;
 use color_eyre::eyre::Result;
 use eyre::OptionExt;
 use futures_util::future;
 use std::collections::HashMap;
-use std::option::Option;
 use std::sync::Arc;
 
-#[async_trait]
-pub trait Algorithm {
-    fn get_id(&self) -> String;
-    async fn on_data(&self, market: &Market) -> Result<Option<Signal>>;
-    async fn on_order(&self, order_result: &OrderResult) -> Result<()>;
-}
+use super::algorithm::Algorithm;
 
 pub struct StrategyEngine {
     event_producer: Arc<dyn EventProducer + Send + Sync>,

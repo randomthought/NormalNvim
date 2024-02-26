@@ -1,4 +1,7 @@
-use std::time::{SystemTime, UNIX_EPOCH};
+use std::{
+    sync::Arc,
+    time::{SystemTime, UNIX_EPOCH},
+};
 
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
@@ -7,9 +10,11 @@ use domain::{
     models::{
         order::{self, FilledOrder, OrderResult, TimesInForce},
         price::PriceHistory,
+        security::{self, Security},
     },
-    strategy::Algorithm,
+    strategy::algorithm::Algorithm,
 };
+use eyre::Ok;
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
 pub struct FakeAlgo {}

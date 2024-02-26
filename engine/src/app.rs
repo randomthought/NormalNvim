@@ -23,7 +23,7 @@ use domain::{
     portfolio::Portfolio,
     risk::{config::RiskEngineConfig, risk_engine::RiskEngine},
     runner::Runner,
-    strategy::{Algorithm, StrategyEngine},
+    strategy::{algorithm::Algorithm, strategy_engine::StrategyEngine},
 };
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use tokio::sync::Mutex;

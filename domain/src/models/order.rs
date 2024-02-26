@@ -209,7 +209,6 @@ impl SecurityPosition {
     }
 }
 
-// TODO: think of a beter name
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HoldingDetail {
     pub quantity: Quantity,
