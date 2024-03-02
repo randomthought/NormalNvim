@@ -23,7 +23,7 @@ pub trait OrderReader {
 #[async_trait]
 pub trait OrderManager: OrderReader {
     async fn place_order(&self, order: &NewOrder) -> Result<OrderResult>;
-    async fn update(&self, order_ticket: &PendingOrder) -> Result<()>;
+    async fn update(&self, order_ticket: &PendingOrder) -> Result<OrderResult>;
     // TODO: don't you think having the ID should be good enought to cancel the order?
-    async fn cancel(&self, order: &PendingOrder) -> Result<()>;
+    async fn cancel(&self, order: &PendingOrder) -> Result<OrderResult>;
 }

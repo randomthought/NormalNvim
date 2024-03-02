@@ -178,6 +178,8 @@ impl FilledOrder {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OrderResult {
+    Updated(OrderId),
+    Cancelled(OrderId),
     FilledOrder(FilledOrder),
     PendingOrder(PendingOrder),
 }

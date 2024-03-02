@@ -62,7 +62,7 @@ impl EventHandler for StrategyEngine {
                 let algo = self
                     .algorithms
                     .get(&ao.strategy_id)
-                    .ok_or_eyre("enable to find algorithm")?;
+                    .ok_or_eyre("unable to find algorithm")?;
 
                 algo.on_order(&or).await
             }

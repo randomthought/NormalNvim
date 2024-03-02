@@ -1,23 +1,26 @@
+use futures_util::future;
 use std::sync::Arc;
 
 use super::config::RiskEngineConfig;
 use crate::data::QouteProvider;
 use crate::event::event::{EventHandler, EventProducer};
 use crate::event::model::{AlgoOrder, Event, Signal};
-use crate::models::order::{self, NewOrder, Order};
+use crate::models::order::{self, Market, NewOrder, Order, OrderResult};
 use crate::models::price::Quote;
 use crate::order::OrderManager;
 use crate::portfolio::Portfolio;
+use crate::strategy::algorithm::StrategyId;
+use crate::strategy::portfolio::StrategyPortfolio;
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use eyre::ContextCompat;
+use eyre::{ContextCompat, Ok};
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 
 #[derive(Debug)]
 pub enum SignalResult {
     Rejected(String), // TODO: maybe make Rejected(String) so you can add a reason for rejection
-    PlacedOrder(NewOrder),
+    PlacedOrder(Vec<OrderResult>),
 }
 
 enum TradingState {
@@ -32,6 +35,7 @@ pub struct RiskEngine {
     // TODO: state has to be mutable.
     pub trading_state: TradingState,
     pub qoute_provider: Arc<dyn QouteProvider + Send + Sync>,
+    strategy_portrfolio: Arc<dyn StrategyPortfolio + Send + Sync>,
     event_producer: Arc<dyn EventProducer + Send + Sync>,
     pub order_manager: Arc<dyn OrderManager + Send + Sync>,
     pub portfolio: Box<Portfolio>,
@@ -40,6 +44,7 @@ pub struct RiskEngine {
 impl RiskEngine {
     pub fn new(
         risk_engine_config: RiskEngineConfig,
+        strategy_portrfolio: Arc<dyn StrategyPortfolio + Send + Sync>,
         event_producer: Arc<dyn EventProducer + Send + Sync>,
         qoute_provider: Arc<dyn QouteProvider + Send + Sync>,
         order_manager: Arc<dyn OrderManager + Send + Sync>,
@@ -47,6 +52,7 @@ impl RiskEngine {
     ) -> Self {
         Self {
             event_producer,
+            strategy_portrfolio,
             risk_engine_config,
             trading_state: TradingState::Active,
             order_manager,
@@ -62,6 +68,28 @@ impl RiskEngine {
                 "trading state is in 'halted'".to_owned(),
             ));
         }
+
+
+        let strategy_id = signal.strategy_id();
+
+        if let Signal::Liquidate(_) = signal {
+            self.liquidate(&strategy_id).await?
+            return Ok(SignalResult::PlacedOrder)
+        }
+
+        let order_result = match signal {
+            Signal::Entry(s) => self.order_manager.place_order(&s.order).await?,
+            Signal::Modify(s) => self.order_manager.update(&s.pending_order).await?,
+            Signal::Cancel(s) => self.order_manager.cancel(&s.pending_order).await?,
+            Signal::Liquidate(s) => todo!(),
+        };
+
+        let event = Event::AlgoOrder(AlgoOrder {
+            strategy_id: signal.strategy_id(),
+            order: Order::OrderResult(order_result),
+        });
+
+        self.event_producer.produce(event).await?;
 
         let config = &self.risk_engine_config;
 
@@ -108,6 +136,35 @@ impl RiskEngine {
         Ok(SignalResult::PlacedOrder(order))
     }
 
+    async fn liquidate(&self, strategy_id: &StrategyId) -> Result<()> {
+        let positions = self.strategy_portrfolio.get_holdings(strategy_id).await?;
+
+        let f1 = positions
+            .iter()
+            .map(|sp| {
+                let side = match sp.side {
+                    order::Side::Long => order::Side::Short,
+                    order::Side::Short => order::Side::Long,
+                };
+                let order = Market::new(sp.get_quantity(), side, sp.security.to_owned());
+                NewOrder::Market(order)
+            })
+            .map(|o| self.order_manager.place_order(&o));
+
+        let order_results = future::try_join_all(f1).await?;
+
+        let f2 = order_results.iter().map(|or| {
+            let event = Event::AlgoOrder(AlgoOrder {
+                strategy_id: strategy_id.to_owned(),
+                order: Order::OrderResult(or.to_owned()),
+            });
+            self.event_producer.produce(event)
+        });
+
+        future::try_join_all(f2).await?;
+
+        Ok(())
+    }
     async fn get_open_trades(&self) -> Result<u32> {
         let results = self.order_manager.get_positions().await?.len();
 
