@@ -12,10 +12,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use super::algorithm::Algorithm;
+use super::algorithm::StrategyId;
 
 pub struct StrategyEngine {
     event_producer: Arc<dyn EventProducer + Send + Sync>,
-    algorithms: HashMap<String, Box<dyn Algorithm + Send + Sync>>,
+    algorithms: HashMap<StrategyId, Box<dyn Algorithm + Send + Sync>>,
 }
 
 impl StrategyEngine {

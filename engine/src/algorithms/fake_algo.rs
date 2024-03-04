@@ -6,13 +6,16 @@ use std::{
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use domain::{
-    event::model::{Market, Signal},
+    event::{
+        self,
+        model::{Market, Signal},
+    },
     models::{
         order::{self, FilledOrder, OrderResult, TimesInForce},
         price::PriceHistory,
         security::{self, Security},
     },
-    strategy::algorithm::Algorithm,
+    strategy::algorithm::{Algorithm, StrategyId},
 };
 use eyre::Ok;
 use rand::{rngs::StdRng, Rng, SeedableRng};
@@ -21,7 +24,7 @@ pub struct FakeAlgo {}
 
 #[async_trait]
 impl Algorithm for FakeAlgo {
-    fn get_id(&self) -> String {
+    fn get_id(&self) -> StrategyId {
         "fake_algo".into()
     }
     async fn on_data(&self, market: &Market) -> Result<Option<Signal>> {
@@ -41,8 +44,13 @@ impl Algorithm for FakeAlgo {
             let order = order::NewOrder::Market(market);
             let strategy_id = "fake_algo".to_owned();
             let datetime = SystemTime::now().duration_since(UNIX_EPOCH)?;
-            let signal = Signal::new(strategy_id, order, datetime, 0.99);
-
+            // let signal = Signal::new(
+            let signal = Signal::Entry(event::model::Entry::new(
+                self.get_id(),
+                order,
+                datetime,
+                0.99,
+            ));
             return Ok(Some(signal));
         }
 

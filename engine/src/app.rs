@@ -51,7 +51,6 @@ pub async fn runApp() -> color_eyre::eyre::Result<()> {
     let risk_engine_config = RiskEngineConfig {
         max_trade_portfolio_accumulaton: 0.10,
         max_portfolio_risk: 0.10,
-        max_risk_per_trade: 0.005,
         max_open_trades: None,
     };
 

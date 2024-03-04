@@ -3,7 +3,7 @@ use crate::{event::model::Signal, models::order::OrderResult};
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 
-pub type StrategyId = String;
+pub type StrategyId = &'static str;
 
 #[async_trait]
 pub trait Algorithm {

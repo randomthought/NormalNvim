@@ -1,4 +1,4 @@
-use std::collections::HashMap;
+use std::{collections::HashMap, error::Error};
 
 use futures_util::future::ok;
 use tokio::sync::RwLock;
@@ -30,6 +30,7 @@ impl Orders {
         match order_result {
             OrderResult::FilledOrder(o) => self.handle_filled(o).await,
             OrderResult::PendingOrder(o) => self.handle_pending(o).await,
+            _ => todo!("return error with unsupoorted order type"),
         }
     }
 

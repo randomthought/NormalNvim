@@ -19,7 +19,7 @@ impl Setup {
 async fn reject_trade_on_halt() {
     let setup = Setup::new();
 
-    let risk_engine_config = config::RiskEngineConfig::new(1.0, 1.0, 1.0);
+    let risk_engine_config = config::RiskEngineConfig::new(1.0, 1.0);
     todo!()
 }
 

@@ -182,15 +182,16 @@ impl OrderManager for Broker {
         Ok(order_result)
     }
 
-    async fn update(&self, pending_order: &PendingOrder) -> Result<()> {
+    async fn update(&self, pending_order: &PendingOrder) -> Result<OrderResult> {
         let or = order::OrderResult::PendingOrder(pending_order.to_owned());
         self.orders.insert(&or).await?;
 
-        Ok(())
+        Ok(OrderResult::Updated(pending_order.order_id.to_owned()))
     }
 
-    async fn cancel(&self, pending_order: &PendingOrder) -> Result<()> {
-        self.orders.remove(&pending_order).await
+    async fn cancel(&self, pending_order: &PendingOrder) -> Result<OrderResult> {
+        self.orders.remove(&pending_order).await?;
+        Ok(OrderResult::Cancelled(pending_order.order_id.to_owned()))
     }
 }
 
