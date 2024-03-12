@@ -26,9 +26,12 @@ use crate::{
         security::{AssetType, Exchange, Security},
     },
     order::{Account, OrderManager, OrderReader},
+    strategy::algorithm::StrategyId,
 };
 
 use color_eyre::eyre::{Ok, Result};
+
+const strategy_id: StrategyId = "fake_algo";
 
 struct Setup {
     pub security: Security,
@@ -114,6 +117,7 @@ async fn close_order() {
         quantity_1,
         Side::Long,
         setup.security.to_owned(),
+        strategy_id,
     ));
     broker.place_order(&market_order_1).await.unwrap();
     let quantity_2 = 10;
@@ -121,12 +125,14 @@ async fn close_order() {
         quantity_2,
         Side::Long,
         setup.security.to_owned(),
+        strategy_id,
     ));
     broker.place_order(&market_order_2).await.unwrap();
     let market_order_3 = NewOrder::Market(Market::new(
         quantity_1 + quantity_2,
         Side::Short,
         setup.security.to_owned(),
+        strategy_id,
     ));
     broker.place_order(&market_order_3).await.unwrap();
 
@@ -148,6 +154,7 @@ async fn flip_order() {
         quantity_1,
         Side::Long,
         setup.security.to_owned(),
+        strategy_id,
     ));
     broker.place_order(&market_order_1).await.unwrap();
     let quantity_2 = 10;
@@ -155,6 +162,7 @@ async fn flip_order() {
         quantity_2,
         Side::Long,
         setup.security.to_owned(),
+        strategy_id,
     ));
     broker.place_order(&market_order_2).await.unwrap();
     let quantity_3 = 40;
@@ -162,6 +170,7 @@ async fn flip_order() {
         quantity_3,
         Side::Short,
         setup.security.to_owned(),
+        strategy_id,
     ));
     broker.place_order(&market_order_3).await.unwrap();
 
@@ -171,6 +180,7 @@ async fn flip_order() {
         security: setup.security.to_owned(),
         side: Side::Short,
         holding_details: vec![HoldingDetail {
+            strategy_id,
             quantity: 20,
             price: setup.price,
         }],
@@ -182,13 +192,12 @@ async fn flip_order() {
 #[tokio::test]
 async fn get_balance_after_order() {
     let setup = Setup::new();
-
     let stub = Arc::new(Stub::new());
     let balance = Decimal::new(100_000, 0);
     let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
     let quantity = 10;
     let side = Side::Long;
-    let market = Market::new(quantity, side, setup.security.to_owned());
+    let market = Market::new(quantity, side, setup.security.to_owned(), strategy_id);
     let market_order = NewOrder::Market(market);
     broker.place_order(&market_order).await.unwrap();
 
@@ -202,13 +211,12 @@ async fn get_balance_after_order() {
 #[tokio::test]
 async fn get_balance_after_profit() {
     let setup = Setup::new();
-
     let stub = Arc::new(Stub::new());
     let balance = Decimal::new(1000, 0);
     let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
     let quantity = 1;
     let side = Side::Long;
-    let market = Market::new(quantity, side, setup.security.to_owned());
+    let market = Market::new(quantity, side, setup.security.to_owned(), strategy_id);
     let market_order = NewOrder::Market(market);
     let _ = broker.place_order(&market_order).await.unwrap();
     stub.add_to_price(Decimal::new(1000, 0)).await;
@@ -216,6 +224,7 @@ async fn get_balance_after_profit() {
         quantity,
         Side::Short,
         setup.security.to_owned(),
+        strategy_id,
     ));
     let _ = broker.place_order(&market_order_close).await.unwrap();
     let balance_after_trade = broker.get_account_balance().await.unwrap();
@@ -227,13 +236,12 @@ async fn get_balance_after_profit() {
 #[tokio::test]
 async fn get_balance_after_loss() {
     let setup = Setup::new();
-
     let stub = Arc::new(Stub::new());
     let balance = Decimal::new(1000, 0);
     let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
     let quantity = 1;
     let side = Side::Long;
-    let market = Market::new(quantity, side, setup.security.to_owned());
+    let market = Market::new(quantity, side, setup.security.to_owned(), strategy_id);
     let market_order = NewOrder::Market(market);
     let _ = broker.place_order(&market_order).await.unwrap();
     stub.add_to_price(Decimal::new(-1000, 0)).await;
@@ -241,6 +249,7 @@ async fn get_balance_after_loss() {
         quantity,
         Side::Short,
         setup.security.to_owned(),
+        strategy_id,
     ));
     let _ = broker.place_order(&market_order_close).await.unwrap();
     let balance_after_trade = broker.get_account_balance().await.unwrap();
@@ -252,13 +261,12 @@ async fn get_balance_after_loss() {
 #[tokio::test]
 async fn get_positions() {
     let setup = Setup::new();
-
     let stub = Arc::new(Stub::new());
     let balance = Decimal::new(100_000, 0);
     let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
     let quantity = 10;
     let side = Side::Long;
-    let market = Market::new(quantity, side, setup.security.to_owned());
+    let market = Market::new(quantity, side, setup.security.to_owned(), strategy_id);
     let market_order = NewOrder::Market(market);
     broker.place_order(&market_order).await.unwrap();
 
@@ -266,6 +274,7 @@ async fn get_positions() {
         security: setup.security.to_owned(),
         side,
         holding_details: vec![HoldingDetail {
+            strategy_id,
             quantity,
             price: setup.price,
         }],
@@ -279,7 +288,6 @@ async fn get_positions() {
 #[tokio::test]
 async fn get_pending_orders() {
     let setup = Setup::new();
-
     let stub = Arc::new(Stub::new());
     let balance = Decimal::new(100_000, 0);
     let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
@@ -291,6 +299,7 @@ async fn get_pending_orders() {
         side,
         setup.security.to_owned(),
         order::TimesInForce::GTC,
+        strategy_id,
     ));
     broker.place_order(&pending_order).await.unwrap();
 
@@ -320,6 +329,7 @@ async fn insert_market_stop_limit_order() {
         side,
         stop_price,
         limit_price,
+        strategy_id,
     )
     .unwrap();
     let order = NewOrder::StopLimitMarket(stop_limit_market);
@@ -331,6 +341,7 @@ async fn insert_market_stop_limit_order() {
         security: setup.security.to_owned(),
         side,
         holding_details: vec![HoldingDetail {
+            strategy_id,
             quantity,
             price: setup.price,
         }],
@@ -347,6 +358,7 @@ async fn insert_market_stop_limit_order() {
             side,
             setup.security.to_owned(),
             order::TimesInForce::GTC,
+            strategy_id,
         ),
         order::Limit::new(
             quantity,
@@ -354,6 +366,7 @@ async fn insert_market_stop_limit_order() {
             Side::Short,
             setup.security.to_owned(),
             order::TimesInForce::GTC,
+            strategy_id,
         ),
     ])
     .unwrap();
@@ -387,6 +400,7 @@ async fn cancel_oco_order() {
         side,
         stop_price,
         limit_price,
+        strategy_id,
     )
     .unwrap();
     let order = NewOrder::StopLimitMarket(stop_limit_market);
@@ -424,6 +438,7 @@ async fn cancel_market_stop_limit_order() {
         side,
         stop_price,
         limit_price,
+        strategy_id,
     )
     .unwrap();
     let order = NewOrder::StopLimitMarket(stop_limit_market);
@@ -458,6 +473,7 @@ async fn cancel_pending_order() {
         side,
         setup.security.to_owned(),
         order::TimesInForce::GTC,
+        strategy_id,
     ));
 
     let OrderResult::PendingOrder(po) = broker.place_order(&limit_order).await.unwrap() else {
@@ -493,6 +509,7 @@ async fn update_pending_order() {
         side,
         setup.security.to_owned(),
         order::TimesInForce::GTC,
+        strategy_id,
     ));
 
     let order_result = broker.place_order(&limit_order).await.unwrap();
@@ -508,6 +525,7 @@ async fn update_pending_order() {
             side,
             setup.security.to_owned(),
             order::TimesInForce::GTC,
+            strategy_id,
         )),
     };
 
@@ -534,6 +552,7 @@ async fn close_existing_trade_on_low_balance() {
         quantity_1,
         Side::Long,
         setup.security.to_owned(),
+        strategy_id,
     ));
     broker.place_order(&market_order_1).await.unwrap();
     let quantity_2 = 100;
@@ -541,6 +560,7 @@ async fn close_existing_trade_on_low_balance() {
         quantity_2,
         Side::Short,
         setup.security.to_owned(),
+        strategy_id,
     ));
     broker.place_order(&market_order_2).await.unwrap();
 

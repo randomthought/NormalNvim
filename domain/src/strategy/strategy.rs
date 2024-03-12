@@ -94,8 +94,8 @@ impl Strategy {
 
 #[async_trait]
 impl Algorithm for Strategy {
-    fn get_id(&self) -> StrategyId {
-        self.algorithm.get_id()
+    fn strategy_id(&self) -> StrategyId {
+        self.algorithm.strategy_id()
     }
 
     async fn on_data(&self, market: &Market) -> Result<Option<Signal>> {
@@ -103,7 +103,7 @@ impl Algorithm for Strategy {
             return Ok(None);
         };
 
-        let strategy_id = self.get_id();
+        let strategy_id = self.strategy_id();
         if let Some(max) = self.max_open_trades {
             let open_trades = self.portfolio.get_holdings(&strategy_id).await?;
             if open_trades.len() >= max.try_into().unwrap() {

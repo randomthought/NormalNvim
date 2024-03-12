@@ -90,6 +90,7 @@ fn add_to_position(security_position: &mut SecurityPosition, transaction: &Trans
 
     if current_quantity > transaction.order_details.quantity {
         let hd = HoldingDetail {
+            strategy_id: transaction.order_details.strategy_id,
             quantity: current_quantity - transaction.order_details.quantity,
             price: hd.price.to_owned(),
         };
@@ -102,6 +103,7 @@ fn add_to_position(security_position: &mut SecurityPosition, transaction: &Trans
         date_time: transaction.date_time,
         price: transaction.price,
         order_details: OrderDetails {
+            strategy_id: transaction.order_details.strategy_id,
             quantity: transaction.order_details.quantity - holding_detail.quantity,
             side: transaction.order_details.side,
         },
@@ -112,6 +114,7 @@ fn add_to_position(security_position: &mut SecurityPosition, transaction: &Trans
 
 fn to_holding_details(transation: &Transation) -> HoldingDetail {
     HoldingDetail {
+        strategy_id: transation.order_details.strategy_id,
         quantity: transation.order_details.quantity,
         price: transation.price,
     }

@@ -3,6 +3,8 @@
 
 use std::{time::Duration, u64};
 
+use crate::strategy::algorithm::StrategyId;
+
 use super::price::Price;
 use super::security::Security;
 use color_eyre::eyre::{bail, ensure, Result};
@@ -23,11 +25,24 @@ pub struct Market {
 
 impl Market {
     // constructor
-    pub fn new(quantity: Quantity, side: Side, security: Security) -> Self {
+    pub fn new(
+        quantity: Quantity,
+        side: Side,
+        security: Security,
+        strategy_id: StrategyId,
+    ) -> Self {
         Self {
             security,
-            order_details: OrderDetails { quantity, side },
+            order_details: OrderDetails {
+                quantity,
+                side,
+                strategy_id,
+            },
         }
+    }
+
+    pub fn startegy_id(&self) -> StrategyId {
+        self.order_details.strategy_id
     }
 }
 
@@ -59,13 +74,22 @@ impl Limit {
         side: Side,
         security: Security,
         times_in_force: TimesInForce,
+        strategy_id: StrategyId,
     ) -> Self {
         Self {
             price,
             security,
             times_in_force,
-            order_details: OrderDetails { quantity, side },
+            order_details: OrderDetails {
+                quantity,
+                side,
+                strategy_id,
+            },
         }
+    }
+
+    pub fn strategy_id(&self) -> StrategyId {
+        self.order_details.strategy_id
     }
 }
 
@@ -97,6 +121,7 @@ impl StopLimitMarket {
         side: Side,
         stop: Price,
         limit: Price,
+        strategy_id: StrategyId,
     ) -> Result<Self> {
         if let Side::Long = side {
             ensure!(
@@ -113,13 +138,27 @@ impl StopLimitMarket {
         }
 
         let times_in_force = TimesInForce::GTC;
-        let market = Market::new(quantity, side, security.to_owned());
-        let profit_limit = Limit::new(quantity, limit, side, security.to_owned(), times_in_force);
+        let market = Market::new(quantity, side, security.to_owned(), strategy_id);
+        let profit_limit = Limit::new(
+            quantity,
+            limit,
+            side,
+            security.to_owned(),
+            times_in_force,
+            strategy_id,
+        );
         let stop_side = match side {
             Side::Long => Side::Short,
             Side::Short => Side::Long,
         };
-        let stop_limit = Limit::new(quantity, stop, stop_side, security, times_in_force);
+        let stop_limit = Limit::new(
+            quantity,
+            stop,
+            stop_side,
+            security,
+            times_in_force,
+            strategy_id,
+        );
 
         let one_cancels_other = OneCancelsOther::new(vec![profit_limit, stop_limit])?;
 
@@ -127,6 +166,10 @@ impl StopLimitMarket {
             market,
             one_cancels_other,
         })
+    }
+
+    pub fn strategy_id(&self) -> StrategyId {
+        self.market.startegy_id()
     }
 }
 
@@ -140,10 +183,27 @@ pub enum NewOrder {
     StopLimitMarket(StopLimitMarket),
 }
 
+impl NewOrder {
+    pub fn startegy_id(&self) -> StrategyId {
+        match self {
+            NewOrder::Market(o) => o.startegy_id(),
+            NewOrder::Limit(o) => o.strategy_id(),
+            NewOrder::OCA(o) => todo!(),
+            NewOrder::StopLimitMarket(o) => o.strategy_id(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct PendingOrder {
     pub order_id: OrderId,
     pub order: NewOrder,
+}
+
+impl PendingOrder {
+    pub fn startegy_id(&self) -> StrategyId {
+        self.order.startegy_id()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -164,8 +224,13 @@ impl FilledOrder {
         quantity: Quantity,
         side: Side,
         date_time: Duration,
+        strategy_id: StrategyId,
     ) -> Self {
-        let order_details = OrderDetails { quantity, side };
+        let order_details = OrderDetails {
+            quantity,
+            side,
+            strategy_id,
+        };
         Self {
             security,
             order_id,
@@ -174,18 +239,40 @@ impl FilledOrder {
             order_details,
         }
     }
+
+    pub fn startegy_id(&self) -> StrategyId {
+        self.order_details.strategy_id
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OrderMeta {
+    pub order_id: OrderId,
+    pub strategy_id: StrategyId,
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub enum OrderResult {
-    Updated(OrderId),
-    Cancelled(OrderId),
+    Updated(OrderMeta),
+    Cancelled(OrderMeta),
     FilledOrder(FilledOrder),
     PendingOrder(PendingOrder),
 }
 
+impl OrderResult {
+    pub fn startegy_id(&self) -> StrategyId {
+        match self {
+            OrderResult::Updated(o) => o.strategy_id,
+            OrderResult::Cancelled(o) => o.strategy_id,
+            OrderResult::FilledOrder(o) => o.startegy_id(),
+            OrderResult::PendingOrder(o) => o.startegy_id(),
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OrderDetails {
+    pub strategy_id: StrategyId,
     pub quantity: Quantity,
     pub side: Side,
 }
@@ -194,6 +281,15 @@ pub struct OrderDetails {
 pub enum Order {
     NewOrder(NewOrder),
     OrderResult(OrderResult),
+}
+
+impl Order {
+    pub fn startegy_id(&self) -> StrategyId {
+        match self {
+            Order::NewOrder(o) => o.startegy_id(),
+            Order::OrderResult(o) => o.startegy_id(),
+        }
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -213,6 +309,7 @@ impl SecurityPosition {
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct HoldingDetail {
+    pub strategy_id: StrategyId,
     pub quantity: Quantity,
     pub price: Price,
 }

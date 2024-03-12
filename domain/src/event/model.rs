@@ -74,15 +74,9 @@ pub struct Cancel {
     pub datetime: Duration,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct AlgoOrder {
-    pub strategy_id: StrategyId,
-    pub order: Order,
-}
-
 #[derive(Debug, Clone)]
 pub enum Event {
     Market(Market),
     Signal(Signal),
-    AlgoOrder(AlgoOrder),
+    Order(Order),
 }

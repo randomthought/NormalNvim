@@ -7,7 +7,7 @@ pub type StrategyId = &'static str;
 
 #[async_trait]
 pub trait Algorithm {
-    fn get_id(&self) -> StrategyId;
+    fn strategy_id(&self) -> StrategyId;
     async fn on_data(&self, market: &Market) -> Result<Option<Signal>>;
     async fn on_order(&self, order_result: &OrderResult) -> Result<()>;
 }
