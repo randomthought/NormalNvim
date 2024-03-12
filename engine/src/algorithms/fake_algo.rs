@@ -42,7 +42,6 @@ impl Algorithm for FakeAlgo {
             let security = price_history.security.to_owned();
             let market = order::Market::new(1, order::Side::Long, security, self.strategy_id());
             let order = order::NewOrder::Market(market);
-            let strategy_id = "fake_algo".to_owned();
             let datetime = SystemTime::now().duration_since(UNIX_EPOCH)?;
             // let signal = Signal::new(
             let signal = Signal::Entry(event::model::Entry::new(
