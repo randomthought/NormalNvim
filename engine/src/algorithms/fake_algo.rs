@@ -44,12 +44,7 @@ impl Algorithm for FakeAlgo {
             let order = order::NewOrder::Market(market);
             let datetime = SystemTime::now().duration_since(UNIX_EPOCH)?;
             // let signal = Signal::new(
-            let signal = Signal::Entry(event::model::Entry::new(
-                self.strategy_id(),
-                order,
-                datetime,
-                0.99,
-            ));
+            let signal = Signal::Entry(event::model::Entry::new(order, datetime, 0.99));
             return Ok(Some(signal));
         }
 
