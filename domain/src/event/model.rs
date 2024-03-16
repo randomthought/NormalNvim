@@ -66,6 +66,7 @@ pub struct Cancel {
 }
 
 #[derive(Debug, Clone)]
+// TODO: consuder making pointers to the actual enum data
 pub enum Event {
     Market(Market),
     Signal(Signal),

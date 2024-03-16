@@ -11,6 +11,7 @@ use futures_util::future;
 use std::collections::HashMap;
 use std::sync::Arc;
 
+use super::algo_event::AlgoEvent;
 use super::algorithm::Algorithm;
 use super::algorithm::StrategyId;
 
@@ -36,7 +37,8 @@ impl StrategyEngine {
 
     pub async fn process(&self, market: &Market) -> Result<()> {
         let futures = self.algorithms.values().map(|algo| async {
-            if let Some(signal) = algo.on_data(market).await? {
+            let algo_event = AlgoEvent::Market(market);
+            if let Some(signal) = algo.on_event(algo_event).await? {
                 let se = Event::Signal(signal);
                 self.event_producer.produce(se).await?;
             }
@@ -65,7 +67,9 @@ impl EventHandler for StrategyEngine {
                     .get(ao.startegy_id())
                     .ok_or_eyre("unable to find algorithm")?;
 
-                algo.on_order(&or).await
+                let algo_event = AlgoEvent::OrderResult(&or);
+                let _ = algo.on_event(algo_event).await?;
+                Ok(())
             }
             _ => Ok(()),
         }

@@ -1,4 +1,5 @@
 use super::{
+    algo_event::AlgoEvent,
     algorithm::{Algorithm, StrategyId},
     portfolio::StrategyPortfolio,
 };
@@ -107,12 +108,12 @@ impl Algorithm for Strategy {
         self.algorithm.strategy_id()
     }
 
-    async fn on_data(&self, market: &Market) -> Result<Option<Signal>> {
-        let Some(signal) = self.algorithm.on_data(market).await? else {
+    async fn on_event<'a>(&self, algo_event: AlgoEvent<'a>) -> Result<Option<Signal>> {
+        let Some(signal) = self.algorithm.on_event(algo_event).await? else {
             return Ok(None);
         };
 
-        let strategy_id = self.strategy_id();
+        let strategy_id = self.algorithm.strategy_id();
         if let Some(max) = self.max_portfolio_loss {
             let profit = self.portfolio.get_profit(strategy_id).await?;
             let max_portfolio_loss = Decimal::from_f64(max).unwrap() * self.starting_balance;
@@ -139,9 +140,5 @@ impl Algorithm for Strategy {
         }
 
         return Ok(Some(signal));
-    }
-
-    async fn on_order(&self, order_result: &OrderResult) -> Result<()> {
-        self.algorithm.on_order(order_result).await
     }
 }
