@@ -148,8 +148,19 @@ impl OrderReader for Broker {
     }
 }
 
-fn _calucluate_profit(large: &Transation, small: &Transation) -> (Decimal, Transation) {
+fn _calucluate_profit(large: &Transation, small: &Transation) -> (Decimal, Option<Transation>) {
     let q_remaining = large.order_details.quantity - small.order_details.quantity;
+
+    let sq = Decimal::from_u64(small.order_details.quantity).unwrap();
+    let profit = match small.order_details.side {
+        order::Side::Long => sq * (large.price - small.price),
+        order::Side::Short => sq * (small.price - large.price),
+    };
+
+    if q_remaining == 0 {
+        return (profit, None);
+    }
+
     let t = Transation {
         order_details: order::OrderDetails {
             quantity: q_remaining,
@@ -158,13 +169,7 @@ fn _calucluate_profit(large: &Transation, small: &Transation) -> (Decimal, Trans
         ..large.to_owned()
     };
 
-    let sq = Decimal::from_u64(small.order_details.quantity).unwrap();
-    let profit = match small.order_details.side {
-        order::Side::Long => sq * (large.price - small.price),
-        order::Side::Short => sq * (small.price - large.price),
-    };
-
-    (profit, t)
+    (profit, Some(t))
 }
 
 fn calculate_profit(
@@ -177,28 +182,14 @@ fn calculate_profit(
         .filter(|t| t.order_details.strategy_id == strategy_id)
         .collect();
 
-    let long_quantity = algo_transaction
-        .iter()
-        .filter(|t| matches!(t.order_details.side, order::Side::Long))
-        .fold(0u64, |acc, n| acc + n.order_details.quantity);
-
-    let short_quantity = algo_transaction
-        .iter()
-        .filter(|t| matches!(t.order_details.side, order::Side::Short))
-        .fold(0u64, |acc, n| acc + n.order_details.quantity);
-
-    if long_quantity != short_quantity {
-        return Decimal::default();
-    }
-
-    let (profit, _) = algo_transaction.iter().map(|t| t.to_owned()).fold(
+    let (profit, ots) = algo_transaction.iter().map(|t| t.to_owned()).fold(
         (Decimal::default(), None),
         |(pf, c), n| {
             let Some(current) = c else {
                 return (pf, Some(n.to_owned()));
             };
 
-            let (p, t) = match (current.order_details.side, n.order_details.side) {
+            match (current.order_details.side, n.order_details.side) {
                 (order::Side::Long, order::Side::Short) => {
                     if n.order_details.quantity > current.order_details.quantity {
                         _calucluate_profit(n, &current)
@@ -229,13 +220,15 @@ fn calculate_profit(
                         date_time: n.date_time.to_owned(),
                     };
 
-                    (pf, t)
+                    (pf, Some(t))
                 }
-            };
-
-            (p, Some(t))
+            }
         },
     );
+
+    if let Some(_) = ots {
+        return Decimal::default();
+    }
 
     profit
 }
