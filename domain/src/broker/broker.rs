@@ -1,4 +1,5 @@
 use crate::{
+    broker::security_transaction::Transation,
     data::QouteProvider,
     event::{
         self,
@@ -19,12 +20,12 @@ use crate::{
 use async_trait::async_trait;
 use color_eyre::eyre::{bail, Ok, Result};
 use rust_decimal::{prelude::FromPrimitive, Decimal};
-use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
+use std::{sync::Arc, u64};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
-use super::orders::Orders;
+use super::{orders::Orders, security_transaction::SecurityTransaction};
 
 pub struct Broker {
     event_producer: Arc<dyn EventProducer + Sync + Send>,
@@ -147,13 +148,113 @@ impl OrderReader for Broker {
     }
 }
 
+fn _calucluate_profit(large: &Transation, small: &Transation) -> (Decimal, Transation) {
+    let q_remaining = large.order_details.quantity - small.order_details.quantity;
+    let t = Transation {
+        order_details: order::OrderDetails {
+            quantity: q_remaining,
+            ..large.order_details
+        },
+        ..large.to_owned()
+    };
+
+    let sq = Decimal::from_u64(small.order_details.quantity).unwrap();
+    let profit = match small.order_details.side {
+        order::Side::Long => sq * (large.price - small.price),
+        order::Side::Short => sq * (small.price - large.price),
+    };
+
+    (profit, t)
+}
+
+fn calculate_profit(
+    security_transaction: &SecurityTransaction,
+    strategy_id: StrategyId,
+) -> Decimal {
+    let algo_transaction: Vec<_> = security_transaction
+        .order_history
+        .iter()
+        .filter(|t| t.order_details.strategy_id == strategy_id)
+        .collect();
+
+    let long_quantity = algo_transaction
+        .iter()
+        .filter(|t| matches!(t.order_details.side, order::Side::Long))
+        .fold(0u64, |acc, n| acc + n.order_details.quantity);
+
+    let short_quantity = algo_transaction
+        .iter()
+        .filter(|t| matches!(t.order_details.side, order::Side::Short))
+        .fold(0u64, |acc, n| acc + n.order_details.quantity);
+
+    if long_quantity != short_quantity {
+        return Decimal::default();
+    }
+
+    let (profit, _) = algo_transaction.iter().map(|t| t.to_owned()).fold(
+        (Decimal::default(), None),
+        |(pf, c), n| {
+            let Some(current) = c else {
+                return (pf, Some(n.to_owned()));
+            };
+
+            let (p, t) = match (current.order_details.side, n.order_details.side) {
+                (order::Side::Long, order::Side::Short) => {
+                    if n.order_details.quantity > current.order_details.quantity {
+                        _calucluate_profit(n, &current)
+                    } else {
+                        _calucluate_profit(&current, n)
+                    }
+                }
+                (order::Side::Short, order::Side::Long) => {
+                    if n.order_details.quantity > current.order_details.quantity {
+                        _calucluate_profit(n, &current)
+                    } else {
+                        _calucluate_profit(&current, n)
+                    }
+                }
+                _ => {
+                    let quantity = current.order_details.quantity + n.order_details.quantity;
+                    let c_quantity = Decimal::from_u64(current.order_details.quantity).unwrap();
+                    let n_quantity = Decimal::from_u64(n.order_details.quantity).unwrap();
+                    let price = ((c_quantity * current.price) + (n_quantity * n.price))
+                        / Decimal::from_u64(quantity).unwrap();
+                    let t = Transation {
+                        order_details: order::OrderDetails {
+                            quantity,
+                            ..n.order_details
+                        },
+                        price,
+                        order_id: n.order_id.to_owned(),
+                        date_time: n.date_time.to_owned(),
+                    };
+
+                    (pf, t)
+                }
+            };
+
+            (p, Some(t))
+        },
+    );
+
+    profit
+}
+
 #[async_trait]
 impl StrategyPortfolio for Broker {
-    async fn get_balance(&self, strategy_id: StrategyId) -> Result<Decimal> {
-        todo!()
+    async fn get_profit(&self, strategy_id: StrategyId) -> Result<Decimal> {
+        let security_transactions = self.orders.get_transactions().await?;
+        let result = security_transactions
+            .iter()
+            .map(|st| calculate_profit(st, strategy_id))
+            .sum();
+
+        Ok(result)
     }
+
     async fn get_holdings(&self, strategy_id: StrategyId) -> Result<Vec<SecurityPosition>> {
         let open_positions = self.get_positions().await?;
+        // TODO: this could cause issues. especially imformation conflict if algos are trading the same instruments
         let algo_positions: Vec<_> = open_positions
             .iter()
             .flat_map(|p| {

@@ -9,10 +9,10 @@ use crate::models::{
 };
 use color_eyre::eyre::{bail, Ok, Result};
 
-use super::active_order::ActiveOrder;
+use super::security_transaction::SecurityTransaction;
 
 pub struct Orders {
-    active: RwLock<HashMap<Security, ActiveOrder>>,
+    active: RwLock<HashMap<Security, SecurityTransaction>>,
     pending: RwLock<HashMap<Security, HashMap<OrderId, PendingOrder>>>,
     chained: RwLock<HashMap<OrderId, PendingOrder>>,
 }
@@ -24,6 +24,12 @@ impl Orders {
             active: RwLock::new(HashMap::new()),
             chained: RwLock::new(HashMap::new()),
         }
+    }
+
+    pub async fn get_transactions(&self) -> Result<Vec<SecurityTransaction>> {
+        let map = self.active.read().await;
+        let transactions = map.iter().map(|kv| kv.1.to_owned()).collect();
+        Ok(transactions)
     }
 
     pub async fn insert(&self, order_result: &OrderResult) -> Result<()> {
@@ -133,7 +139,7 @@ impl Orders {
             return Ok(());
         }
 
-        let mut active_order = ActiveOrder::new(filled_order.security.to_owned());
+        let mut active_order = SecurityTransaction::new(filled_order.security.to_owned());
         active_order.insert(filled_order)?;
         map.insert(filled_order.security.to_owned(), active_order);
         return Ok(());

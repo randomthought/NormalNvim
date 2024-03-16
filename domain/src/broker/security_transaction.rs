@@ -11,19 +11,19 @@ use crate::models::{
 // TODO: make struct private
 #[derive(Debug, Clone)]
 pub struct Transation {
-    order_id: OrderId,
-    price: Price,
-    order_details: OrderDetails,
-    date_time: Duration,
+    pub order_id: OrderId,
+    pub price: Price,
+    pub order_details: OrderDetails,
+    pub date_time: Duration,
 }
 
 #[derive(Debug, Clone)]
-pub struct ActiveOrder {
+pub struct SecurityTransaction {
     pub security: Security,
     pub order_history: Vec<Transation>,
 }
 
-impl ActiveOrder {
+impl SecurityTransaction {
     pub fn new(security: Security) -> Self {
         Self {
             security,

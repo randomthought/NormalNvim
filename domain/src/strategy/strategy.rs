@@ -17,6 +17,7 @@ pub struct Strategy {
     starting_balance: Price,
     max_portfolio_risk: Option<f64>,
     max_risk_per_trade: Option<f64>,
+    max_portfolio_loss: Option<f64>,
     max_open_trades: Option<u32>,
 }
 
@@ -26,6 +27,7 @@ pub struct StrategyBuilder {
     portfolio: Option<Box<dyn StrategyPortfolio + Send + Sync>>,
     starting_balance: Decimal,
     max_portfolio_risk: Option<f64>,
+    max_portfolio_loss: Option<f64>,
     max_risk_per_trade: Option<f64>,
     max_open_trades: Option<u32>,
 }
@@ -38,6 +40,7 @@ impl StrategyBuilder {
             starting_balance: Decimal::new(0, 0),
             max_portfolio_risk: None,
             max_risk_per_trade: None,
+            max_portfolio_loss: Some(1f64),
             max_open_trades: None,
         }
     }
@@ -61,6 +64,11 @@ impl StrategyBuilder {
         self
     }
 
+    pub fn with_max_portfolio_loss(mut self, max_portfolio_loss: f64) -> Self {
+        self.max_portfolio_loss = Some(max_portfolio_loss);
+        self
+    }
+
     pub fn with_max_risk_per_trade(mut self, max_risk_per_trade: f64) -> Self {
         self.max_risk_per_trade = Some(max_risk_per_trade);
         self
@@ -81,6 +89,7 @@ impl StrategyBuilder {
             starting_balance: self.starting_balance,
             max_open_trades: self.max_open_trades,
             max_risk_per_trade: self.max_risk_per_trade,
+            max_portfolio_loss: self.max_portfolio_loss,
             max_portfolio_risk: self.max_portfolio_risk,
         })
     }
@@ -104,14 +113,22 @@ impl Algorithm for Strategy {
         };
 
         let strategy_id = self.strategy_id();
+        if let Some(max) = self.max_portfolio_loss {
+            let profit = self.portfolio.get_profit(strategy_id).await?;
+            let max_portfolio_loss = Decimal::from_f64(max).unwrap() * self.starting_balance;
+            if profit <= max_portfolio_loss {
+                todo!()
+            }
+        }
+
         if let Some(max) = self.max_open_trades {
-            let open_trades = self.portfolio.get_holdings(&strategy_id).await?;
+            let open_trades = self.portfolio.get_holdings(strategy_id).await?;
             if open_trades.len() >= max.try_into().unwrap() {
                 todo!()
             }
         }
 
-        let acc_balance = self.portfolio.get_balance(&strategy_id).await?;
+        let acc_balance = self.portfolio.get_profit(strategy_id).await?;
         if acc_balance <= Decimal::new(0, 0) {
             todo!()
         }
