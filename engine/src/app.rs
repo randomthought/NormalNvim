@@ -57,6 +57,7 @@ pub async fn runApp() -> color_eyre::eyre::Result<()> {
     let portfolio = Portfolio::new(broker_.clone(), broker_.clone(), qoute_provider.clone());
     let risk_egnine = RiskEngine::new(
         risk_engine_config,
+        broker_.clone(),
         event_channel_.clone(),
         qoute_provider.clone(),
         broker_.clone(),

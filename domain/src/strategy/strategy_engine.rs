@@ -26,7 +26,7 @@ impl StrategyEngine {
     ) -> Self {
         let mut map = HashMap::new();
         for algo in algorithms {
-            map.insert(algo.get_id(), algo);
+            map.insert(algo.strategy_id(), algo);
         }
         Self {
             algorithms: map,
@@ -55,14 +55,14 @@ impl EventHandler for StrategyEngine {
     async fn handle(&self, event: &Event) -> Result<()> {
         match event {
             Event::Market(m) => self.process(m).await,
-            Event::AlgoOrder(ao) => {
-                let Order::OrderResult(or) = ao.order.clone() else {
+            Event::Order(ao) => {
+                let Order::OrderResult(or) = ao else {
                     return Ok(());
                 };
 
                 let algo = self
                     .algorithms
-                    .get(&ao.strategy_id)
+                    .get(ao.startegy_id())
                     .ok_or_eyre("unable to find algorithm")?;
 
                 algo.on_order(&or).await

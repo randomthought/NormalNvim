@@ -1,31 +1,35 @@
 use crate::{
+    broker::security_transaction::Transation,
     data::QouteProvider,
     event::{
         self,
         event::{EventHandler, EventProducer},
-        model::{AlgoOrder, Event},
+        model::Event,
     },
     models::{
-        order::{self, FilledOrder, NewOrder, OrderResult, PendingOrder, SecurityPosition},
+        order::{
+            self, FilledOrder, HoldingDetail, NewOrder, OrderMeta, OrderResult, PendingOrder,
+            SecurityPosition,
+        },
         price::{Price, Quote},
         security::Security,
     },
     order::{Account, OrderManager, OrderReader},
+    strategy::{algorithm::StrategyId, portfolio::StrategyPortfolio},
 };
 use async_trait::async_trait;
 use color_eyre::eyre::{bail, Ok, Result};
 use rust_decimal::{prelude::FromPrimitive, Decimal};
-use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
+use std::{sync::Arc, u64};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
-use super::orders::Orders;
+use super::{orders::Orders, security_transaction::SecurityTransaction};
 
 pub struct Broker {
     event_producer: Arc<dyn EventProducer + Sync + Send>,
     qoute_provider: Arc<dyn QouteProvider + Sync + Send>,
-    // TODO: leveage needs to be float for example 1.5 leverage
     account_balance: RwLock<Decimal>,
     orders: Orders,
     commissions_per_share: Decimal,
@@ -64,6 +68,7 @@ impl Broker {
                 &market_order.security,
                 market_order.order_details.side,
                 &quote,
+                market_order.startegy_id(),
             )?;
             return Ok((cost, filled_order));
         };
@@ -74,6 +79,7 @@ impl Broker {
                 &market_order.security,
                 market_order.order_details.side,
                 &quote,
+                market_order.startegy_id(),
             )?;
             let cost = calculate_cost(&active, &filled_order);
             return Ok((cost, filled_order));
@@ -86,6 +92,7 @@ impl Broker {
                 &market_order.security,
                 market_order.order_details.side,
                 &quote,
+                market_order.startegy_id(),
             )?;
 
             let cost = calculate_cost(&active, &filled_order);
@@ -103,6 +110,7 @@ impl Broker {
             &market_order.security,
             side,
             &quote,
+            market_order.startegy_id(),
         )?;
 
         let cost = calculate_cost(&active, &filled_order);
@@ -137,6 +145,132 @@ impl OrderReader for Broker {
             .collect();
 
         Ok(order_results)
+    }
+}
+
+fn _calucluate_profit(large: &Transation, small: &Transation) -> (Decimal, Option<Transation>) {
+    let q_remaining = large.order_details.quantity - small.order_details.quantity;
+
+    let sq = Decimal::from_u64(small.order_details.quantity).unwrap();
+    let profit = match small.order_details.side {
+        order::Side::Long => sq * (large.price - small.price),
+        order::Side::Short => sq * (small.price - large.price),
+    };
+
+    if q_remaining == 0 {
+        return (profit, None);
+    }
+
+    let t = Transation {
+        order_details: order::OrderDetails {
+            quantity: q_remaining,
+            ..large.order_details
+        },
+        ..large.to_owned()
+    };
+
+    (profit, Some(t))
+}
+
+fn calculate_profit(
+    security_transaction: &SecurityTransaction,
+    strategy_id: StrategyId,
+) -> Decimal {
+    let algo_transaction: Vec<_> = security_transaction
+        .order_history
+        .iter()
+        .filter(|t| t.order_details.strategy_id == strategy_id)
+        .collect();
+
+    let (profit, ots) = algo_transaction.iter().map(|t| t.to_owned()).fold(
+        (Decimal::default(), None),
+        |(pf, c), n| {
+            let Some(current) = c else {
+                return (pf, Some(n.to_owned()));
+            };
+
+            match (current.order_details.side, n.order_details.side) {
+                (order::Side::Long, order::Side::Short) => {
+                    if n.order_details.quantity > current.order_details.quantity {
+                        _calucluate_profit(n, &current)
+                    } else {
+                        _calucluate_profit(&current, n)
+                    }
+                }
+                (order::Side::Short, order::Side::Long) => {
+                    if n.order_details.quantity > current.order_details.quantity {
+                        _calucluate_profit(n, &current)
+                    } else {
+                        _calucluate_profit(&current, n)
+                    }
+                }
+                _ => {
+                    let quantity = current.order_details.quantity + n.order_details.quantity;
+                    let c_quantity = Decimal::from_u64(current.order_details.quantity).unwrap();
+                    let n_quantity = Decimal::from_u64(n.order_details.quantity).unwrap();
+                    let price = ((c_quantity * current.price) + (n_quantity * n.price))
+                        / Decimal::from_u64(quantity).unwrap();
+                    let t = Transation {
+                        order_details: order::OrderDetails {
+                            quantity,
+                            ..n.order_details
+                        },
+                        price,
+                        order_id: n.order_id.to_owned(),
+                        date_time: n.date_time.to_owned(),
+                    };
+
+                    (pf, Some(t))
+                }
+            }
+        },
+    );
+
+    if let Some(_) = ots {
+        return Decimal::default();
+    }
+
+    profit
+}
+
+#[async_trait]
+impl StrategyPortfolio for Broker {
+    async fn get_profit(&self, strategy_id: StrategyId) -> Result<Decimal> {
+        let security_transactions = self.orders.get_transactions().await?;
+        let result = security_transactions
+            .iter()
+            .map(|st| calculate_profit(st, strategy_id))
+            .sum();
+
+        Ok(result)
+    }
+
+    async fn get_holdings(&self, strategy_id: StrategyId) -> Result<Vec<SecurityPosition>> {
+        let open_positions = self.get_positions().await?;
+        // TODO: this could cause issues. especially imformation conflict if algos are trading the same instruments
+        let algo_positions: Vec<_> = open_positions
+            .iter()
+            .flat_map(|p| {
+                let holding_details: Vec<HoldingDetail> = p
+                    .holding_details
+                    .iter()
+                    .filter(|h| h.strategy_id == strategy_id)
+                    .map(|h| h.to_owned())
+                    .collect();
+
+                if holding_details.is_empty() {
+                    return None;
+                }
+
+                Some(SecurityPosition {
+                    holding_details,
+                    security: p.security.to_owned(),
+                    side: p.side,
+                })
+            })
+            .collect();
+
+        Ok(algo_positions)
     }
 }
 
@@ -186,12 +320,18 @@ impl OrderManager for Broker {
         let or = order::OrderResult::PendingOrder(pending_order.to_owned());
         self.orders.insert(&or).await?;
 
-        Ok(OrderResult::Updated(pending_order.order_id.to_owned()))
+        Ok(OrderResult::Updated(OrderMeta {
+            order_id: pending_order.order_id.to_owned(),
+            strategy_id: pending_order.startegy_id(),
+        }))
     }
 
     async fn cancel(&self, pending_order: &PendingOrder) -> Result<OrderResult> {
         self.orders.remove(&pending_order).await?;
-        Ok(OrderResult::Cancelled(pending_order.order_id.to_owned()))
+        Ok(OrderResult::Updated(OrderMeta {
+            order_id: pending_order.order_id.to_owned(),
+            strategy_id: pending_order.startegy_id(),
+        }))
     }
 }
 
@@ -224,7 +364,8 @@ impl EventHandler for Broker {
                     let m = order::Market::new(
                         o.order_details.quantity,
                         o.order_details.side,
-                        o.security,
+                        o.security.to_owned(),
+                        o.strategy_id(),
                     );
                     let order = NewOrder::Market(m);
                     self.place_order(&order).await?;
@@ -243,6 +384,7 @@ fn create_filled_order(
     security: &Security,
     side: order::Side,
     quote: &Quote,
+    strategy_id: StrategyId,
 ) -> Result<FilledOrder> {
     let price = match side {
         order::Side::Long => quote.ask,
@@ -259,6 +401,7 @@ fn create_filled_order(
         quantity,
         side,
         datetime,
+        strategy_id,
     );
 
     Ok(fo)

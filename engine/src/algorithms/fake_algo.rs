@@ -24,7 +24,7 @@ pub struct FakeAlgo {}
 
 #[async_trait]
 impl Algorithm for FakeAlgo {
-    fn get_id(&self) -> StrategyId {
+    fn strategy_id(&self) -> StrategyId {
         "fake_algo".into()
     }
     async fn on_data(&self, market: &Market) -> Result<Option<Signal>> {
@@ -40,17 +40,11 @@ impl Algorithm for FakeAlgo {
         if rm <= 0.01 {
             // println!("fake_algo sending signal");
             let security = price_history.security.to_owned();
-            let market = order::Market::new(1, order::Side::Long, security);
+            let market = order::Market::new(1, order::Side::Long, security, self.strategy_id());
             let order = order::NewOrder::Market(market);
-            let strategy_id = "fake_algo".to_owned();
             let datetime = SystemTime::now().duration_since(UNIX_EPOCH)?;
             // let signal = Signal::new(
-            let signal = Signal::Entry(event::model::Entry::new(
-                self.get_id(),
-                order,
-                datetime,
-                0.99,
-            ));
+            let signal = Signal::Entry(event::model::Entry::new(order, datetime, 0.99));
             return Ok(Some(signal));
         }
 

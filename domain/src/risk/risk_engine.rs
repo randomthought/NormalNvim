@@ -4,7 +4,7 @@ use std::sync::Arc;
 use super::config::RiskEngineConfig;
 use crate::data::QouteProvider;
 use crate::event::event::{EventHandler, EventProducer};
-use crate::event::model::{AlgoOrder, Event, Signal};
+use crate::event::model::{Event, Signal};
 use crate::models::order::{self, Market, NewOrder, Order, OrderResult};
 use crate::order::OrderManager;
 use crate::portfolio::Portfolio;
@@ -12,7 +12,7 @@ use crate::strategy::algorithm::StrategyId;
 use crate::strategy::portfolio::StrategyPortfolio;
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use eyre::{ContextCompat, Ok};
+use eyre::Ok;
 
 #[derive(Debug)]
 pub enum SignalResult {
@@ -66,8 +66,6 @@ impl RiskEngine {
             ));
         }
 
-        let strategy_id = signal.strategy_id();
-
         let order_results = match signal {
             Signal::Modify(s) => {
                 let order_result = self.order_manager.update(&s.pending_order).await?;
@@ -78,14 +76,14 @@ impl RiskEngine {
                 Some(vec![order_result])
             }
             Signal::Liquidate(_) => {
-                let order_results = self.liquidate(&strategy_id).await?;
+                let order_results = self.liquidate(signal.strategy_id()).await?;
                 Some(order_results)
             }
             Signal::Entry(_) => None,
         };
 
         if let Some(order_results) = order_results {
-            self.report_events(&strategy_id, &order_results).await?;
+            self.report_events(&order_results).await?;
             return Ok(SignalResult::PlacedOrder(order_results));
         }
 
@@ -106,11 +104,11 @@ impl RiskEngine {
 
         let order_result = self.order_manager.place_order(&s.order).await?;
         let order_results = vec![order_result];
-        self.report_events(&strategy_id, &order_results).await?;
+        self.report_events(&order_results).await?;
         return Ok(SignalResult::PlacedOrder(order_results));
     }
 
-    async fn liquidate(&self, strategy_id: &StrategyId) -> Result<Vec<OrderResult>> {
+    async fn liquidate(&self, strategy_id: StrategyId) -> Result<Vec<OrderResult>> {
         let positions = self.strategy_portrfolio.get_holdings(strategy_id).await?;
 
         let orders: Vec<NewOrder> = positions
@@ -120,7 +118,8 @@ impl RiskEngine {
                     order::Side::Long => order::Side::Short,
                     order::Side::Short => order::Side::Long,
                 };
-                let order = Market::new(sp.get_quantity(), side, sp.security.to_owned());
+                let order =
+                    Market::new(sp.get_quantity(), side, sp.security.to_owned(), strategy_id);
                 NewOrder::Market(order)
             })
             .collect();
@@ -132,16 +131,9 @@ impl RiskEngine {
         Ok(order_results)
     }
 
-    async fn report_events(
-        &self,
-        strategy_id: &StrategyId,
-        order_results: &Vec<OrderResult>,
-    ) -> Result<()> {
+    async fn report_events(&self, order_results: &Vec<OrderResult>) -> Result<()> {
         let f2 = order_results.iter().map(|or| {
-            let event = Event::AlgoOrder(AlgoOrder {
-                strategy_id,
-                order: Order::OrderResult(or.to_owned()),
-            });
+            let event = Event::Order(Order::OrderResult(or.to_owned()));
             self.event_producer.produce(event)
         });
 
@@ -162,7 +154,6 @@ impl EventHandler for RiskEngine {
     async fn handle(&self, event: &Event) -> Result<()> {
         if let Event::Signal(s) = event {
             let signal_results = self.process_signal(s).await?;
-            println!("signal result: {:?}", signal_results);
         }
 
         Ok(())
