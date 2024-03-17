@@ -26,7 +26,7 @@ use crate::{
         security::{AssetType, Exchange, Security},
     },
     order::{Account, OrderManager, OrderReader},
-    strategy::algorithm::StrategyId,
+    strategy::{algorithm::StrategyId, portfolio::StrategyPortfolio},
 };
 
 use color_eyre::eyre::{Ok, Result};
@@ -570,4 +570,80 @@ async fn close_existing_trade_on_low_balance() {
         result.is_empty(),
         "trade should be closed regardless of low balance"
     )
+}
+
+#[tokio::test]
+async fn get_algo_holdings() {
+    let setup = Setup::new();
+
+    let stub = Arc::new(Stub::new());
+    let balance = Decimal::new(100_000, 0);
+    let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
+
+    let quantity = 100;
+    let market_order_1 = NewOrder::Market(Market::new(
+        quantity,
+        Side::Long,
+        setup.security.to_owned(),
+        strategy_id,
+    ));
+
+    broker.place_order(&market_order_1).await.unwrap();
+    let results_1 = broker.get_holdings(strategy_id).await.unwrap();
+    let expected = vec![SecurityPosition {
+        security: setup.security.to_owned(),
+        side: Side::Long,
+        holding_details: vec![HoldingDetail {
+            strategy_id,
+            quantity,
+            price: setup.price,
+        }],
+    }];
+    assert_eq!(results_1, expected);
+
+    let results_2 = broker.get_holdings("algo_with_no_trades").await.unwrap();
+    assert!(
+        results_2.is_empty(),
+        "the shouldn't be any trade for an aglorthim that didn't trade"
+    );
+}
+
+#[tokio::test]
+async fn get_algo_profits() {
+    let setup = Setup::new();
+
+    let stub = Arc::new(Stub::new());
+    let balance = Decimal::new(100_000, 0);
+    let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
+
+    let quantity = 10;
+    let market_order_1 = NewOrder::Market(Market::new(
+        quantity,
+        Side::Long,
+        setup.security.to_owned(),
+        strategy_id,
+    ));
+    broker.place_order(&market_order_1).await.unwrap();
+
+    stub.add_to_price(Decimal::new(100, 0)).await;
+    let market_order_2 = NewOrder::Market(Market::new(
+        quantity,
+        Side::Long,
+        setup.security.to_owned(),
+        strategy_id,
+    ));
+    broker.place_order(&market_order_2).await.unwrap();
+
+    let market_order_3 = NewOrder::Market(Market::new(
+        quantity * 2,
+        Side::Short,
+        setup.security.to_owned(),
+        strategy_id,
+    ));
+    broker.place_order(&market_order_3).await.unwrap();
+
+    let result = broker.get_profit(strategy_id).await.unwrap();
+    let expected = Decimal::new(1000, 0);
+
+    assert_eq!(result, expected);
 }
