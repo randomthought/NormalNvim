@@ -1,15 +1,7 @@
 use super::{
-    algo_event::AlgoEvent,
-    algorithm::{Algorithm, StrategyId},
-    portfolio::StrategyPortfolio,
+    algo_event::AlgoEvent, algorithm::Algorithm, errors::SignalError, portfolio::StrategyPortfolio,
 };
-use crate::{
-    event::model::{Market, Signal},
-    models::{order::OrderResult, price::Price},
-};
-use async_trait::async_trait;
-use color_eyre::eyre::Result;
-use eyre::{Ok, OptionExt};
+use crate::{event::model::Signal, models::price::Price};
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 
 pub struct Strategy {
@@ -80,9 +72,11 @@ impl StrategyBuilder {
         self
     }
 
-    pub fn build(self) -> Result<Strategy> {
-        let algorithm = self.algorithm.ok_or_eyre("Algorithm is required")?;
-        let portfolio = self.portfolio.ok_or_eyre("Portfolio is required")?;
+    pub fn build(self) -> Result<Strategy, String> {
+        // let algorithm = self.algorithm.ok_or_eyre("Algorithm is required")?;
+        let algorithm = self.algorithm.ok_or("Algorithm is required".to_string())?;
+
+        let portfolio = self.portfolio.ok_or("Portfolio is required".to_string())?;
 
         Ok(Strategy {
             algorithm,
@@ -102,13 +96,11 @@ impl Strategy {
     }
 }
 
-#[async_trait]
-impl Algorithm for Strategy {
-    fn strategy_id(&self) -> StrategyId {
-        self.algorithm.strategy_id()
-    }
-
-    async fn on_event<'a>(&self, algo_event: AlgoEvent<'a>) -> Result<Option<Signal>> {
+impl Strategy {
+    async fn on_event<'a>(
+        &self,
+        algo_event: AlgoEvent<'a>,
+    ) -> Result<Option<Signal>, crate::error::Error> {
         let Some(signal) = self.algorithm.on_event(algo_event).await? else {
             return Ok(None);
         };

@@ -29,8 +29,6 @@ use crate::{
     strategy::{algorithm::StrategyId, portfolio::StrategyPortfolio},
 };
 
-use color_eyre::eyre::{Ok, Result};
-
 const strategy_id: StrategyId = "fake_algo";
 
 struct Setup {
@@ -68,7 +66,7 @@ impl Stub {
 #[cfg(test)]
 #[async_trait]
 impl QouteProvider for Stub {
-    async fn get_quote(&self, security: &Security) -> Result<Quote> {
+    async fn get_quote(&self, security: &Security) -> Result<Quote, crate::error::Error> {
         let price = self.price.read().await;
 
         let quote = Quote {
@@ -86,7 +84,7 @@ impl QouteProvider for Stub {
 
 #[async_trait]
 impl EventProducer for Stub {
-    async fn produce(&self, _: Event) -> Result<()> {
+    async fn produce(&self, _: Event) -> Result<(), crate::error::Error> {
         Ok(())
     }
 }

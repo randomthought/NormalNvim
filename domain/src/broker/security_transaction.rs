@@ -1,12 +1,9 @@
-use std::time::Duration;
-
-use color_eyre::eyre::{bail, Result};
-
 use crate::models::{
     order::{FilledOrder, HoldingDetail, OrderDetails, OrderId, SecurityPosition, Side},
     price::Price,
     security::Security,
 };
+use std::time::Duration;
 
 // TODO: make struct private
 #[derive(Debug, Clone)]
@@ -50,9 +47,9 @@ impl SecurityTransaction {
         Some(security_position)
     }
 
-    pub fn insert(&mut self, filled_order: &FilledOrder) -> Result<()> {
+    pub fn insert(&mut self, filled_order: &FilledOrder) -> Result<(), String> {
         if filled_order.security != self.security {
-            bail!("security must match");
+            return Err("security must match".into());
         }
 
         let transation = Transation {

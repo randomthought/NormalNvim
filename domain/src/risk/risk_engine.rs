@@ -11,8 +11,6 @@ use crate::portfolio::Portfolio;
 use crate::strategy::algorithm::StrategyId;
 use crate::strategy::portfolio::StrategyPortfolio;
 use async_trait::async_trait;
-use color_eyre::eyre::Result;
-use eyre::Ok;
 
 #[derive(Debug)]
 pub enum SignalResult {
@@ -58,7 +56,10 @@ impl RiskEngine {
         }
     }
 
-    pub async fn process_signal(&self, signal: &Signal) -> Result<SignalResult> {
+    pub async fn process_signal(
+        &self,
+        signal: &Signal,
+    ) -> Result<SignalResult, crate::error::Error> {
         // TODO: check the accumulation of orders
         if let TradingState::Halted = self.trading_state {
             return Ok(SignalResult::Rejected(
@@ -108,7 +109,10 @@ impl RiskEngine {
         return Ok(SignalResult::PlacedOrder(order_results));
     }
 
-    async fn liquidate(&self, strategy_id: StrategyId) -> Result<Vec<OrderResult>> {
+    async fn liquidate(
+        &self,
+        strategy_id: StrategyId,
+    ) -> Result<Vec<OrderResult>, crate::error::Error> {
         let positions = self.strategy_portrfolio.get_holdings(strategy_id).await?;
 
         let orders: Vec<NewOrder> = positions
@@ -131,7 +135,10 @@ impl RiskEngine {
         Ok(order_results)
     }
 
-    async fn report_events(&self, order_results: &Vec<OrderResult>) -> Result<()> {
+    async fn report_events(
+        &self,
+        order_results: &Vec<OrderResult>,
+    ) -> Result<(), crate::error::Error> {
         let f2 = order_results.iter().map(|or| {
             let event = Event::Order(Order::OrderResult(or.to_owned()));
             self.event_producer.produce(event)
@@ -142,7 +149,7 @@ impl RiskEngine {
         Ok(())
     }
 
-    async fn get_open_trades(&self) -> Result<u32> {
+    async fn get_open_trades(&self) -> Result<u32, crate::error::Error> {
         let results = self.order_manager.get_positions().await?.len();
 
         Ok(results as u32)
@@ -151,7 +158,7 @@ impl RiskEngine {
 
 #[async_trait]
 impl EventHandler for RiskEngine {
-    async fn handle(&self, event: &Event) -> Result<()> {
+    async fn handle(&self, event: &Event) -> Result<(), crate::error::Error> {
         if let Event::Signal(s) = event {
             let signal_results = self.process_signal(s).await?;
         }

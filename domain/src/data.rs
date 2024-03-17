@@ -3,11 +3,10 @@ use crate::models::{
     security::Security,
 };
 use async_trait::async_trait;
-use color_eyre::eyre::Result;
 
 #[async_trait]
 pub trait QouteProvider {
-    async fn get_quote(&self, security: &Security) -> Result<Quote>;
+    async fn get_quote(&self, security: &Security) -> Result<Quote, crate::error::Error>;
 }
 
 #[async_trait]

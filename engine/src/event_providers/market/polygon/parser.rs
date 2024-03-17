@@ -1,4 +1,5 @@
 use async_trait::async_trait;
+use color_eyre::eyre::Ok;
 use color_eyre::eyre::Result;
 use domain::event::model::{Event, Market};
 
@@ -31,6 +32,8 @@ impl Parser for PolygonParser {
             .map(|ag| utils::to_price_history(&ag).map(|ph| Event::Market(Market::DataEvent(ph))))
             .collect();
 
-        Ok(results?)
+        let events = results.map_err(|e| eyre::Report::msg(e))?;
+
+        Ok(events)
     }
 }

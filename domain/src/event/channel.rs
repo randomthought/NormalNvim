@@ -1,6 +1,5 @@
 use super::{event::EventProducer, model::Event};
 use async_trait::async_trait;
-use color_eyre::eyre::Result;
 use crossbeam::channel::{unbounded, Receiver, Sender};
 use futures_util::Stream;
 use std::sync::Arc;
@@ -23,9 +22,11 @@ impl Channel {
 
 #[async_trait]
 impl EventProducer for Channel {
-    async fn produce(&self, event: Event) -> Result<()> {
+    async fn produce(&self, event: Event) -> Result<(), crate::error::Error> {
         let sender = self.sender.clone();
-        sender.send(event.clone())?;
+        sender
+            .send(event.clone())
+            .map_err(|e| crate::error::Error::Any(e.into()))?;
         Ok(())
     }
 }

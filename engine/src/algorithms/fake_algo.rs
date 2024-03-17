@@ -13,7 +13,6 @@ use domain::{
         algorithm::{Algorithm, StrategyId},
     },
 };
-use eyre::Ok;
 use rand::{rngs::StdRng, Rng, SeedableRng};
 
 pub struct FakeAlgo {}
@@ -23,7 +22,10 @@ impl Algorithm for FakeAlgo {
     fn strategy_id(&self) -> StrategyId {
         "fake_algo".into()
     }
-    async fn on_event<'a>(&self, algo_event: AlgoEvent<'a>) -> Result<Option<Signal>> {
+    async fn on_event<'a>(
+        &self,
+        algo_event: AlgoEvent<'a>,
+    ) -> Result<Option<Signal>, domain::error::Error> {
         if let AlgoEvent::OrderResult(order_result) = algo_event {
             println!("fake_algo: my order was filled: {:?}", order_result);
             return Ok(None);
@@ -43,7 +45,10 @@ impl Algorithm for FakeAlgo {
             let security = price_history.security.to_owned();
             let market = order::Market::new(1, order::Side::Long, security, self.strategy_id());
             let order = order::NewOrder::Market(market);
-            let datetime = SystemTime::now().duration_since(UNIX_EPOCH)?;
+            let datetime = SystemTime::now()
+                .duration_since(UNIX_EPOCH)
+                .map_err(|e| domain::error::Error::Any(e.into()))?;
+
             // let signal = Signal::new(
             let signal = Signal::Entry(event::model::Entry::new(order, datetime, 0.99));
             return Ok(Some(signal));

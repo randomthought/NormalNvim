@@ -1,7 +1,6 @@
 use std::time::Duration;
 
 use super::security::Security;
-use color_eyre::eyre::{ensure, Result};
 use rust_decimal::Decimal;
 
 pub type Symbol = String;
@@ -26,8 +25,10 @@ impl Quote {
         bid_size: u64,
         ask_size: u64,
         timestamp: Duration,
-    ) -> Result<Self> {
-        ensure!(bid < ask, "bid price should be lower than ask price");
+    ) -> Result<Self, String> {
+        if bid >= ask {
+            return Err("bid price should be lower than ask price".into());
+        }
 
         Ok(Self {
             security,
@@ -73,16 +74,26 @@ impl Candle {
         volume: u64,
         start_time: Duration,
         end_time: Duration,
-    ) -> Result<Self> {
-        ensure!(high >= low, "high cannot be less than low");
+    ) -> Result<Self, String> {
+        if high < low {
+            return Err("high cannot be less than low".into());
+        }
 
-        ensure!(high >= open, "open cannot be greater than high");
+        if high < open {
+            return Err("open cannot be greater than high".into());
+        }
 
-        ensure!(open >= low, "open cannot be less than low");
+        if open < low {
+            return Err("open cannot be less than low".into());
+        }
 
-        ensure!(close >= low, "close cannot be less than low");
+        if close < low {
+            return Err("close cannot be less than low".into());
+        }
 
-        ensure!(high >= close, "close cannot be greater than high");
+        if high < close {
+            return Err("close cannot be greater than high".into());
+        }
 
         Ok(Self {
             open,

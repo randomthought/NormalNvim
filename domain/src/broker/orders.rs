@@ -1,13 +1,11 @@
-use std::{collections::HashMap, error::Error};
+use std::collections::HashMap;
 
-use futures_util::future::ok;
 use tokio::sync::RwLock;
 
 use crate::models::{
-    order::{FilledOrder, Limit, NewOrder, OrderId, OrderResult, PendingOrder, SecurityPosition},
+    order::{FilledOrder, NewOrder, OrderId, OrderResult, PendingOrder, SecurityPosition},
     security::Security,
 };
-use color_eyre::eyre::{bail, Ok, Result};
 
 use super::security_transaction::SecurityTransaction;
 
@@ -26,13 +24,13 @@ impl Orders {
         }
     }
 
-    pub async fn get_transactions(&self) -> Result<Vec<SecurityTransaction>> {
+    pub async fn get_transactions(&self) -> Result<Vec<SecurityTransaction>, String> {
         let map = self.active.read().await;
         let transactions = map.iter().map(|kv| kv.1.to_owned()).collect();
         Ok(transactions)
     }
 
-    pub async fn insert(&self, order_result: &OrderResult) -> Result<()> {
+    pub async fn insert(&self, order_result: &OrderResult) -> Result<(), String> {
         match order_result {
             OrderResult::FilledOrder(o) => self.handle_filled(o).await,
             OrderResult::PendingOrder(o) => self.handle_pending(o).await,
@@ -104,11 +102,11 @@ impl Orders {
         results
     }
 
-    pub async fn remove(&self, pending_order: &PendingOrder) -> Result<()> {
+    pub async fn remove(&self, pending_order: &PendingOrder) -> Result<(), String> {
         let NewOrder::Limit(_) = pending_order.order.to_owned() else {
             let mut map = self.chained.write().await;
             let Some(_) = map.remove(&pending_order.order_id) else {
-                bail!("order doesn't exist")
+                return Err("order doesn't exist".into());
             };
 
             return Ok(());
@@ -117,12 +115,12 @@ impl Orders {
         let security = get_security(&pending_order.order);
         let mut map = self.pending.write().await;
         let Some(security_orders) = map.get_mut(security) else {
-            bail!("order doesn't exist");
+            return Err("order doesn't exist".into());
         };
 
         let oder_id = &pending_order.order_id;
         let Some(_) = security_orders.remove(oder_id) else {
-            bail!("order doesn't exist");
+            return Err("order doesn't exist".into());
         };
 
         if security_orders.is_empty() {
@@ -132,7 +130,7 @@ impl Orders {
         Ok(())
     }
 
-    async fn handle_filled(&self, filled_order: &FilledOrder) -> Result<()> {
+    async fn handle_filled(&self, filled_order: &FilledOrder) -> Result<(), String> {
         let mut map = self.active.write().await;
         if let Some(active_order) = map.get_mut(&filled_order.security) {
             active_order.insert(filled_order)?;
@@ -145,10 +143,10 @@ impl Orders {
         return Ok(());
     }
 
-    async fn handle_pending(&self, pending_order: &PendingOrder) -> Result<()> {
+    async fn handle_pending(&self, pending_order: &PendingOrder) -> Result<(), String> {
         let order_id = pending_order.order_id.to_owned();
         if let NewOrder::Market(_) = pending_order.order {
-            bail!("market orders should immidiatly be executed")
+            return Err("market orders should immidiatly be executed".into());
         }
 
         let NewOrder::Limit(o) = pending_order.order.to_owned() else {

@@ -1,5 +1,4 @@
 use crate::event::{event::EventHandler, model::Event};
-use color_eyre::eyre::Result;
 use futures_util::future;
 use futures_util::{Stream, StreamExt};
 use std::pin::Pin;
@@ -27,7 +26,7 @@ impl Runner {
         }
     }
 
-    pub async fn run(&mut self) -> Result<()> {
+    pub async fn run(&mut self) -> Result<(), crate::error::Error> {
         let mut num_sleeps = 0;
         loop {
             if self.exit_signal.load(Ordering::Relaxed) && num_sleeps >= 4 {

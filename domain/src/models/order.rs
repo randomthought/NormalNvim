@@ -7,7 +7,6 @@ use crate::strategy::algorithm::StrategyId;
 
 use super::price::Price;
 use super::security::Security;
-use color_eyre::eyre::{bail, ensure, Result};
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
 pub enum Side {
@@ -99,9 +98,9 @@ pub struct OneCancelsOther {
 }
 
 impl OneCancelsOther {
-    pub fn new(limit_orders: Vec<Limit>) -> Result<Self> {
+    pub fn new(limit_orders: Vec<Limit>) -> Result<Self, String> {
         if limit_orders.is_empty() {
-            bail!("cannot provide an empty list of limit orders")
+            return Err("cannot provide an empty list of limit orders".into());
         }
 
         Ok(Self { limit_orders })
@@ -122,19 +121,21 @@ impl StopLimitMarket {
         stop: Price,
         limit: Price,
         strategy_id: StrategyId,
-    ) -> Result<Self> {
+    ) -> Result<Self, String> {
         if let Side::Long = side {
-            ensure!(
-                stop < limit,
-                "on a long tade, your stop price cannot be greater than your limit"
-            );
+            if stop > limit {
+                return Err(
+                    "on a long tade, your stop price cannot be greater than your limit".into(),
+                );
+            }
         }
 
         if let Side::Short = side {
-            ensure!(
-                stop > limit,
-                "on a short tade, your stop price cannot be less than your limit"
-            );
+            if stop < limit {
+                return Err(
+                    "on a short tade, your stop price cannot be less than your limit".into(),
+                );
+            }
         }
 
         let times_in_force = TimesInForce::GTC;

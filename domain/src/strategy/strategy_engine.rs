@@ -4,9 +4,6 @@ use crate::event::model::Event;
 use crate::event::model::Market;
 use crate::models::order::Order;
 use async_trait::async_trait;
-use color_eyre::eyre::Ok;
-use color_eyre::eyre::Result;
-use eyre::OptionExt;
 use futures_util::future;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -35,7 +32,7 @@ impl StrategyEngine {
         }
     }
 
-    pub async fn process(&self, market: &Market) -> Result<()> {
+    pub async fn process(&self, market: &Market) -> Result<(), crate::error::Error> {
         let futures = self.algorithms.values().map(|algo| async {
             let algo_event = AlgoEvent::Market(market);
             if let Some(signal) = algo.on_event(algo_event).await? {
@@ -43,7 +40,7 @@ impl StrategyEngine {
                 self.event_producer.produce(se).await?;
             }
 
-            Ok(()) as Result<()>
+            Ok(()) as Result<(), crate::error::Error>
         });
 
         let _ = future::try_join_all(futures).await?;
@@ -54,7 +51,7 @@ impl StrategyEngine {
 
 #[async_trait]
 impl EventHandler for StrategyEngine {
-    async fn handle(&self, event: &Event) -> Result<()> {
+    async fn handle(&self, event: &Event) -> Result<(), crate::error::Error> {
         match event {
             Event::Market(m) => self.process(m).await,
             Event::Order(ao) => {
@@ -62,10 +59,12 @@ impl EventHandler for StrategyEngine {
                     return Ok(());
                 };
 
-                let algo = self
-                    .algorithms
-                    .get(ao.startegy_id())
-                    .ok_or_eyre("unable to find algorithm")?;
+                let algo =
+                    self.algorithms
+                        .get(ao.startegy_id())
+                        .ok_or(crate::error::Error::Message(
+                            "unable to find algorithm".to_string(),
+                        ))?;
 
                 let algo_event = AlgoEvent::OrderResult(&or);
                 let _ = algo.on_event(algo_event).await?;

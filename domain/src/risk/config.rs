@@ -1,5 +1,3 @@
-use color_eyre::eyre::{ensure, Result};
-
 enum TradingState {
     Active, // trading is enabled
     // TODO: add an update order type this might be good for only accepting modified orders and not trading
@@ -17,16 +15,23 @@ pub struct RiskEngineConfig {
 }
 
 impl RiskEngineConfig {
-    pub fn new(max_portfolio_risk: f64, max_trade_portfolio_accumulaton: f64) -> Result<Self> {
-        ensure!(
-            (0.0..=1.0).contains(&max_portfolio_risk),
-            "{dbg!(max_portfolio_risk)} has to be between a value 0 and 1".to_owned()
-        );
+    pub fn new(
+        max_portfolio_risk: f64,
+        max_trade_portfolio_accumulaton: f64,
+    ) -> Result<Self, String> {
+        if !(0.0..=1.0).contains(&max_portfolio_risk) {
+            return Err(format!(
+                "{:?} has to be between a value 0 and 1",
+                max_portfolio_risk
+            ));
+        }
 
-        ensure!(
-            (0.0..=1.0).contains(&max_trade_portfolio_accumulaton),
-            "{dbg!(max_trade_portfolio_accumulaton)} has to be between a value 0 and 1".to_owned()
-        );
+        if !(0.0..=1.0).contains(&max_trade_portfolio_accumulaton) {
+            return Err(format!(
+                "{:?} has to be between a value 0 and 1",
+                max_trade_portfolio_accumulaton
+            ));
+        }
 
         Ok(Self {
             max_portfolio_risk,

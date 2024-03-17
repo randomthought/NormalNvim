@@ -2,8 +2,6 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use async_trait::async_trait;
-use color_eyre::eyre::Context;
-use color_eyre::eyre::Ok;
 use color_eyre::eyre::Result;
 use domain::event::model::Event;
 use domain::event::model::Market;
@@ -15,7 +13,6 @@ use domain::{
     },
 };
 use eyre::ContextCompat;
-use eyre::OptionExt;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 use tokio::sync::RwLock;
@@ -52,7 +49,9 @@ impl BackTester {
         let ticker = price_history.security.ticker.clone();
         let security = price_history.security.clone();
 
-        let q = Quote::new(security, bid, ask, 0, 0, c.end_time)?;
+        let q =
+            Quote::new(security, bid, ask, 0, 0, c.end_time).map_err(|e| eyre::Report::msg(e))?;
+
         let mut map = self.map.write().await;
         map.insert(ticker, q);
 
@@ -81,13 +80,15 @@ impl Parser for BackTester {
 
 #[async_trait]
 impl QouteProvider for BackTester {
-    async fn get_quote(&self, security: &Security) -> Result<Quote> {
+    async fn get_quote(&self, security: &Security) -> Result<Quote, domain::error::Error> {
         let map = self.map.read().await;
-        let quote = map
-            .get(&security.ticker)
-            .wrap_err(format!("security='{}' not found in map", security.ticker))?
-            .clone();
+        let quote = map.get(&security.ticker).ok_or_else(|| {
+            domain::error::Error::Message(format!(
+                "security='{}' not found in map",
+                security.ticker
+            ))
+        })?;
 
-        Ok(quote)
+        Ok(quote.clone())
     }
 }

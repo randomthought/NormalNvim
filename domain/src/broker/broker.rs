@@ -18,7 +18,6 @@ use crate::{
     strategy::{algorithm::StrategyId, portfolio::StrategyPortfolio},
 };
 use async_trait::async_trait;
-use color_eyre::eyre::{bail, Ok, Result};
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use std::time::{SystemTime, UNIX_EPOCH};
 use std::{sync::Arc, u64};
@@ -51,7 +50,10 @@ impl Broker {
         }
     }
 
-    async fn create_trade(&self, market_order: &order::Market) -> Result<(Price, FilledOrder)> {
+    async fn create_trade(
+        &self,
+        market_order: &order::Market,
+    ) -> Result<(Price, FilledOrder), crate::error::Error> {
         let quote = self
             .qoute_provider
             .get_quote(&market_order.security)
@@ -120,11 +122,11 @@ impl Broker {
 
 #[async_trait]
 impl Account for Broker {
-    async fn get_account_balance(&self) -> Result<Decimal> {
+    async fn get_account_balance(&self) -> Result<Decimal, crate::error::Error> {
         let balance = self.account_balance.read().await;
         Ok(*balance)
     }
-    async fn get_buying_power(&self) -> Result<Decimal> {
+    async fn get_buying_power(&self) -> Result<Decimal, crate::error::Error> {
         let balance = self.account_balance.read().await;
         Ok(*balance)
     }
@@ -132,12 +134,12 @@ impl Account for Broker {
 
 #[async_trait]
 impl OrderReader for Broker {
-    async fn get_positions(&self) -> Result<Vec<SecurityPosition>> {
+    async fn get_positions(&self) -> Result<Vec<SecurityPosition>, crate::error::Error> {
         let orders = self.orders.get_positions().await;
         Ok(orders)
     }
 
-    async fn get_pending_orders(&self) -> Result<Vec<OrderResult>> {
+    async fn get_pending_orders(&self) -> Result<Vec<OrderResult>, crate::error::Error> {
         let orders = self.orders.get_pending_orders().await;
         let order_results = orders
             .iter()
@@ -235,8 +237,13 @@ fn calculate_profit(
 
 #[async_trait]
 impl StrategyPortfolio for Broker {
-    async fn get_profit(&self, strategy_id: StrategyId) -> Result<Decimal> {
-        let security_transactions = self.orders.get_transactions().await?;
+    async fn get_profit(&self, strategy_id: StrategyId) -> Result<Decimal, crate::error::Error> {
+        let security_transactions = self
+            .orders
+            .get_transactions()
+            .await
+            .map_err(|e| crate::error::Error::Message(e))?;
+
         let result = security_transactions
             .iter()
             .map(|st| calculate_profit(st, strategy_id))
@@ -245,7 +252,10 @@ impl StrategyPortfolio for Broker {
         Ok(result)
     }
 
-    async fn get_holdings(&self, strategy_id: StrategyId) -> Result<Vec<SecurityPosition>> {
+    async fn get_holdings(
+        &self,
+        strategy_id: StrategyId,
+    ) -> Result<Vec<SecurityPosition>, crate::error::Error> {
         let open_positions = self.get_positions().await?;
         // TODO: this could cause issues. especially imformation conflict if algos are trading the same instruments
         let algo_positions: Vec<_> = open_positions
@@ -276,7 +286,7 @@ impl StrategyPortfolio for Broker {
 
 #[async_trait]
 impl OrderManager for Broker {
-    async fn place_order(&self, order: &NewOrder) -> Result<OrderResult> {
+    async fn place_order(&self, order: &NewOrder) -> Result<OrderResult, crate::error::Error> {
         if let NewOrder::StopLimitMarket(o) = order {
             let market_order = NewOrder::Market(o.market.to_owned());
             self.place_order(&market_order).await?;
@@ -293,7 +303,10 @@ impl OrderManager for Broker {
 
             let or = order::OrderResult::PendingOrder(po.clone());
 
-            self.orders.insert(&or).await?;
+            self.orders
+                .insert(&or)
+                .await
+                .map_err(|e| crate::error::Error::Message(e))?;
 
             return Ok(or);
         };
@@ -303,11 +316,16 @@ impl OrderManager for Broker {
         let (cost, filled_order) = self.create_trade(market_order).await?;
 
         if (cost + *account_balance) < Decimal::new(0, 0) {
-            bail!("do not have enough funds to peform trade");
+            return Err(crate::error::Error::Message(
+                "do not have enough funds to peform trade".to_string(),
+            ));
         }
 
         let order_result = order::OrderResult::FilledOrder(filled_order.clone());
-        self.orders.insert(&order_result).await?;
+        self.orders
+            .insert(&order_result)
+            .await
+            .map_err(|e| crate::error::Error::Message(e))?;
         let commision = Decimal::from_u64(market_order.order_details.quantity).unwrap()
             * self.commissions_per_share;
         let trade_cost = commision + cost;
@@ -316,9 +334,15 @@ impl OrderManager for Broker {
         Ok(order_result)
     }
 
-    async fn update(&self, pending_order: &PendingOrder) -> Result<OrderResult> {
+    async fn update(
+        &self,
+        pending_order: &PendingOrder,
+    ) -> Result<OrderResult, crate::error::Error> {
         let or = order::OrderResult::PendingOrder(pending_order.to_owned());
-        self.orders.insert(&or).await?;
+        self.orders
+            .insert(&or)
+            .await
+            .map_err(|e| crate::error::Error::Message(e))?;
 
         Ok(OrderResult::Updated(OrderMeta {
             order_id: pending_order.order_id.to_owned(),
@@ -326,8 +350,15 @@ impl OrderManager for Broker {
         }))
     }
 
-    async fn cancel(&self, pending_order: &PendingOrder) -> Result<OrderResult> {
-        self.orders.remove(&pending_order).await?;
+    async fn cancel(
+        &self,
+        pending_order: &PendingOrder,
+    ) -> Result<OrderResult, crate::error::Error> {
+        self.orders
+            .remove(&pending_order)
+            .await
+            .map_err(|e| crate::error::Error::Message(e))?;
+
         Ok(OrderResult::Updated(OrderMeta {
             order_id: pending_order.order_id.to_owned(),
             strategy_id: pending_order.startegy_id(),
@@ -337,7 +368,7 @@ impl OrderManager for Broker {
 
 #[async_trait]
 impl EventHandler for Broker {
-    async fn handle(&self, event: &Event) -> Result<()> {
+    async fn handle(&self, event: &Event) -> Result<(), crate::error::Error> {
         let Event::Market(event::model::Market::DataEvent(d)) = event else {
             return Ok(());
         };
@@ -385,7 +416,7 @@ fn create_filled_order(
     side: order::Side,
     quote: &Quote,
     strategy_id: StrategyId,
-) -> Result<FilledOrder> {
+) -> Result<FilledOrder, crate::error::Error> {
     let price = match side {
         order::Side::Long => quote.ask,
         order::Side::Short => quote.bid,
@@ -393,7 +424,10 @@ fn create_filled_order(
 
     let order_id = Uuid::new_v4().to_string();
 
-    let datetime = SystemTime::now().duration_since(UNIX_EPOCH)?;
+    let datetime = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .map_err(|e| crate::error::Error::Any(e.into()))?;
+
     let fo = FilledOrder::new(
         security.to_owned(),
         order_id,
