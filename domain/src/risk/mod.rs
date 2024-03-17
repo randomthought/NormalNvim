@@ -1,4 +1,4 @@
 pub mod config;
-mod errors;
+mod error;
 pub mod risk_engine;
 mod risk_engine_test;

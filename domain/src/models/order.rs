@@ -193,6 +193,14 @@ impl NewOrder {
             NewOrder::StopLimitMarket(o) => o.strategy_id(),
         }
     }
+
+    pub fn get_order_details(&self) -> &OrderDetails {
+        todo!()
+    }
+
+    pub fn get_security(&self) -> &Security {
+        todo!()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
