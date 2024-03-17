@@ -8,8 +8,8 @@ use crate::{
     },
     models::{
         order::{
-            self, FilledOrder, HoldingDetail, NewOrder, OrderMeta, OrderResult, PendingOrder,
-            SecurityPosition,
+            self, FilledOrder, HoldingDetail, NewOrder, OneCancelsOthers, OrderMeta, OrderResult,
+            PendingOrder, SecurityPosition,
         },
         price::{Price, Quote},
         security::Security,
@@ -291,8 +291,17 @@ impl OrderManager for Broker {
             let market_order = NewOrder::Market(o.market.to_owned());
             self.place_order(&market_order).await?;
 
-            let oca = NewOrder::OCA(o.one_cancels_other.to_owned());
-            return self.place_order(&oca).await;
+            let oco = OneCancelsOthers::builder()
+                .with_security(o.market.security.to_owned())
+                .with_time_in_force(o.get_stop().times_in_force)
+                .with_strategy_id(o.market.order_details.strategy_id)
+                .add_limit(o.get_stop().order_details.side, o.get_stop().price)
+                .add_limit(o.get_limit().order_details.side, o.get_limit().price)
+                .build()
+                .map_err(|e| crate::error::Error::Message(e.into()))?;
+
+            let no = NewOrder::OCO(oco);
+            return self.place_order(&no).await;
         }
 
         let NewOrder::Market(market_order) = order else {

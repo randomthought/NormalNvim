@@ -19,7 +19,7 @@ use crate::{
     event::{event::EventProducer, model::Event},
     models::{
         order::{
-            self, FilledOrder, HoldingDetail, Market, NewOrder, OneCancelsOther, OrderResult,
+            self, FilledOrder, HoldingDetail, Market, NewOrder, OneCancelsOthers, OrderResult,
             PendingOrder, SecurityPosition, Side, StopLimitMarket,
         },
         price::{self, Price, Quote},
@@ -349,35 +349,23 @@ async fn insert_market_stop_limit_order() {
 
     assert_eq!(expected_1, results_1);
 
-    let oca = OneCancelsOther::new(vec![
-        order::Limit::new(
-            quantity,
-            limit_price,
-            side,
-            setup.security.to_owned(),
-            order::TimesInForce::GTC,
-            strategy_id,
-        ),
-        order::Limit::new(
-            quantity,
-            stop_price,
-            Side::Short,
-            setup.security.to_owned(),
-            order::TimesInForce::GTC,
-            strategy_id,
-        ),
-    ])
-    .unwrap();
+    let oco = OneCancelsOthers::builder()
+        .with_strategy_id(strategy_id)
+        .with_security(setup.security.to_owned())
+        .with_time_in_force(order::TimesInForce::GTC)
+        .add_limit(side, limit_price)
+        .add_limit(Side::Short, stop_price)
+        .build()
+        .unwrap();
 
     let expected_2: Vec<OrderResult> = vec![OrderResult::PendingOrder(PendingOrder {
         order_id: pending_order.order_id.to_owned(),
-        order: NewOrder::OCA(oca),
+        order: NewOrder::OCO(oco),
     })];
 
     let result_2 = broker.get_pending_orders().await.unwrap();
 
     assert_eq!(expected_2, result_2);
-    // assert!(expected_2.iter().all(|item| result_2.contains(item)));
 }
 
 #[tokio::test]

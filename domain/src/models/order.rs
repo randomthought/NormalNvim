@@ -93,23 +93,8 @@ impl Limit {
 }
 
 #[derive(Debug, Clone, PartialEq, Eq)]
-pub struct OneCancelsOther {
-    pub limit_orders: Vec<Limit>,
-}
-
-impl OneCancelsOther {
-    pub fn new(limit_orders: Vec<Limit>) -> Result<Self, String> {
-        if limit_orders.is_empty() {
-            return Err("cannot provide an empty list of limit orders".into());
-        }
-
-        Ok(Self { limit_orders })
-    }
-}
-
-#[derive(Debug, Clone, PartialEq, Eq)]
 pub struct StopLimitMarket {
-    pub one_cancels_other: OneCancelsOther,
+    pub one_cancels_others: OneCancelsOthers,
     pub market: Market,
 }
 
@@ -117,21 +102,21 @@ impl StopLimitMarket {
     pub fn new(
         security: Security,
         quantity: u64,
-        side: Side,
-        stop: Price,
-        limit: Price,
+        limit_side: Side,
+        stop_price: Price,
+        limit_price: Price,
         strategy_id: StrategyId,
     ) -> Result<Self, String> {
-        if let Side::Long = side {
-            if stop > limit {
+        if let Side::Long = limit_side {
+            if stop_price > limit_price {
                 return Err(
                     "on a long tade, your stop price cannot be greater than your limit".into(),
                 );
             }
         }
 
-        if let Side::Short = side {
-            if stop < limit {
+        if let Side::Short = limit_side {
+            if stop_price < limit_price {
                 return Err(
                     "on a short tade, your stop price cannot be less than your limit".into(),
                 );
@@ -139,38 +124,143 @@ impl StopLimitMarket {
         }
 
         let times_in_force = TimesInForce::GTC;
-        let market = Market::new(quantity, side, security.to_owned(), strategy_id);
-        let profit_limit = Limit::new(
-            quantity,
-            limit,
-            side,
-            security.to_owned(),
-            times_in_force,
-            strategy_id,
-        );
-        let stop_side = match side {
+        let market = Market::new(quantity, limit_side, security.to_owned(), strategy_id);
+        let stop_side = match limit_side {
             Side::Long => Side::Short,
             Side::Short => Side::Long,
         };
-        let stop_limit = Limit::new(
-            quantity,
-            stop,
-            stop_side,
-            security,
-            times_in_force,
-            strategy_id,
-        );
 
-        let one_cancels_other = OneCancelsOther::new(vec![profit_limit, stop_limit])?;
+        let one_cancels_others = OneCancelsOthers::builder()
+            .with_quantity(quantity)
+            .with_security(security.to_owned())
+            .with_strategy_id(strategy_id)
+            .with_time_in_force(times_in_force)
+            .add_limit(stop_side, stop_price)
+            .add_limit(limit_side, limit_price)
+            .build()
+            .unwrap();
 
         Ok(Self {
             market,
-            one_cancels_other,
+            one_cancels_others,
         })
     }
 
     pub fn strategy_id(&self) -> StrategyId {
         self.market.startegy_id()
+    }
+
+    pub fn get_limit(&self) -> &Limit {
+        self.one_cancels_others.orders.last().unwrap()
+    }
+
+    pub fn get_stop(&self) -> &Limit {
+        self.one_cancels_others.orders.first().unwrap()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq)]
+pub struct OneCancelsOthers {
+    pub orders: Vec<Limit>,
+    security: Security,
+    quantity: Quantity,
+}
+
+impl OneCancelsOthers {
+    pub fn builder() -> OneCancelsOthersBuilder {
+        OneCancelsOthersBuilder::default()
+    }
+
+    pub fn get_quantity(&self) -> Quantity {
+        self.quantity
+    }
+
+    pub fn get_security(&self) -> &Security {
+        &self.security
+    }
+}
+
+#[derive(Default)]
+pub struct OneCancelsOthersBuilder {
+    strategy_id: Option<StrategyId>,
+    times_in_force: Option<TimesInForce>,
+    security: Option<Security>,
+    quantity: Option<u64>,
+    prices: Vec<(Side, Price)>,
+}
+
+impl OneCancelsOthersBuilder {
+    pub fn new() -> Self {
+        OneCancelsOthersBuilder {
+            strategy_id: None,
+            times_in_force: None,
+            security: None,
+            quantity: None,
+            prices: vec![],
+        }
+    }
+
+    pub fn with_time_in_force(mut self, times_in_force: TimesInForce) -> Self {
+        self.times_in_force = Some(times_in_force);
+        self
+    }
+    pub fn with_strategy_id(mut self, strategy_id: StrategyId) -> Self {
+        self.strategy_id = Some(strategy_id);
+        self
+    }
+    pub fn with_security(mut self, security: Security) -> Self {
+        self.security = Some(security);
+        self
+    }
+
+    pub fn with_quantity(mut self, quantity: u64) -> Self {
+        self.quantity = Some(quantity);
+        self
+    }
+
+    pub fn add_limit(mut self, side: Side, price: Price) -> Self {
+        self.prices.push((side, price));
+        self
+    }
+
+    pub fn build(self) -> Result<OneCancelsOthers, String> {
+        if self.prices.is_empty() {
+            return Err("prices cannot be empty".to_string());
+        }
+
+        let security = self.security.ok_or("security is required".to_string())?;
+        let quantity = self.quantity.ok_or("quantity is required".to_string())?;
+        if quantity == 0 {
+            return Err("quantity cannot be zero".to_string());
+        }
+
+        let strategy_id = self
+            .strategy_id
+            .ok_or("strategy_id is required".to_string())?;
+        let times_in_force = self
+            .times_in_force
+            .ok_or("times_in_force is required".to_string())?;
+
+        let orders: Vec<_> = self
+            .prices
+            .iter()
+            .map(|(s, p)| {
+                Limit::new(
+                    quantity,
+                    p.to_owned(),
+                    s.to_owned(),
+                    security.to_owned(),
+                    times_in_force,
+                    strategy_id,
+                )
+            })
+            .collect();
+
+        Ok(OneCancelsOthers {
+            security,
+            quantity,
+            orders,
+        })
     }
 }
 
@@ -180,8 +270,8 @@ pub type OrderId = String;
 pub enum NewOrder {
     Market(Market),
     Limit(Limit),
-    OCA(OneCancelsOther),
     StopLimitMarket(StopLimitMarket),
+    OCO(OneCancelsOthers),
 }
 
 impl NewOrder {
@@ -189,8 +279,8 @@ impl NewOrder {
         match self {
             NewOrder::Market(o) => o.startegy_id(),
             NewOrder::Limit(o) => o.strategy_id(),
-            NewOrder::OCA(o) => todo!(),
             NewOrder::StopLimitMarket(o) => o.strategy_id(),
+            NewOrder::OCO(_) => todo!(),
         }
     }
 

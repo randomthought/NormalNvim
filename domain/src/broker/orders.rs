@@ -82,19 +82,9 @@ impl Orders {
 
         let map_2 = self.chained.read().await;
 
-        let s = security.to_owned();
         let filterd = map_2
             .values()
-            .filter(|po| match po.order.to_owned() {
-                NewOrder::Market(o) => o.security == s,
-                NewOrder::Limit(o) => o.security == s,
-                NewOrder::OCA(o) => o.limit_orders.iter().any(|l| l.security == s),
-                NewOrder::StopLimitMarket(o) => o
-                    .one_cancels_other
-                    .limit_orders
-                    .iter()
-                    .any(|l| l.security == s),
-            })
+            .filter(|po| get_security(&po.order) == security)
             .map(|p| p.to_owned());
 
         results.extend(filterd);
@@ -173,6 +163,6 @@ fn get_security(order: &NewOrder) -> &Security {
         NewOrder::Market(o) => &o.security,
         NewOrder::Limit(o) => &o.security,
         NewOrder::StopLimitMarket(o) => &o.market.security,
-        NewOrder::OCA(o) => todo!(),
+        NewOrder::OCO(o) => o.get_security(),
     }
 }
