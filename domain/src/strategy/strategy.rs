@@ -16,6 +16,7 @@ use crate::{
         price::Price,
         security::Security,
     },
+    order::OrderManager,
 };
 use rust_decimal::{
     prelude::{FromPrimitive, Signed},
@@ -129,7 +130,7 @@ impl Strategy {
 }
 
 impl Strategy {
-    pub async fn on_event<'a>(
+    pub async fn feed_event<'a>(
         &self,
         algo_event: AlgoEvent<'a>,
     ) -> Result<Option<Signal>, SignalError> {

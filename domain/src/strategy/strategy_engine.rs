@@ -30,7 +30,7 @@ impl StrategyEngine {
         let futures = self.strategies.iter().map(|algo| async {
             let algo_event = AlgoEvent::Market(market);
             if let Some(signal) = algo
-                .on_event(algo_event)
+                .feed_event(algo_event)
                 .await
                 .map_err(|e| crate::error::Error::Any(e.into()))?
             {
@@ -60,7 +60,7 @@ impl EventHandler for StrategyEngine {
                 let futures = self.strategies.iter().map(|algo| async {
                     let algo_event = AlgoEvent::OrderResult(&or);
                     if let Some(signal) = algo
-                        .on_event(algo_event)
+                        .feed_event(algo_event)
                         .await
                         .map_err(|e| crate::error::Error::Any(e.into()))?
                     {

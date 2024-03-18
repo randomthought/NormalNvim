@@ -6,6 +6,7 @@ use std::{
     path::Path,
     sync::{atomic::AtomicBool, Arc},
 };
+use tokio_stream::wrappers::ReceiverStream;
 
 use crate::{
     algorithms::fake_algo::FakeAlgo,
@@ -26,7 +27,7 @@ use domain::{
     strategy::{algorithm::Algorithm, strategy::Strategy, strategy_engine::StrategyEngine},
 };
 use rust_decimal::{prelude::FromPrimitive, Decimal};
-use tokio::sync::Mutex;
+use tokio::sync::{mpsc, Mutex};
 
 pub async fn runApp() -> color_eyre::eyre::Result<()> {
     color_eyre::install()?;
@@ -38,14 +39,14 @@ pub async fn runApp() -> color_eyre::eyre::Result<()> {
     let back_tester_ = Arc::new(back_tester);
     let qoute_provider = back_tester_.clone();
     let parser = back_tester_.clone();
-
-    let event_channel = event::channel::Channel::new();
-    let event_channel_ = Arc::new(event_channel.clone());
+    let (sender, reciever) = mpsc::channel(2);
+    let channel_producer = event::channel::ChannelProducer::new(sender);
+    let event_producer = Arc::new(channel_producer);
 
     let broker = Broker::new(
         Decimal::from_u64(100_000).wrap_err("error parsing account balance")?,
         qoute_provider.clone(),
-        event_channel_.clone(),
+        event_producer.clone(),
     );
     let broker_ = Arc::new(broker);
     let risk_engine_config = RiskEngineConfig {
@@ -58,7 +59,7 @@ pub async fn runApp() -> color_eyre::eyre::Result<()> {
     let risk_egnine = RiskEngine::new(
         risk_engine_config,
         broker_.clone(),
-        event_channel_.clone(),
+        event_producer.clone(),
         qoute_provider.clone(),
         broker_.clone(),
         Box::new(portfolio),
@@ -68,18 +69,16 @@ pub async fn runApp() -> color_eyre::eyre::Result<()> {
         .with_algorithm(Box::new(FakeAlgo {}))
         .with_portfolio(broker_.clone())
         .with_qoute_provider(qoute_provider.clone())
+        .with_open_trades(4)
         .build()
         .unwrap();
 
     let strategies = vec![strategy];
-    let strategy_engine = StrategyEngine::new(strategies, event_channel_.clone());
+    let strategy_engine = StrategyEngine::new(strategies, event_producer.clone());
 
     let event_handlers: Vec<Box<dyn EventHandler + Sync + Send>> =
         vec![Box::new(strategy_engine), Box::new(risk_egnine)];
 
-    let exit_signal = Arc::new(AtomicBool::from(false));
-    let exit_signal_t1 = exit_signal.clone();
-    let exit_signal_t2 = exit_signal.clone();
     let t1 = async move {
         let subscription = "A.*";
 
@@ -89,29 +88,31 @@ pub async fn runApp() -> color_eyre::eyre::Result<()> {
         // )
         // ?;
 
+        println!("calling t1");
         let file = env::var("FILE")?;
         let path = Path::new(&file);
-        let data_stream = file_provider::create_stream(path)?;
+        let buff_size = 4096usize;
+        let data_stream = file_provider::create_stream(path, buff_size)?;
 
-        let mut event_stream = EventStream::new(
-            event_channel_.clone(),
-            data_stream,
-            parser.clone(),
-            exit_signal_t1,
-        );
+        let mut event_stream =
+            EventStream::new(event_producer.clone(), data_stream, parser.clone());
 
         event_stream.start().await
     };
 
     let t2 = async move {
-        let stream = Box::pin(event_channel.clone());
-        let mut event_runner = Runner::new(event_handlers, stream, exit_signal_t2);
+        println!("calling t2");
+        let rs = ReceiverStream::new(reciever);
+        let stream = Box::pin(rs);
+        let mut event_runner = Runner::new(event_handlers, stream);
         event_runner.run().await
     };
 
     // TODO: findout how to 'race' threads or stop all thereads on the first one to finish
-    tokio::spawn(t1).await?;
-    tokio::spawn(t2).await?;
+    // tokio::spawn(t1).await?;
+    // tokio::spawn(t2).await?;
+
+    tokio::join!(t1, t2);
 
     Ok(())
 }
