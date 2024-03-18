@@ -19,6 +19,7 @@ pub enum Signal {
     Entry(Entry),
     Modify(Modify),
     Cancel(Cancel),
+    // TODO: Liquidate also means cancel all current orders
     Liquidate(StrategyId),
 }
 

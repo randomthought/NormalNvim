@@ -164,6 +164,7 @@ pub struct OneCancelsOthers {
     pub orders: Vec<Limit>,
     security: Security,
     quantity: Quantity,
+    strategy_id: StrategyId,
 }
 
 impl OneCancelsOthers {
@@ -177,6 +178,10 @@ impl OneCancelsOthers {
 
     pub fn get_security(&self) -> &Security {
         &self.security
+    }
+
+    pub fn strategy_id(&self) -> StrategyId {
+        &self.strategy_id
     }
 }
 
@@ -257,6 +262,7 @@ impl OneCancelsOthersBuilder {
             .collect();
 
         Ok(OneCancelsOthers {
+            strategy_id,
             security,
             quantity,
             orders,
@@ -280,16 +286,26 @@ impl NewOrder {
             NewOrder::Market(o) => o.startegy_id(),
             NewOrder::Limit(o) => o.strategy_id(),
             NewOrder::StopLimitMarket(o) => o.strategy_id(),
-            NewOrder::OCO(_) => todo!(),
+            NewOrder::OCO(o) => o.strategy_id(),
         }
     }
 
     pub fn get_order_details(&self) -> &OrderDetails {
-        todo!()
+        match self {
+            NewOrder::Market(o) => &o.order_details,
+            NewOrder::Limit(o) => &o.order_details,
+            NewOrder::StopLimitMarket(o) => &o.market.order_details,
+            NewOrder::OCO(o) => todo!("I need to think more about this one"),
+        }
     }
 
     pub fn get_security(&self) -> &Security {
-        todo!()
+        match self {
+            NewOrder::Market(o) => &o.security,
+            NewOrder::Limit(o) => &o.security,
+            NewOrder::StopLimitMarket(o) => &o.market.security,
+            NewOrder::OCO(o) => &o.security,
+        }
     }
 }
 

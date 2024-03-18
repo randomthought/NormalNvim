@@ -7,20 +7,21 @@ use crate::models::{
     security::Security,
 };
 
-use super::security_transaction::SecurityTransaction;
+use super::{
+    pending::{Pending, PendingKey},
+    security_transaction::SecurityTransaction,
+};
 
 pub struct Orders {
     active: RwLock<HashMap<Security, SecurityTransaction>>,
-    pending: RwLock<HashMap<Security, HashMap<OrderId, PendingOrder>>>,
-    chained: RwLock<HashMap<OrderId, PendingOrder>>,
+    pending: RwLock<Pending>,
 }
 
 impl Orders {
     pub fn new() -> Self {
         Self {
-            pending: RwLock::new(HashMap::new()),
             active: RwLock::new(HashMap::new()),
-            chained: RwLock::new(HashMap::new()),
+            pending: RwLock::new(Pending::default()),
         }
     }
 
@@ -57,66 +58,19 @@ impl Orders {
     }
 
     pub async fn get_pending_orders(&self) -> Vec<PendingOrder> {
-        let pending_map = self.pending.read().await;
-        let mut results = vec![];
-        let pending = pending_map
-            .values()
-            .flat_map(|v| v.values())
-            .map(|p| p.to_owned());
-        results.extend(pending);
-
-        let chain_map = self.chained.read().await;
-        let chained = chain_map.values().map(|p| p.to_owned());
-        results.extend(chained);
-
-        results
+        let pending = self.pending.read().await;
+        pending.get(PendingKey::None)
     }
 
     pub async fn get_pending_order(&self, security: &Security) -> Vec<PendingOrder> {
-        let map_1 = self.pending.read().await;
-        let mut results = vec![];
-        if let Some(pds) = map_1.get(security) {
-            let r = pds.values().map(|p| p.to_owned());
-            results.extend(r)
-        };
-
-        let map_2 = self.chained.read().await;
-
-        let filterd = map_2
-            .values()
-            .filter(|po| get_security(&po.order) == security)
-            .map(|p| p.to_owned());
-
-        results.extend(filterd);
-
-        results
+        let pending = self.pending.read().await;
+        pending.get(PendingKey::SecurityKey(security.to_owned()))
     }
 
     pub async fn remove(&self, pending_order: &PendingOrder) -> Result<(), String> {
-        let NewOrder::Limit(_) = pending_order.order.to_owned() else {
-            let mut map = self.chained.write().await;
-            let Some(_) = map.remove(&pending_order.order_id) else {
-                return Err("order doesn't exist".into());
-            };
-
-            return Ok(());
-        };
-
-        let security = get_security(&pending_order.order);
-        let mut map = self.pending.write().await;
-        let Some(security_orders) = map.get_mut(security) else {
-            return Err("order doesn't exist".into());
-        };
-
-        let oder_id = &pending_order.order_id;
-        let Some(_) = security_orders.remove(oder_id) else {
-            return Err("order doesn't exist".into());
-        };
-
-        if security_orders.is_empty() {
-            map.remove(security);
-        }
-
+        let key = PendingKey::OrderIdKey(pending_order.order_id.to_owned());
+        let mut pending = self.pending.write().await;
+        pending.remove(key);
         Ok(())
     }
 
@@ -134,35 +88,13 @@ impl Orders {
     }
 
     async fn handle_pending(&self, pending_order: &PendingOrder) -> Result<(), String> {
-        let order_id = pending_order.order_id.to_owned();
-        if let NewOrder::Market(_) = pending_order.order {
+        if let NewOrder::Market(_) = pending_order.order.to_owned() {
             return Err("market orders should immidiatly be executed".into());
         }
 
-        let NewOrder::Limit(o) = pending_order.order.to_owned() else {
-            let mut map = self.chained.write().await;
-            map.insert(order_id, pending_order.to_owned());
-            return Ok(());
-        };
-
-        let mut map = self.pending.write().await;
-        if let Some(m) = map.get_mut(&o.security) {
-            m.insert(pending_order.order_id.to_owned(), pending_order.to_owned());
-            return Ok(());
-        }
-        let mut m = HashMap::new();
-        m.insert(pending_order.order_id.to_owned(), pending_order.to_owned());
-        map.insert(o.security.to_owned(), m);
+        let mut pending = self.pending.write().await;
+        pending.update(pending_order.to_owned());
 
         Ok(())
-    }
-}
-
-fn get_security(order: &NewOrder) -> &Security {
-    match order {
-        NewOrder::Market(o) => &o.security,
-        NewOrder::Limit(o) => &o.security,
-        NewOrder::StopLimitMarket(o) => &o.market.security,
-        NewOrder::OCO(o) => o.get_security(),
     }
 }

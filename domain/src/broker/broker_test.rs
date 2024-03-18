@@ -350,11 +350,12 @@ async fn insert_market_stop_limit_order() {
     assert_eq!(expected_1, results_1);
 
     let oco = OneCancelsOthers::builder()
+        .with_quantity(quantity)
         .with_strategy_id(strategy_id)
         .with_security(setup.security.to_owned())
         .with_time_in_force(order::TimesInForce::GTC)
-        .add_limit(side, limit_price)
         .add_limit(Side::Short, stop_price)
+        .add_limit(side, limit_price)
         .build()
         .unwrap();
 
