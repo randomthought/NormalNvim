@@ -1,7 +1,6 @@
-use crate::event::model::Signal;
 use async_trait::async_trait;
 
-use super::algo_event::AlgoEvent;
+use super::{algo_event::AlgoEvent, model::signal::Signal};
 
 pub type StrategyId = &'static str;
 

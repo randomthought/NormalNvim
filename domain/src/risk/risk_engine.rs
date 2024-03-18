@@ -5,11 +5,16 @@ use super::config::RiskEngineConfig;
 use super::error::RiskError;
 use crate::data::QouteProvider;
 use crate::event::event::{EventHandler, EventProducer};
-use crate::event::model::{Event, Signal};
-use crate::models::order::{self, Market, NewOrder, Order, OrderResult};
+use crate::event::model::Event;
+use crate::models::orders::common::Side;
+use crate::models::orders::market::Market;
+use crate::models::orders::new_order::NewOrder;
+use crate::models::orders::order_result::OrderResult;
+use crate::models::orders::pending_order::Order;
 use crate::order::OrderManager;
 use crate::portfolio::Portfolio;
 use crate::strategy::algorithm::StrategyId;
+use crate::strategy::model::signal::Signal;
 use crate::strategy::portfolio::StrategyPortfolio;
 use async_trait::async_trait;
 
@@ -139,8 +144,8 @@ impl RiskEngine {
             .iter()
             .map(|sp| {
                 let side = match sp.side {
-                    order::Side::Long => order::Side::Short,
-                    order::Side::Short => order::Side::Long,
+                    Side::Long => Side::Short,
+                    Side::Short => Side::Long,
                 };
                 let order =
                     Market::new(sp.get_quantity(), side, sp.security.to_owned(), strategy_id);

@@ -7,9 +7,15 @@ use crate::{
         model::Event,
     },
     models::{
-        order::{
-            self, FilledOrder, HoldingDetail, NewOrder, OneCancelsOthers, OrderMeta, OrderResult,
-            PendingOrder, SecurityPosition,
+        orders::{
+            common::{OrderDetails, Side},
+            filled_order::FilledOrder,
+            market::Market,
+            new_order::NewOrder,
+            one_cancels_others::OneCancelsOthers,
+            order_result::{OrderMeta, OrderResult},
+            pending_order::PendingOrder,
+            security_position::{HoldingDetail, SecurityPosition},
         },
         price::{Price, Quote},
         security::Security,
@@ -52,7 +58,7 @@ impl Broker {
 
     async fn create_trade(
         &self,
-        market_order: &order::Market,
+        market_order: &Market,
     ) -> Result<(Price, FilledOrder), crate::error::Error> {
         let quote = self
             .qoute_provider
@@ -60,8 +66,8 @@ impl Broker {
             .await?;
 
         let price = match market_order.order_details.side {
-            order::Side::Long => quote.bid,
-            order::Side::Short => quote.ask,
+            Side::Long => quote.bid,
+            Side::Short => quote.ask,
         };
         let Some(active) = self.orders.get_position(&market_order.security).await else {
             let cost = Decimal::from_u64(market_order.order_details.quantity).unwrap() * -price;
@@ -155,8 +161,8 @@ fn _calucluate_profit(large: &Transation, small: &Transation) -> (Decimal, Optio
 
     let sq = Decimal::from_u64(small.order_details.quantity).unwrap();
     let profit = match small.order_details.side {
-        order::Side::Long => sq * (large.price - small.price),
-        order::Side::Short => sq * (small.price - large.price),
+        Side::Long => sq * (large.price - small.price),
+        Side::Short => sq * (small.price - large.price),
     };
 
     if q_remaining == 0 {
@@ -164,7 +170,7 @@ fn _calucluate_profit(large: &Transation, small: &Transation) -> (Decimal, Optio
     }
 
     let t = Transation {
-        order_details: order::OrderDetails {
+        order_details: OrderDetails {
             quantity: q_remaining,
             ..large.order_details
         },
@@ -192,14 +198,14 @@ fn calculate_profit(
             };
 
             match (current.order_details.side, n.order_details.side) {
-                (order::Side::Long, order::Side::Short) => {
+                (Side::Long, Side::Short) => {
                     if n.order_details.quantity > current.order_details.quantity {
                         _calucluate_profit(n, &current)
                     } else {
                         _calucluate_profit(&current, n)
                     }
                 }
-                (order::Side::Short, order::Side::Long) => {
+                (Side::Short, Side::Long) => {
                     if n.order_details.quantity > current.order_details.quantity {
                         _calucluate_profit(n, &current)
                     } else {
@@ -213,7 +219,7 @@ fn calculate_profit(
                     let price = ((c_quantity * current.price) + (n_quantity * n.price))
                         / Decimal::from_u64(quantity).unwrap();
                     let t = Transation {
-                        order_details: order::OrderDetails {
+                        order_details: OrderDetails {
                             quantity,
                             ..n.order_details
                         },
@@ -321,12 +327,12 @@ impl OrderManager for Broker {
         }
 
         let NewOrder::Market(market_order) = order else {
-            let po = order::PendingOrder {
+            let po = PendingOrder {
                 order_id: Uuid::new_v4().to_string(),
                 order: order.clone(),
             };
 
-            let or = order::OrderResult::PendingOrder(po.clone());
+            let or = OrderResult::PendingOrder(po.clone());
 
             self.orders
                 .insert(&or)
@@ -346,7 +352,7 @@ impl OrderManager for Broker {
             ));
         }
 
-        let order_result = order::OrderResult::FilledOrder(filled_order.clone());
+        let order_result = OrderResult::FilledOrder(filled_order.clone());
         self.orders
             .insert(&order_result)
             .await
@@ -363,7 +369,7 @@ impl OrderManager for Broker {
         &self,
         pending_order: &PendingOrder,
     ) -> Result<OrderResult, crate::error::Error> {
-        let or = order::OrderResult::PendingOrder(pending_order.to_owned());
+        let or = OrderResult::PendingOrder(pending_order.to_owned());
         self.orders
             .insert(&or)
             .await
@@ -409,15 +415,15 @@ impl EventHandler for Broker {
             match p.order {
                 NewOrder::Limit(o) => {
                     let met = match o.order_details.side {
-                        order::Side::Long => o.price >= candle.close,
-                        order::Side::Short => o.price <= candle.close,
+                        Side::Long => o.price >= candle.close,
+                        Side::Short => o.price <= candle.close,
                     };
                     if !met {
                         continue;
                     }
 
                     // TODO: with this implementation, you would not get the exact limit price
-                    let m = order::Market::new(
+                    let m = Market::new(
                         o.order_details.quantity,
                         o.order_details.side,
                         o.security.to_owned(),
@@ -438,13 +444,13 @@ impl EventHandler for Broker {
 fn create_filled_order(
     quantity: u64,
     security: &Security,
-    side: order::Side,
+    side: Side,
     quote: &Quote,
     strategy_id: StrategyId,
 ) -> Result<FilledOrder, crate::error::Error> {
     let price = match side {
-        order::Side::Long => quote.ask,
-        order::Side::Short => quote.bid,
+        Side::Long => quote.ask,
+        Side::Short => quote.bid,
     };
 
     let order_id = Uuid::new_v4().to_string();

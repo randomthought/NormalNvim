@@ -1,4 +1,4 @@
-use crate::{event::model::Market, models::order::OrderResult};
+use crate::{event::model::Market, models::orders::order_result::OrderResult};
 
 pub enum AlgoEvent<'a> {
     Market(&'a Market),

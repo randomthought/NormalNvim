@@ -1,5 +1,9 @@
 use crate::models::{
-    order::{FilledOrder, HoldingDetail, OrderDetails, OrderId, SecurityPosition, Side},
+    orders::{
+        common::{OrderDetails, OrderId, Side},
+        filled_order::FilledOrder,
+        security_position::{HoldingDetail, SecurityPosition},
+    },
     price::Price,
     security::Security,
 };

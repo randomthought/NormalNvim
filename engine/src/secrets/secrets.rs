@@ -17,7 +17,7 @@ impl SecretsReader for EnvSecrets {
     async fn get_secret(secret_name: &str) -> Result<SecretString, SecretError> {
         let secret = std::env::var(secret_name).map_err(|e| match e {
             std::env::VarError::NotPresent => SecretError::SecretNotFound(secret_name.to_owned()),
-            std::env::VarError::NotUnicode(e) => {
+            std::env::VarError::NotUnicode(_) => {
                 SecretError::OtherError("string is not unicode".into())
             }
         })?;

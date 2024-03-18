@@ -1,8 +1,10 @@
-use crate::models::order::SecurityPosition;
-
-use super::models::order::{NewOrder, OrderResult, PendingOrder};
 use async_trait::async_trait;
 use rust_decimal::Decimal;
+
+use crate::models::orders::{
+    new_order::NewOrder, order_result::OrderResult, pending_order::PendingOrder,
+    security_position::SecurityPosition,
+};
 
 #[async_trait]
 pub trait Account {

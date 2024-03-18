@@ -1,11 +1,14 @@
 use super::{
-    algo_event::AlgoEvent, algorithm::Algorithm, error::SignalError, portfolio::StrategyPortfolio,
+    algo_event::AlgoEvent,
+    algorithm::Algorithm,
+    error::SignalError,
+    model::signal::{Entry, Signal},
+    portfolio::StrategyPortfolio,
 };
 use crate::{
     data::QouteProvider,
-    event::model::{self, Signal},
     models::{
-        order::{NewOrder, Side},
+        orders::{common::Side, new_order::NewOrder},
         price::Price,
         security::Security,
     },
@@ -193,14 +196,14 @@ impl Strategy {
             .map_err(|e| SignalError::Any(e.into()))?;
 
         let price = match side {
-            crate::models::order::Side::Long => quote.ask,
-            crate::models::order::Side::Short => quote.bid,
+            Side::Long => quote.ask,
+            Side::Short => quote.bid,
         };
 
         Ok(price)
     }
 
-    async fn get_trade_cost(&self, entry: &model::Entry) -> Result<Decimal, SignalError> {
+    async fn get_trade_cost(&self, entry: &Entry) -> Result<Decimal, SignalError> {
         let order_detailts = entry.order.get_order_details();
         let q = Decimal::from_u64(order_detailts.quantity).unwrap();
 
@@ -217,9 +220,9 @@ impl Strategy {
         Ok(trade_cost)
     }
 
-    async fn calaulate_trade_risk(&self, entry: &model::Entry) -> Result<Decimal, SignalError> {
+    async fn calaulate_trade_risk(&self, entry: &Entry) -> Result<Decimal, SignalError> {
         match entry.order.to_owned() {
-            crate::models::order::NewOrder::StopLimitMarket(slm) => {
+            NewOrder::StopLimitMarket(slm) => {
                 let order_detailts = slm.market.order_details.to_owned();
                 let q = Decimal::from_u64(order_detailts.quantity).unwrap();
                 let price = self

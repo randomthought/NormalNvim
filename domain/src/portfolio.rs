@@ -1,6 +1,6 @@
 use crate::{
     data::QouteProvider,
-    models::order::{SecurityPosition, Side},
+    models::orders::{common::Side, security_position::SecurityPosition},
     order::{Account, OrderReader},
 };
 use futures_util::future;

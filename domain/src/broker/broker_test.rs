@@ -18,15 +18,24 @@ use crate::{
     data::QouteProvider,
     event::{event::EventProducer, model::Event},
     models::{
-        order::{
-            self, FilledOrder, HoldingDetail, Market, NewOrder, OneCancelsOthers, OrderResult,
-            PendingOrder, SecurityPosition, Side, StopLimitMarket,
+        orders::{
+            common::{Side, TimesInForce},
+            market::Market,
+            new_order::NewOrder,
+            one_cancels_others::OneCancelsOthers,
+            order_result::OrderResult,
+            pending_order::PendingOrder,
+            security_position::{HoldingDetail, SecurityPosition},
+            stop_limit_market::StopLimitMarket,
         },
         price::{self, Price, Quote},
         security::{AssetType, Exchange, Security},
     },
-    order::{Account, OrderManager, OrderReader},
     strategy::{algorithm::StrategyId, portfolio::StrategyPortfolio},
+};
+use crate::{
+    models::orders::limit::Limit,
+    order::{Account, OrderManager, OrderReader},
 };
 
 const strategy_id: StrategyId = "fake_algo";
@@ -291,12 +300,12 @@ async fn get_pending_orders() {
     let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
     let quantity = 10;
     let side = Side::Long;
-    let pending_order = NewOrder::Limit(order::Limit::new(
+    let pending_order = NewOrder::Limit(Limit::new(
         quantity,
         setup.price,
         side,
         setup.security.to_owned(),
-        order::TimesInForce::GTC,
+        TimesInForce::GTC,
         strategy_id,
     ));
     broker.place_order(&pending_order).await.unwrap();
@@ -353,7 +362,7 @@ async fn insert_market_stop_limit_order() {
         .with_quantity(quantity)
         .with_strategy_id(strategy_id)
         .with_security(setup.security.to_owned())
-        .with_time_in_force(order::TimesInForce::GTC)
+        .with_time_in_force(TimesInForce::GTC)
         .add_limit(Side::Short, stop_price)
         .add_limit(side, limit_price)
         .build()
@@ -454,12 +463,12 @@ async fn cancel_pending_order() {
     let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
     let quantity = 10;
     let side = Side::Long;
-    let limit_order = NewOrder::Limit(order::Limit::new(
+    let limit_order = NewOrder::Limit(Limit::new(
         quantity,
         setup.price,
         side,
         setup.security.to_owned(),
-        order::TimesInForce::GTC,
+        TimesInForce::GTC,
         strategy_id,
     ));
 
@@ -490,12 +499,12 @@ async fn update_pending_order() {
     let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
     let quantity = 10;
     let side = Side::Long;
-    let limit_order = NewOrder::Limit(order::Limit::new(
+    let limit_order = NewOrder::Limit(Limit::new(
         quantity,
         setup.price,
         side,
         setup.security.to_owned(),
-        order::TimesInForce::GTC,
+        TimesInForce::GTC,
         strategy_id,
     ));
 
@@ -506,12 +515,12 @@ async fn update_pending_order() {
 
     let pending_order = PendingOrder {
         order_id: p.order_id.to_owned(),
-        order: NewOrder::Limit(order::Limit::new(
+        order: NewOrder::Limit(Limit::new(
             20,
             setup.price,
             side,
             setup.security.to_owned(),
-            order::TimesInForce::GTC,
+            TimesInForce::GTC,
             strategy_id,
         )),
     };

@@ -3,14 +3,12 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use domain::{
-    event::{
-        self,
-        model::{Market, Signal},
-    },
-    models::order::{self},
+    event::{self, model},
+    models::orders::{common::Side, market::Market, new_order::NewOrder},
     strategy::{
         algo_event::AlgoEvent,
         algorithm::{Algorithm, StrategyId},
+        model::signal::{Entry, Signal},
     },
 };
 use rand::{rngs::StdRng, Rng, SeedableRng};
@@ -31,7 +29,7 @@ impl Algorithm for FakeAlgo {
             return Ok(None);
         };
 
-        let AlgoEvent::Market(Market::DataEvent(price_history)) = algo_event else {
+        let AlgoEvent::Market(event::model::Market::DataEvent(price_history)) = algo_event else {
             return Ok(None);
         };
         // println!("fake_algo saw event");
@@ -43,14 +41,14 @@ impl Algorithm for FakeAlgo {
         if rm <= 0.01 {
             // println!("fake_algo sending signal");
             let security = price_history.security.to_owned();
-            let market = order::Market::new(1, order::Side::Long, security, self.strategy_id());
-            let order = order::NewOrder::Market(market);
+            let market = Market::new(1, Side::Long, security, self.strategy_id());
+            let order = NewOrder::Market(market);
             let datetime = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
                 .map_err(|e| domain::error::Error::Any(e.into()))?;
 
             // let signal = Signal::new(
-            let signal = Signal::Entry(event::model::Entry::new(order, datetime, 0.99));
+            let signal = Signal::Entry(Entry::new(order, datetime, 0.99));
             return Ok(Some(signal));
         }
 

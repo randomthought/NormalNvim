@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 
 use crate::models::{
-    order::{OrderId, PendingOrder},
+    orders::{common::OrderId, pending_order::PendingOrder},
     security::Security,
 };
 

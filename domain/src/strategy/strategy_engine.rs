@@ -2,7 +2,7 @@ use crate::event::event::EventHandler;
 use crate::event::event::EventProducer;
 use crate::event::model::Event;
 use crate::event::model::Market;
-use crate::models::order::Order;
+use crate::models::orders::pending_order::Order;
 use async_trait::async_trait;
 use futures_util::future;
 use std::collections::HashMap;

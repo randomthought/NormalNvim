@@ -1,4 +1,4 @@
-use crate::event::model::Signal;
+use super::model::signal::Signal;
 
 #[derive(thiserror::Error, Debug)]
 pub enum SignalError {
