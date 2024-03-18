@@ -1,3 +1,5 @@
+use std::sync::Arc;
+
 use super::{
     algorithm::Algorithm,
     error::SignalError,
@@ -10,7 +12,7 @@ use super::{
 use crate::{
     data::QouteProvider,
     models::{
-        orders::{common::Side, new_order::NewOrder},
+        orders::{common::Side, new_order::NewOrder, order_result::OrderResult},
         price::Price,
         security::Security,
     },
@@ -22,8 +24,8 @@ use rust_decimal::{
 
 pub struct Strategy {
     algorithm: Box<dyn Algorithm + Send + Sync>,
-    portfolio: Box<dyn StrategyPortfolio + Send + Sync>,
-    qoute_provider: Box<dyn QouteProvider + Send + Sync>,
+    portfolio: Arc<dyn StrategyPortfolio + Send + Sync>,
+    qoute_provider: Arc<dyn QouteProvider + Send + Sync>,
     starting_balance: Price,
     max_open_trades: Option<u32>,
     max_portfolio_loss: Option<f64>,
@@ -34,8 +36,8 @@ pub struct Strategy {
 #[derive(Default)]
 pub struct StrategyBuilder {
     algorithm: Option<Box<dyn Algorithm + Send + Sync>>,
-    portfolio: Option<Box<dyn StrategyPortfolio + Send + Sync>>,
-    qoute_provider: Option<Box<dyn QouteProvider + Send + Sync>>,
+    portfolio: Option<Arc<dyn StrategyPortfolio + Send + Sync>>,
+    qoute_provider: Option<Arc<dyn QouteProvider + Send + Sync>>,
     starting_balance: Decimal,
     max_portfolio_risk: Option<f64>,
     max_portfolio_loss: Option<f64>,
@@ -62,14 +64,14 @@ impl StrategyBuilder {
         self
     }
 
-    pub fn with_portfolio(mut self, portfolio: Box<dyn StrategyPortfolio + Send + Sync>) -> Self {
+    pub fn with_portfolio(mut self, portfolio: Arc<dyn StrategyPortfolio + Send + Sync>) -> Self {
         self.portfolio = Some(portfolio);
         self
     }
 
     pub fn with_qoute_provider(
         mut self,
-        qoute_provider: Box<dyn QouteProvider + Send + Sync>,
+        qoute_provider: Arc<dyn QouteProvider + Send + Sync>,
     ) -> Self {
         self.qoute_provider = Some(qoute_provider);
         self
@@ -131,6 +133,12 @@ impl Strategy {
         &self,
         algo_event: AlgoEvent<'a>,
     ) -> Result<Option<Signal>, SignalError> {
+        if let AlgoEvent::OrderResult(or) = algo_event {
+            if or.startegy_id() != self.algorithm.strategy_id() {
+                return Ok(None);
+            }
+        }
+
         let Some(signal) = self
             .algorithm
             .on_event(algo_event)

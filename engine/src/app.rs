@@ -23,7 +23,7 @@ use domain::{
     portfolio::Portfolio,
     risk::{config::RiskEngineConfig, risk_engine::RiskEngine},
     runner::Runner,
-    strategy::{algorithm::Algorithm, strategy_engine::StrategyEngine},
+    strategy::{algorithm::Algorithm, strategy::Strategy, strategy_engine::StrategyEngine},
 };
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use tokio::sync::Mutex;
@@ -64,8 +64,15 @@ pub async fn runApp() -> color_eyre::eyre::Result<()> {
         Box::new(portfolio),
     );
 
-    let algorithms: Vec<Box<dyn Algorithm + Send + Sync>> = vec![Box::new(FakeAlgo {})];
-    let strategy_engine = StrategyEngine::new(algorithms, event_channel_.clone());
+    let strategy = Strategy::builder()
+        .with_algorithm(Box::new(FakeAlgo {}))
+        .with_portfolio(broker_.clone())
+        .with_qoute_provider(qoute_provider.clone())
+        .build()
+        .unwrap();
+
+    let strategies = vec![strategy];
+    let strategy_engine = StrategyEngine::new(strategies, event_channel_.clone());
 
     let event_handlers: Vec<Box<dyn EventHandler + Sync + Send>> =
         vec![Box::new(strategy_engine), Box::new(risk_egnine)];
