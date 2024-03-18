@@ -8,9 +8,9 @@ use futures_util::future;
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use super::algo_event::AlgoEvent;
 use super::algorithm::Algorithm;
 use super::algorithm::StrategyId;
+use super::model::algo_event::AlgoEvent;
 
 pub struct StrategyEngine {
     event_producer: Arc<dyn EventProducer + Send + Sync>,

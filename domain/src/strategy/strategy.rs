@@ -1,8 +1,10 @@
 use super::{
-    algo_event::AlgoEvent,
     algorithm::Algorithm,
     error::SignalError,
-    model::signal::{Entry, Signal},
+    model::{
+        algo_event::AlgoEvent,
+        signal::{Entry, Signal},
+    },
     portfolio::StrategyPortfolio,
 };
 use crate::{

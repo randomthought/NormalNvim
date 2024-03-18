@@ -6,9 +6,11 @@ use domain::{
     event::{self, model},
     models::orders::{common::Side, market::Market, new_order::NewOrder},
     strategy::{
-        algo_event::AlgoEvent,
         algorithm::{Algorithm, StrategyId},
-        model::signal::{Entry, Signal},
+        model::{
+            algo_event::AlgoEvent,
+            signal::{Entry, Signal},
+        },
     },
 };
 use rand::{rngs::StdRng, Rng, SeedableRng};
