@@ -1,4 +1,4 @@
-use crate::models::order::SecurityPosition;
+use crate::models::order::{PendingOrder, SecurityPosition};
 use async_trait::async_trait;
 use rust_decimal::Decimal;
 
@@ -11,4 +11,8 @@ pub trait StrategyPortfolio {
         &self,
         strategy_id: StrategyId,
     ) -> Result<Vec<SecurityPosition>, crate::error::Error>;
+    async fn get_pending(
+        &self,
+        strategy_id: StrategyId,
+    ) -> Result<Vec<PendingOrder>, crate::error::Error>;
 }

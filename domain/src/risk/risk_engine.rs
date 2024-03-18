@@ -2,6 +2,7 @@ use futures_util::future;
 use std::sync::Arc;
 
 use super::config::RiskEngineConfig;
+use super::error::RiskError;
 use crate::data::QouteProvider;
 use crate::event::event::{EventHandler, EventProducer};
 use crate::event::model::{Event, Signal};
@@ -56,57 +57,76 @@ impl RiskEngine {
         }
     }
 
-    pub async fn process_signal(
-        &self,
-        signal: &Signal,
-    ) -> Result<SignalResult, crate::error::Error> {
+    pub async fn process_signal(&self, signal: &Signal) -> Result<(), RiskError> {
         // TODO: check the accumulation of orders
         if let TradingState::Halted = self.trading_state {
-            return Ok(SignalResult::Rejected(
-                "trading state is in 'halted'".to_owned(),
-            ));
+            return Err(RiskError::TradingHalted);
         }
 
         let order_results = match signal {
             Signal::Modify(s) => {
-                let order_result = self.order_manager.update(&s.pending_order).await?;
+                let order_result = self
+                    .order_manager
+                    .update(&s.pending_order)
+                    .await
+                    .map_err(|e| RiskError::OtherError(e.into()))?;
                 Some(vec![order_result])
             }
             Signal::Cancel(s) => {
-                let order_result = self.order_manager.cancel(&s.pending_order).await?;
+                let order_result = self
+                    .order_manager
+                    .cancel(&s.pending_order)
+                    .await
+                    .map_err(|e| RiskError::OtherError(e.into()))?;
                 Some(vec![order_result])
             }
             Signal::Liquidate(_) => {
-                let order_results = self.liquidate(signal.strategy_id()).await?;
+                let order_results = self
+                    .liquidate(signal.strategy_id())
+                    .await
+                    .map_err(|e| RiskError::OtherError(e.into()))?;
                 Some(order_results)
             }
             Signal::Entry(_) => None,
         };
 
         if let Some(order_results) = order_results {
-            self.report_events(&order_results).await?;
-            return Ok(SignalResult::PlacedOrder(order_results));
+            self.report_events(&order_results)
+                .await
+                .map_err(|e| RiskError::OtherError(e.into()))?;
+
+            return Ok(());
         }
 
         let config = &self.risk_engine_config;
 
         if let Some(max) = config.max_open_trades {
-            let open_trades = self.get_open_trades().await?;
+            let open_trades = self
+                .get_open_trades()
+                .await
+                .map_err(|e| RiskError::OtherError(e.into()))?;
+
             if open_trades >= max {
-                return Ok(SignalResult::Rejected(format!(
-                    "exceeded max number of opened_trades='{open_trades}'"
-                )));
+                return Err(RiskError::ExceededMaxOpenPortfolioTrades);
             }
         }
 
         let Signal::Entry(s) = signal else {
-            return Ok(SignalResult::Rejected(format!("Unsupported Signal type")));
+            return Err(RiskError::UnsupportedSignalType);
         };
 
-        let order_result = self.order_manager.place_order(&s.order).await?;
+        let order_result = self
+            .order_manager
+            .place_order(&s.order)
+            .await
+            .map_err(|e| RiskError::OtherError(e.into()))?;
+
         let order_results = vec![order_result];
-        self.report_events(&order_results).await?;
-        return Ok(SignalResult::PlacedOrder(order_results));
+        self.report_events(&order_results)
+            .await
+            .map_err(|e| RiskError::OtherError(e.into()))?;
+
+        Ok(())
     }
 
     async fn liquidate(
@@ -130,7 +150,14 @@ impl RiskEngine {
 
         let f1 = orders.iter().map(|o| self.order_manager.place_order(&o));
 
-        let order_results = future::try_join_all(f1).await?;
+        let pending_orders = self.strategy_portrfolio.get_pending(strategy_id).await?;
+
+        let f2 = pending_orders
+            .iter()
+            .map(|p| self.order_manager.cancel(p))
+            .chain(f1);
+
+        let order_results = future::try_join_all(f2).await?;
 
         Ok(order_results)
     }
@@ -160,7 +187,9 @@ impl RiskEngine {
 impl EventHandler for RiskEngine {
     async fn handle(&self, event: &Event) -> Result<(), crate::error::Error> {
         if let Event::Signal(s) = event {
-            let signal_results = self.process_signal(s).await?;
+            self.process_signal(s)
+                .await
+                .map_err(|e| crate::error::Error::Any(e.into()))?;
         }
 
         Ok(())

@@ -3,5 +3,5 @@ pub enum SecretError {
     #[error("{0}")]
     SecretNotFound(String),
     #[error(transparent)]
-    OtherError(#[from] eyre::Error),
+    OtherError(#[from] Box<dyn std::error::Error + Send + Sync>),
 }

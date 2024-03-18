@@ -282,6 +282,21 @@ impl StrategyPortfolio for Broker {
 
         Ok(algo_positions)
     }
+
+    async fn get_pending(
+        &self,
+        strategy_id: StrategyId,
+    ) -> Result<Vec<PendingOrder>, crate::error::Error> {
+        let pending = self.orders.get_pending_orders().await;
+
+        let algo_pending: Vec<_> = pending
+            .iter()
+            .filter(|p| p.startegy_id() == strategy_id)
+            .map(|p| p.to_owned())
+            .collect();
+
+        Ok(algo_pending)
+    }
 }
 
 #[async_trait]
