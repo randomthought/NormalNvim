@@ -220,7 +220,7 @@ impl Strategy {
     async fn calaulate_trade_risk(&self, entry: &model::Entry) -> Result<Decimal, SignalError> {
         match entry.order.to_owned() {
             crate::models::order::NewOrder::StopLimitMarket(slm) => {
-                let order_detailts = entry.order.get_order_details();
+                let order_detailts = slm.market.order_details.to_owned();
                 let q = Decimal::from_u64(order_detailts.quantity).unwrap();
                 let price = self
                     .get_market_price(entry.order.get_security(), order_detailts.side)
