@@ -130,11 +130,8 @@ impl Strategy {
 }
 
 impl Strategy {
-    pub async fn feed_event<'a>(
-        &self,
-        algo_event: AlgoEvent<'a>,
-    ) -> Result<Option<Signal>, SignalError> {
-        if let AlgoEvent::OrderResult(or) = algo_event {
+    pub async fn feed_event(&self, algo_event: AlgoEvent) -> Result<Option<Signal>, SignalError> {
+        if let AlgoEvent::OrderResult(or) = algo_event.clone() {
             if or.startegy_id() != self.algorithm.strategy_id() {
                 return Ok(None);
             }

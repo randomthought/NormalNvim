@@ -1,5 +1,6 @@
 use std::time::{SystemTime, UNIX_EPOCH};
 
+use actix::Actor;
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use domain::{
@@ -22,9 +23,9 @@ impl Algorithm for FakeAlgo {
     fn strategy_id(&self) -> StrategyId {
         "fake_algo".into()
     }
-    async fn on_event<'a>(
+    async fn on_event(
         &self,
-        algo_event: AlgoEvent<'a>,
+        algo_event: AlgoEvent,
     ) -> Result<Option<Signal>, domain::error::Error> {
         if let AlgoEvent::OrderResult(order_result) = algo_event {
             println!("fake_algo: my order was filled: {:?}", order_result);

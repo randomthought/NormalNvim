@@ -24,6 +24,7 @@ pub enum SignalResult {
     PlacedOrder(Vec<OrderResult>),
 }
 
+#[derive(Clone)]
 enum TradingState {
     Active, // trading is enabled
     // TODO: add an update order type this might be good for only accepting modified orders and not trading
@@ -31,6 +32,7 @@ enum TradingState {
     Halted,   // all trading commands except cancels are denied
 }
 
+#[derive(Clone)]
 pub struct RiskEngine {
     pub risk_engine_config: RiskEngineConfig,
     // TODO: state has to be mutable.
@@ -62,7 +64,7 @@ impl RiskEngine {
         }
     }
 
-    pub async fn process_signal(&self, signal: &Signal) -> Result<(), RiskError> {
+    pub async fn process_signal(&self, signal: &Signal) -> Result<Vec<OrderResult>, RiskError> {
         // TODO: check the accumulation of orders
         if let TradingState::Halted = self.trading_state {
             return Err(RiskError::TradingHalted);
@@ -100,7 +102,7 @@ impl RiskEngine {
                 .await
                 .map_err(|e| RiskError::OtherError(e.into()))?;
 
-            return Ok(());
+            return Ok(order_results);
         }
 
         let config = &self.risk_engine_config;
@@ -131,7 +133,7 @@ impl RiskEngine {
             .await
             .map_err(|e| RiskError::OtherError(e.into()))?;
 
-        Ok(())
+        Ok(order_results)
     }
 
     async fn liquidate(

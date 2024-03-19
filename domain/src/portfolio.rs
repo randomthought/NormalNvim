@@ -22,6 +22,7 @@ impl Position {
     }
 }
 
+#[derive(Clone)]
 pub struct Portfolio {
     account: Arc<dyn Account + Sync + Send>,
     order_reader: Arc<dyn OrderReader + Sync + Send>,

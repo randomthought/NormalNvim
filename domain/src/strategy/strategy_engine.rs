@@ -28,7 +28,7 @@ impl StrategyEngine {
 
     pub async fn process(&self, market: &Market) -> Result<(), crate::error::Error> {
         let futures = self.strategies.iter().map(|algo| async {
-            let algo_event = AlgoEvent::Market(market);
+            let algo_event = AlgoEvent::Market(market.clone());
             if let Some(signal) = algo
                 .feed_event(algo_event)
                 .await
@@ -58,7 +58,7 @@ impl EventHandler for StrategyEngine {
                 };
 
                 let futures = self.strategies.iter().map(|algo| async {
-                    let algo_event = AlgoEvent::OrderResult(&or);
+                    let algo_event = AlgoEvent::OrderResult(or.clone());
                     if let Some(signal) = algo
                         .feed_event(algo_event)
                         .await

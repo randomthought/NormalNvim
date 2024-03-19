@@ -19,11 +19,11 @@ impl ChannelProducer {
 #[async_trait]
 impl EventProducer for ChannelProducer {
     async fn produce(&self, event: Event) -> Result<(), crate::error::Error> {
-        let sender = self.sender.clone();
-        sender
-            .send(event.clone())
-            .await
-            .map_err(|e| crate::error::Error::Any(e.into()))?;
+        // let sender = self.sender.clone();
+        // sender
+        //     .send(event.clone())
+        //     .await
+        //     .map_err(|e| crate::error::Error::Any(e.into()))?;
 
         Ok(())
     }

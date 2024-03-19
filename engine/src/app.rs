@@ -9,7 +9,7 @@ use std::{
 use tokio_stream::wrappers::ReceiverStream;
 
 use crate::{
-    algorithms::fake_algo::FakeAlgo,
+    algorithms::fake_algo::algo::FakeAlgo,
     event_providers::{
         back_test::BackTester,
         file_provider,
