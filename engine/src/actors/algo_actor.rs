@@ -6,7 +6,7 @@ use domain::strategy::{
     model::{algo_event::AlgoEvent, signal::Signal},
 };
 
-use super::models::{AlgoEventMessage, SignalMessage};
+use super::models::{AddSignalSubscribers, AlgoEventMessage, SignalMessage};
 
 #[derive(Clone)]
 pub struct AlgoActor {
@@ -51,5 +51,13 @@ impl Handler<AlgoEventMessage> for AlgoActor {
         }
         .into_actor(self)
         .wait(ctx);
+    }
+}
+
+impl Handler<AddSignalSubscribers> for AlgoActor {
+    type Result = ();
+
+    fn handle(&mut self, msg: AddSignalSubscribers, ctx: &mut Self::Context) -> Self::Result {
+        self.subscribers.push(msg.0);
     }
 }

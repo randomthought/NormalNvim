@@ -3,7 +3,9 @@ use std::{pin::Pin, sync::Arc, time::Duration};
 use crate::event_providers::provider::Parser;
 
 use super::{
-    algo_actor::AlgoActor, event_bus::EventBus, models::AlgoEventMessage,
+    algo_actor::AlgoActor,
+    event_bus::EventBus,
+    models::{AddSignalSubscribers, AlgoEventMessage},
     risk_engine_actor::RiskEngineActor,
 };
 use actix::Actor;
@@ -41,7 +43,13 @@ impl ActorRunner {
             subscribers: algos_addresses.clone(),
         };
 
-        let _ = risk_engine.start();
+        let risk_engine_address = risk_engine.start();
+
+        for ad in algos_addresses.iter() {
+            let recipient = risk_engine_address.clone().recipient();
+            let cmd = AddSignalSubscribers(recipient);
+            ad.send(cmd).await?;
+        }
 
         let event_subsribers: Vec<_> = algos_addresses
             .iter()
