@@ -1,22 +1,27 @@
+use futures_util::future;
 use std::sync::Arc;
 
 use super::config::RiskEngineConfig;
+use super::error::RiskError;
 use crate::data::QouteProvider;
-use crate::event::event::EventHandler;
-use crate::event::model::{Event, Signal};
-use crate::models::order::{self, Order};
-use crate::models::price::Quote;
+use crate::event::event::{EventHandler, EventProducer};
+use crate::event::model::Event;
+use crate::models::orders::common::Side;
+use crate::models::orders::market::Market;
+use crate::models::orders::new_order::NewOrder;
+use crate::models::orders::order_result::OrderResult;
+use crate::models::orders::pending_order::Order;
 use crate::order::OrderManager;
 use crate::portfolio::Portfolio;
-use anyhow::{Context, Ok, Result};
+use crate::strategy::algorithm::StrategyId;
+use crate::strategy::model::signal::Signal;
+use crate::strategy::portfolio::StrategyPortfolio;
 use async_trait::async_trait;
-use rust_decimal::prelude::FromPrimitive;
-use rust_decimal::Decimal;
 
 #[derive(Debug)]
 pub enum SignalResult {
     Rejected(String), // TODO: maybe make Rejected(String) so you can add a reason for rejection
-    PlacedOrder(Order),
+    PlacedOrder(Vec<OrderResult>),
 }
 
 enum TradingState {
@@ -27,22 +32,28 @@ enum TradingState {
 }
 
 pub struct RiskEngine {
-    risk_engine_config: RiskEngineConfig,
+    pub risk_engine_config: RiskEngineConfig,
     // TODO: state has to be mutable.
     trading_state: TradingState,
-    qoute_provider: Arc<dyn QouteProvider + Send + Sync>,
-    order_manager: Arc<dyn OrderManager + Send + Sync>,
-    portfolio: Box<Portfolio>,
+    pub qoute_provider: Arc<dyn QouteProvider + Send + Sync>,
+    strategy_portrfolio: Arc<dyn StrategyPortfolio + Send + Sync>,
+    event_producer: Arc<dyn EventProducer + Send + Sync>,
+    pub order_manager: Arc<dyn OrderManager + Send + Sync>,
+    pub portfolio: Box<Portfolio>,
 }
 
 impl RiskEngine {
     pub fn new(
         risk_engine_config: RiskEngineConfig,
+        strategy_portrfolio: Arc<dyn StrategyPortfolio + Send + Sync>,
+        event_producer: Arc<dyn EventProducer + Send + Sync>,
         qoute_provider: Arc<dyn QouteProvider + Send + Sync>,
         order_manager: Arc<dyn OrderManager + Send + Sync>,
         portfolio: Box<Portfolio>,
     ) -> Self {
         Self {
+            event_producer,
+            strategy_portrfolio,
             risk_engine_config,
             trading_state: TradingState::Active,
             order_manager,
@@ -51,96 +62,139 @@ impl RiskEngine {
         }
     }
 
-    pub async fn process_signal(&self, signal: &Signal) -> Result<SignalResult> {
+    pub async fn process_signal(&self, signal: &Signal) -> Result<(), RiskError> {
         // TODO: check the accumulation of orders
         if let TradingState::Halted = self.trading_state {
-            return Ok(SignalResult::Rejected(
-                "trading state is in 'halted'".to_owned(),
-            ));
+            return Err(RiskError::TradingHalted);
+        }
+
+        let order_results = match signal {
+            Signal::Modify(s) => {
+                let order_result = self
+                    .order_manager
+                    .update(&s.pending_order)
+                    .await
+                    .map_err(|e| RiskError::OtherError(e.into()))?;
+                Some(vec![order_result])
+            }
+            Signal::Cancel(s) => {
+                let order_result = self
+                    .order_manager
+                    .cancel(&s.pending_order)
+                    .await
+                    .map_err(|e| RiskError::OtherError(e.into()))?;
+                Some(vec![order_result])
+            }
+            Signal::Liquidate(_) => {
+                let order_results = self
+                    .liquidate(signal.strategy_id())
+                    .await
+                    .map_err(|e| RiskError::OtherError(e.into()))?;
+                Some(order_results)
+            }
+            Signal::Entry(_) => None,
+        };
+
+        if let Some(order_results) = order_results {
+            self.report_events(&order_results)
+                .await
+                .map_err(|e| RiskError::OtherError(e.into()))?;
+
+            return Ok(());
         }
 
         let config = &self.risk_engine_config;
 
         if let Some(max) = config.max_open_trades {
-            let open_trades = self.get_open_trades().await?;
+            let open_trades = self
+                .get_open_trades()
+                .await
+                .map_err(|e| RiskError::OtherError(e.into()))?;
+
             if open_trades >= max {
-                return Ok(SignalResult::Rejected(format!(
-                    "exceeded max number of opened_trades='{open_trades}'"
-                )));
+                return Err(RiskError::ExceededMaxOpenPortfolioTrades);
             }
         }
 
-        let (security, quantity, side) = match signal.order.clone() {
-            Order::Market(o) => (o.security, o.order_details.quantity, o.order_details.side),
-            Order::Limit(o) => (o.security, o.order_details.quantity, o.order_details.side),
-            Order::StopLimitMarket(o) => (
-                o.market.security,
-                o.market.order_details.quantity,
-                o.market.order_details.side,
-            ),
-            Order::OCA(_) => todo!(),
+        let Signal::Entry(s) = signal else {
+            return Err(RiskError::UnsupportedSignalType);
         };
 
-        let account_value = self.portfolio.account_value().await?;
-        let qoute = self.qoute_provider.get_quote(&security).await?;
+        let order_result = self
+            .order_manager
+            .place_order(&s.order)
+            .await
+            .map_err(|e| RiskError::OtherError(e.into()))?;
 
-        if !self.quantity_within_risks_params(quantity, side, &qoute, account_value)? {
-            return Ok(SignalResult::Rejected(
-                "unable to afford this trade according to portfolio risk params".to_owned(),
-            ));
-        }
+        let order_results = vec![order_result];
+        self.report_events(&order_results)
+            .await
+            .map_err(|e| RiskError::OtherError(e.into()))?;
 
-        let order = signal.order.clone();
-        self.order_manager.place_order(&order).await?;
-
-        Ok(SignalResult::PlacedOrder(order))
+        Ok(())
     }
 
-    async fn get_open_trades(&self) -> Result<u32> {
+    async fn liquidate(
+        &self,
+        strategy_id: StrategyId,
+    ) -> Result<Vec<OrderResult>, crate::error::Error> {
+        let positions = self.strategy_portrfolio.get_holdings(strategy_id).await?;
+
+        let orders: Vec<NewOrder> = positions
+            .iter()
+            .map(|sp| {
+                let side = match sp.side {
+                    Side::Long => Side::Short,
+                    Side::Short => Side::Long,
+                };
+                let order =
+                    Market::new(sp.get_quantity(), side, sp.security.to_owned(), strategy_id);
+                NewOrder::Market(order)
+            })
+            .collect();
+
+        let f1 = orders.iter().map(|o| self.order_manager.place_order(&o));
+
+        let pending_orders = self.strategy_portrfolio.get_pending(strategy_id).await?;
+
+        let f2 = pending_orders
+            .iter()
+            .map(|p| self.order_manager.cancel(p))
+            .chain(f1);
+
+        let order_results = future::try_join_all(f2).await?;
+
+        Ok(order_results)
+    }
+
+    async fn report_events(
+        &self,
+        order_results: &Vec<OrderResult>,
+    ) -> Result<(), crate::error::Error> {
+        let f2 = order_results.iter().map(|or| {
+            let event = Event::Order(Order::OrderResult(or.to_owned()));
+            self.event_producer.produce(event)
+        });
+
+        future::try_join_all(f2).await?;
+
+        Ok(())
+    }
+
+    async fn get_open_trades(&self) -> Result<u32, crate::error::Error> {
         let results = self.order_manager.get_positions().await?.len();
 
         Ok(results as u32)
-    }
-
-    fn quantity_within_risks_params(
-        &self,
-        quantity: u64,
-        side: order::Side,
-        qoute: &Quote,
-        account_value: Decimal,
-    ) -> Result<bool> {
-        // TODO: unit test needed for this.
-
-        // TODO: think about making risk engine values all decimals?
-        let max_trade_portfolio_accumulaton = Decimal::from_f64(
-            self.risk_engine_config.max_trade_portfolio_accumulaton,
-        )
-        .context(format!(
-            "unable to convert '{}' to a decimal",
-            self.risk_engine_config.max_trade_portfolio_accumulaton
-        ))?;
-
-        let max_spend_on_trade = account_value * max_trade_portfolio_accumulaton;
-
-        let obtain_price = match side {
-            order::Side::Long => qoute.ask,
-            order::Side::Short => qoute.bid,
-        };
-
-        let spend_total = obtain_price
-            * Decimal::from_u64(quantity)
-                .context(format!("unable to convert '{}' to a decimal", quantity))?;
-
-        Ok(spend_total <= max_spend_on_trade)
     }
 }
 
 #[async_trait]
 impl EventHandler for RiskEngine {
-    async fn handle(&self, event: &Event) -> Result<()> {
+    async fn handle(&self, event: &Event) -> Result<(), crate::error::Error> {
         if let Event::Signal(s) = event {
-            let signal_results = self.process_signal(s).await?;
-            println!("signal result: {:?}", signal_results);
+            self.process_signal(s)
+                .await
+                .map_err(|e| crate::error::Error::Any(e.into()))?;
         }
 
         Ok(())

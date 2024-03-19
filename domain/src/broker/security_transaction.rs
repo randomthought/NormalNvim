@@ -1,29 +1,30 @@
-use std::time::Duration;
-
-use anyhow::{bail, Result};
-
 use crate::models::{
-    order::{FilledOrder, HoldingDetail, OrderDetails, OrderId, SecurityPosition, Side},
+    orders::{
+        common::{OrderDetails, OrderId, Side},
+        filled_order::FilledOrder,
+        security_position::{HoldingDetail, SecurityPosition},
+    },
     price::Price,
     security::Security,
 };
+use std::time::Duration;
 
 // TODO: make struct private
 #[derive(Debug, Clone)]
 pub struct Transation {
-    order_id: OrderId,
-    price: Price,
-    order_details: OrderDetails,
-    date_time: Duration,
+    pub order_id: OrderId,
+    pub price: Price,
+    pub order_details: OrderDetails,
+    pub date_time: Duration,
 }
 
 #[derive(Debug, Clone)]
-pub struct ActiveOrder {
+pub struct SecurityTransaction {
     pub security: Security,
     pub order_history: Vec<Transation>,
 }
 
-impl ActiveOrder {
+impl SecurityTransaction {
     pub fn new(security: Security) -> Self {
         Self {
             security,
@@ -50,9 +51,9 @@ impl ActiveOrder {
         Some(security_position)
     }
 
-    pub fn insert(&mut self, filled_order: &FilledOrder) -> Result<()> {
+    pub fn insert(&mut self, filled_order: &FilledOrder) -> Result<(), String> {
         if filled_order.security != self.security {
-            bail!("security must match");
+            return Err("security must match".into());
         }
 
         let transation = Transation {
@@ -90,6 +91,7 @@ fn add_to_position(security_position: &mut SecurityPosition, transaction: &Trans
 
     if current_quantity > transaction.order_details.quantity {
         let hd = HoldingDetail {
+            strategy_id: transaction.order_details.strategy_id,
             quantity: current_quantity - transaction.order_details.quantity,
             price: hd.price.to_owned(),
         };
@@ -102,6 +104,7 @@ fn add_to_position(security_position: &mut SecurityPosition, transaction: &Trans
         date_time: transaction.date_time,
         price: transaction.price,
         order_details: OrderDetails {
+            strategy_id: transaction.order_details.strategy_id,
             quantity: transaction.order_details.quantity - holding_detail.quantity,
             side: transaction.order_details.side,
         },
@@ -112,6 +115,7 @@ fn add_to_position(security_position: &mut SecurityPosition, transaction: &Trans
 
 fn to_holding_details(transation: &Transation) -> HoldingDetail {
     HoldingDetail {
+        strategy_id: transation.order_details.strategy_id,
         quantity: transation.order_details.quantity,
         price: transation.price,
     }

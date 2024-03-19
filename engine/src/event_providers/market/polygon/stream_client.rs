@@ -1,4 +1,4 @@
-use anyhow::{Context, Result};
+use color_eyre::eyre::{Context, Result};
 use futures_util::Stream;
 use std::{net::TcpStream, pin::Pin};
 use tungstenite::{connect, stream::MaybeTlsStream, Message, WebSocket};
@@ -28,7 +28,7 @@ impl Stream for PolygonStream {
                 return std::task::Poll::Ready(Some(Ok(s)));
             }
             Err(err) => {
-                let err = anyhow::Error::new(err);
+                let err = eyre::Error::new(err);
                 println!("Error: {:?}", err);
 
                 std::task::Poll::Ready(Some(Err(err)))

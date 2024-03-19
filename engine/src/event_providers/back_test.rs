@@ -1,10 +1,8 @@
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use anyhow::Context;
-use anyhow::Ok;
-use anyhow::Result;
 use async_trait::async_trait;
+use color_eyre::eyre::Result;
 use domain::event::model::Event;
 use domain::event::model::Market;
 use domain::{
@@ -14,11 +12,13 @@ use domain::{
         security::Security,
     },
 };
+use eyre::ContextCompat;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 use tokio::sync::RwLock;
 
 use super::provider::Parser;
+use super::provider::ParserError;
 
 pub struct BackTester {
     spread: Decimal,
@@ -39,10 +39,10 @@ impl BackTester {
     }
 
     async fn add(&self, price_history: &PriceHistory) -> Result<()> {
-        let c = price_history
-            .history
-            .last()
-            .context("no price history in 'security={ph.security.ticker}")?;
+        let c = price_history.history.last().wrap_err(format!(
+            "no price history in 'security={}",
+            price_history.security.ticker
+        ))?;
 
         let spread_half = (c.close * self.spread) / Decimal::from(2);
         let bid = c.close - spread_half;
@@ -50,7 +50,9 @@ impl BackTester {
         let ticker = price_history.security.ticker.clone();
         let security = price_history.security.clone();
 
-        let q = Quote::new(security, bid, ask, 0, 0, c.end_time)?;
+        let q =
+            Quote::new(security, bid, ask, 0, 0, c.end_time).map_err(|e| eyre::Report::msg(e))?;
+
         let mut map = self.map.write().await;
         map.insert(ticker, q);
 
@@ -60,32 +62,31 @@ impl BackTester {
 
 #[async_trait]
 impl Parser for BackTester {
-    async fn parse(&self, data: &str) -> anyhow::Result<Vec<Event>> {
+    async fn parse(&self, data: &str) -> Result<Event, ParserError> {
         // TODO: iterator overloading mwould be better since this would be done on every price history twice
 
-        let events = self.parser.parse(data).await?;
-
-        let mut vec: Vec<Event> = Vec::new();
-        for e in events {
-            if let Event::Market(Market::DataEvent(ph)) = e.clone() {
-                self.add(&ph).await?;
-            }
-            vec.push(e);
+        let event = self.parser.parse(data).await?;
+        if let Event::Market(Market::DataEvent(ph)) = event.clone() {
+            self.add(&ph)
+                .await
+                .map_err(|e| ParserError::OtherError(e.into()))?;
         }
 
-        Ok(vec)
+        Ok(event)
     }
 }
 
 #[async_trait]
 impl QouteProvider for BackTester {
-    async fn get_quote(&self, security: &Security) -> Result<Quote> {
+    async fn get_quote(&self, security: &Security) -> Result<Quote, domain::error::Error> {
         let map = self.map.read().await;
-        let quote = map
-            .get(&security.ticker)
-            .context(format!("security='{}' not found in map", security.ticker))?
-            .clone();
+        let quote = map.get(&security.ticker).ok_or_else(|| {
+            domain::error::Error::Message(format!(
+                "security='{}' not found in map",
+                security.ticker
+            ))
+        })?;
 
-        Ok(quote)
+        Ok(quote.clone())
     }
 }
