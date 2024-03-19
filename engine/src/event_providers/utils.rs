@@ -36,10 +36,8 @@ impl EventStream {
     pub async fn start(&mut self) -> Result<()> {
         while let Some(dr) = self.data_stream.next().await {
             let raw_data = dr?;
-            let events = self.parser.parse(&raw_data).await?;
-            for e in events {
-                self.event_producer.produce(e).await?;
-            }
+            let event = self.parser.parse(&raw_data).await?;
+            self.event_producer.produce(event).await?;
         }
 
         Ok(())

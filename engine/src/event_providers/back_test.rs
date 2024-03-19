@@ -18,6 +18,7 @@ use rust_decimal::Decimal;
 use tokio::sync::RwLock;
 
 use super::provider::Parser;
+use super::provider::ParserError;
 
 pub struct BackTester {
     spread: Decimal,
@@ -61,20 +62,17 @@ impl BackTester {
 
 #[async_trait]
 impl Parser for BackTester {
-    async fn parse(&self, data: &str) -> Result<Vec<Event>> {
+    async fn parse(&self, data: &str) -> Result<Event, ParserError> {
         // TODO: iterator overloading mwould be better since this would be done on every price history twice
 
-        let events = self.parser.parse(data).await?;
-
-        let mut vec: Vec<Event> = Vec::new();
-        for e in events {
-            if let Event::Market(Market::DataEvent(ph)) = e.clone() {
-                self.add(&ph).await?;
-            }
-            vec.push(e);
+        let event = self.parser.parse(data).await?;
+        if let Event::Market(Market::DataEvent(ph)) = event.clone() {
+            self.add(&ph)
+                .await
+                .map_err(|e| ParserError::OtherError(e.into()))?;
         }
 
-        Ok(vec)
+        Ok(event)
     }
 }
 
