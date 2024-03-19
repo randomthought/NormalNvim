@@ -1,11 +1,7 @@
 use crate::{
     broker::security_transaction::Transation,
     data::QouteProvider,
-    event::{
-        self,
-        event::{EventHandler, EventProducer},
-        model::Event,
-    },
+    event::{self, model::Event},
     models::{
         orders::{
             common::{OrderDetails, Side},
@@ -33,7 +29,6 @@ use uuid::Uuid;
 use super::{orders::Orders, security_transaction::SecurityTransaction};
 
 pub struct Broker {
-    event_producer: Arc<dyn EventProducer + Sync + Send>,
     qoute_provider: Arc<dyn QouteProvider + Sync + Send>,
     account_balance: RwLock<Decimal>,
     orders: Orders,
@@ -44,11 +39,9 @@ impl Broker {
     pub fn new(
         account_balance: Decimal,
         qoute_provider: Arc<dyn QouteProvider + Sync + Send>,
-        event_producer: Arc<dyn EventProducer + Sync + Send>,
     ) -> Self {
         let commissions_per_share = Decimal::from_f64(0.0).unwrap();
         Self {
-            event_producer,
             account_balance: RwLock::new(account_balance),
             commissions_per_share,
             orders: Orders::new(),
@@ -397,49 +390,49 @@ impl OrderManager for Broker {
     }
 }
 
-#[async_trait]
-impl EventHandler for Broker {
-    async fn handle(&self, event: &Event) -> Result<(), crate::error::Error> {
-        let Event::Market(event::model::Market::DataEvent(d)) = event else {
-            return Ok(());
-        };
-
-        let Some(candle) = d.history.last() else {
-            return Ok(());
-        };
-
-        let security = &d.security;
-        let pending = self.orders.get_pending_order(security).await;
-
-        for p in pending {
-            match p.order {
-                NewOrder::Limit(o) => {
-                    let met = match o.order_details.side {
-                        Side::Long => o.price >= candle.close,
-                        Side::Short => o.price <= candle.close,
-                    };
-                    if !met {
-                        continue;
-                    }
-
-                    // TODO: with this implementation, you would not get the exact limit price
-                    let m = Market::new(
-                        o.order_details.quantity,
-                        o.order_details.side,
-                        o.security.to_owned(),
-                        o.strategy_id(),
-                    );
-                    let order = NewOrder::Market(m);
-                    self.place_order(&order).await?;
-                }
-                NewOrder::StopLimitMarket(o) => todo!(),
-                _ => continue,
-            };
-        }
-
-        todo!()
-    }
-}
+// #[async_trait]
+// impl EventHandler for Broker {
+//     async fn handle(&self, event: &Event) -> Result<(), crate::error::Error> {
+//         let Event::Market(event::model::Market::DataEvent(d)) = event else {
+//             return Ok(());
+//         };
+//
+//         let Some(candle) = d.history.last() else {
+//             return Ok(());
+//         };
+//
+//         let security = &d.security;
+//         let pending = self.orders.get_pending_order(security).await;
+//
+//         for p in pending {
+//             match p.order {
+//                 NewOrder::Limit(o) => {
+//                     let met = match o.order_details.side {
+//                         Side::Long => o.price >= candle.close,
+//                         Side::Short => o.price <= candle.close,
+//                     };
+//                     if !met {
+//                         continue;
+//                     }
+//
+//                     // TODO: with this implementation, you would not get the exact limit price
+//                     let m = Market::new(
+//                         o.order_details.quantity,
+//                         o.order_details.side,
+//                         o.security.to_owned(),
+//                         o.strategy_id(),
+//                     );
+//                     let order = NewOrder::Market(m);
+//                     self.place_order(&order).await?;
+//                 }
+//                 NewOrder::StopLimitMarket(o) => todo!(),
+//                 _ => continue,
+//             };
+//         }
+//
+//         todo!()
+//     }
+// }
 
 fn create_filled_order(
     quantity: u64,

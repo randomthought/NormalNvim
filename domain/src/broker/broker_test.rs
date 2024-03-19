@@ -16,7 +16,7 @@ use tokio::sync::RwLock;
 use crate::{
     broker::broker::Broker,
     data::QouteProvider,
-    event::{event::EventProducer, model::Event},
+    event::model::Event,
     models::{
         orders::{
             common::{Side, TimesInForce},
@@ -91,20 +91,13 @@ impl QouteProvider for Stub {
     }
 }
 
-#[async_trait]
-impl EventProducer for Stub {
-    async fn produce(&self, _: Event) -> Result<(), crate::error::Error> {
-        Ok(())
-    }
-}
-
 #[tokio::test]
 async fn get_account_balance() {
     let setup = Setup::new();
 
     let stub = Arc::new(Stub::new());
     let balance = Decimal::new(100_000, 0);
-    let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
+    let broker = Broker::new(balance, stub.to_owned());
 
     let results = broker.get_account_balance().await.unwrap();
 
@@ -117,7 +110,7 @@ async fn close_order() {
 
     let stub = Arc::new(Stub::new());
     let balance = Decimal::new(100_000, 0);
-    let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
+    let broker = Broker::new(balance, stub.to_owned());
 
     let quantity_1 = 10;
     let market_order_1 = NewOrder::Market(Market::new(
@@ -154,7 +147,7 @@ async fn flip_order() {
 
     let stub = Arc::new(Stub::new());
     let balance = Decimal::new(100_000, 0);
-    let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
+    let broker = Broker::new(balance, stub.to_owned());
 
     let quantity_1 = 10;
     let market_order_1 = NewOrder::Market(Market::new(
@@ -201,7 +194,7 @@ async fn get_balance_after_order() {
     let setup = Setup::new();
     let stub = Arc::new(Stub::new());
     let balance = Decimal::new(100_000, 0);
-    let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
+    let broker = Broker::new(balance, stub.to_owned());
     let quantity = 10;
     let side = Side::Long;
     let market = Market::new(quantity, side, setup.security.to_owned(), strategy_id);
@@ -220,7 +213,7 @@ async fn get_balance_after_profit() {
     let setup = Setup::new();
     let stub = Arc::new(Stub::new());
     let balance = Decimal::new(1000, 0);
-    let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
+    let broker = Broker::new(balance, stub.to_owned());
     let quantity = 1;
     let side = Side::Long;
     let market = Market::new(quantity, side, setup.security.to_owned(), strategy_id);
@@ -245,7 +238,7 @@ async fn get_balance_after_loss() {
     let setup = Setup::new();
     let stub = Arc::new(Stub::new());
     let balance = Decimal::new(1000, 0);
-    let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
+    let broker = Broker::new(balance, stub.to_owned());
     let quantity = 1;
     let side = Side::Long;
     let market = Market::new(quantity, side, setup.security.to_owned(), strategy_id);
@@ -270,7 +263,7 @@ async fn get_positions() {
     let setup = Setup::new();
     let stub = Arc::new(Stub::new());
     let balance = Decimal::new(100_000, 0);
-    let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
+    let broker = Broker::new(balance, stub.to_owned());
     let quantity = 10;
     let side = Side::Long;
     let market = Market::new(quantity, side, setup.security.to_owned(), strategy_id);
@@ -297,7 +290,7 @@ async fn get_pending_orders() {
     let setup = Setup::new();
     let stub = Arc::new(Stub::new());
     let balance = Decimal::new(100_000, 0);
-    let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
+    let broker = Broker::new(balance, stub.to_owned());
     let quantity = 10;
     let side = Side::Long;
     let pending_order = NewOrder::Limit(Limit::new(
@@ -324,7 +317,7 @@ async fn insert_market_stop_limit_order() {
 
     let stub = Arc::new(Stub::new());
     let balance = Decimal::new(100_000, 0);
-    let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
+    let broker = Broker::new(balance, stub.to_owned());
 
     let quantity = 10;
     let side = Side::Long;
@@ -384,7 +377,7 @@ async fn cancel_oco_order() {
 
     let stub = Arc::new(Stub::new());
     let balance = Decimal::new(100_000, 0);
-    let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
+    let broker = Broker::new(balance, stub.to_owned());
 
     let quantity = 10;
     let side = Side::Long;
@@ -422,7 +415,7 @@ async fn cancel_market_stop_limit_order() {
 
     let stub = Arc::new(Stub::new());
     let balance = Decimal::new(100_000, 0);
-    let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
+    let broker = Broker::new(balance, stub.to_owned());
 
     let quantity = 10;
     let side = Side::Long;
@@ -460,7 +453,7 @@ async fn cancel_pending_order() {
 
     let stub = Arc::new(Stub::new());
     let balance = Decimal::new(100_000, 0);
-    let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
+    let broker = Broker::new(balance, stub.to_owned());
     let quantity = 10;
     let side = Side::Long;
     let limit_order = NewOrder::Limit(Limit::new(
@@ -496,7 +489,7 @@ async fn update_pending_order() {
 
     let stub = Arc::new(Stub::new());
     let balance = Decimal::new(100_000, 0);
-    let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
+    let broker = Broker::new(balance, stub.to_owned());
     let quantity = 10;
     let side = Side::Long;
     let limit_order = NewOrder::Limit(Limit::new(
@@ -541,7 +534,7 @@ async fn close_existing_trade_on_low_balance() {
 
     let stub = Arc::new(Stub::new());
     let balance = Decimal::new(100_000, 0);
-    let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
+    let broker = Broker::new(balance, stub.to_owned());
 
     let quantity_1 = 100;
     let market_order_1 = NewOrder::Market(Market::new(
@@ -574,7 +567,7 @@ async fn get_algo_holdings() {
 
     let stub = Arc::new(Stub::new());
     let balance = Decimal::new(100_000, 0);
-    let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
+    let broker = Broker::new(balance, stub.to_owned());
 
     let quantity = 100;
     let market_order_1 = NewOrder::Market(Market::new(
@@ -610,7 +603,7 @@ async fn get_algo_profits() {
 
     let stub = Arc::new(Stub::new());
     let balance = Decimal::new(100_000, 0);
-    let broker = Broker::new(balance, stub.to_owned(), stub.to_owned());
+    let broker = Broker::new(balance, stub.to_owned());
 
     let quantity = 10;
     let market_order_1 = NewOrder::Market(Market::new(

@@ -15,17 +15,14 @@ use crate::{
         back_test::BackTester,
         file_provider,
         market::polygon::{api_client, parser::PolygonParser},
-        utils::EventStream,
     },
 };
 use domain::{
     broker::broker::Broker,
     data::QouteProvider,
-    event::{self, event::EventHandler},
     portfolio::Portfolio,
     risk::{config::RiskEngineConfig, risk_engine::RiskEngine},
-    runner::Runner,
-    strategy::{algorithm::Algorithm, strategy::Strategy, strategy_engine::StrategyEngine},
+    strategy::{algorithm::Algorithm, strategy::Strategy},
 };
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use tokio::sync::{mpsc, Mutex};
@@ -40,27 +37,22 @@ pub async fn runApp() -> color_eyre::eyre::Result<()> {
     let back_tester_ = Arc::new(back_tester);
     let qoute_provider = back_tester_.clone();
     let parser = back_tester_.clone();
-    let (sender, reciever) = mpsc::channel(2);
-    let channel_producer = event::channel::ChannelProducer::new(sender);
-    let event_producer = Arc::new(channel_producer);
 
     let broker = Broker::new(
         Decimal::from_u64(100_000).wrap_err("error parsing account balance")?,
         qoute_provider.clone(),
-        event_producer.clone(),
     );
     let broker_ = Arc::new(broker);
     let risk_engine_config = RiskEngineConfig {
         max_trade_portfolio_accumulaton: 0.10,
         max_portfolio_risk: 0.10,
-        max_open_trades: None,
+        max_open_trades: Some(2),
     };
 
     let portfolio = Portfolio::new(broker_.clone(), broker_.clone(), qoute_provider.clone());
     let risk_engine = RiskEngine::new(
         risk_engine_config,
         broker_.clone(),
-        event_producer.clone(),
         qoute_provider.clone(),
         broker_.clone(),
         Box::new(portfolio),

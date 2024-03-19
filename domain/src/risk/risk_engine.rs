@@ -4,7 +4,6 @@ use std::sync::Arc;
 use super::config::RiskEngineConfig;
 use super::error::RiskError;
 use crate::data::QouteProvider;
-use crate::event::event::{EventHandler, EventProducer};
 use crate::event::model::Event;
 use crate::models::orders::common::Side;
 use crate::models::orders::market::Market;
@@ -39,7 +38,6 @@ pub struct RiskEngine {
     trading_state: TradingState,
     pub qoute_provider: Arc<dyn QouteProvider + Send + Sync>,
     strategy_portrfolio: Arc<dyn StrategyPortfolio + Send + Sync>,
-    event_producer: Arc<dyn EventProducer + Send + Sync>,
     pub order_manager: Arc<dyn OrderManager + Send + Sync>,
     pub portfolio: Box<Portfolio>,
 }
@@ -48,13 +46,11 @@ impl RiskEngine {
     pub fn new(
         risk_engine_config: RiskEngineConfig,
         strategy_portrfolio: Arc<dyn StrategyPortfolio + Send + Sync>,
-        event_producer: Arc<dyn EventProducer + Send + Sync>,
         qoute_provider: Arc<dyn QouteProvider + Send + Sync>,
         order_manager: Arc<dyn OrderManager + Send + Sync>,
         portfolio: Box<Portfolio>,
     ) -> Self {
         Self {
-            event_producer,
             strategy_portrfolio,
             risk_engine_config,
             trading_state: TradingState::Active,
@@ -98,10 +94,6 @@ impl RiskEngine {
         };
 
         if let Some(order_results) = order_results {
-            self.report_events(&order_results)
-                .await
-                .map_err(|e| RiskError::OtherError(e.into()))?;
-
             return Ok(order_results);
         }
 
@@ -129,9 +121,6 @@ impl RiskEngine {
             .map_err(|e| RiskError::OtherError(e.into()))?;
 
         let order_results = vec![order_result];
-        self.report_events(&order_results)
-            .await
-            .map_err(|e| RiskError::OtherError(e.into()))?;
 
         Ok(order_results)
     }
@@ -169,36 +158,9 @@ impl RiskEngine {
         Ok(order_results)
     }
 
-    async fn report_events(
-        &self,
-        order_results: &Vec<OrderResult>,
-    ) -> Result<(), crate::error::Error> {
-        let f2 = order_results.iter().map(|or| {
-            let event = Event::Order(Order::OrderResult(or.to_owned()));
-            self.event_producer.produce(event)
-        });
-
-        future::try_join_all(f2).await?;
-
-        Ok(())
-    }
-
     async fn get_open_trades(&self) -> Result<u32, crate::error::Error> {
         let results = self.order_manager.get_positions().await?.len();
 
         Ok(results as u32)
-    }
-}
-
-#[async_trait]
-impl EventHandler for RiskEngine {
-    async fn handle(&self, event: &Event) -> Result<(), crate::error::Error> {
-        if let Event::Signal(s) = event {
-            self.process_signal(s)
-                .await
-                .map_err(|e| crate::error::Error::Any(e.into()))?;
-        }
-
-        Ok(())
     }
 }
