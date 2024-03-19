@@ -32,7 +32,8 @@ impl Algorithm for FakeAlgo {
             return Ok(None);
         };
 
-        let AlgoEvent::Market(event::model::Market::DataEvent(price_history)) = algo_event else {
+        let AlgoEvent::DataEvent(event::model::DataEvent::PriceEvent(price_history)) = algo_event
+        else {
             return Ok(None);
         };
         // println!("fake_algo saw event");
@@ -41,8 +42,8 @@ impl Algorithm for FakeAlgo {
         // let rm = rng.gen_range(0.0..1.0);
 
         let rm = rand::thread_rng().gen_range(0.0..1.0);
-        if rm <= 0.01 {
-            // println!("fake_algo sending signal");
+        if rm <= 0.02 {
+            println!("fake_algo sending signal");
             let security = price_history.security.to_owned();
             let market = Market::new(1, Side::Long, security, self.strategy_id());
             let order = NewOrder::Market(market);

@@ -1,5 +1,5 @@
 use actix::{dev::SendError, Actor, Context, Recipient};
-use domain::strategy::model::algo_event::AlgoEvent;
+use domain::{event::model::DataEvent, strategy::model::algo_event::AlgoEvent};
 
 use super::models::AlgoEventMessage;
 
@@ -10,9 +10,11 @@ pub struct EventBus {
 
 impl EventBus {
     /// Send event to all subscribers
-    pub fn notify(&self, event: AlgoEvent) -> Result<(), SendError<AlgoEventMessage>> {
+    pub fn notify(&self, event: DataEvent) -> Result<(), SendError<AlgoEventMessage>> {
         for subscriber in &self.subscribers {
-            subscriber.try_send(AlgoEventMessage(event.clone()))?;
+            let data_event = event.clone();
+            let algo_event = AlgoEvent::DataEvent(data_event);
+            subscriber.try_send(AlgoEventMessage(algo_event))?;
         }
 
         Ok(())

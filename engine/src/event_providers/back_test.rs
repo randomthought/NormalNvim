@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
+use domain::event::model::DataEvent;
 use domain::event::model::Event;
-use domain::event::model::Market;
 use domain::{
     data::QouteProvider,
     models::{
@@ -62,15 +62,14 @@ impl BackTester {
 
 #[async_trait]
 impl Parser for BackTester {
-    async fn parse(&self, data: &str) -> Result<Event, ParserError> {
+    async fn parse(&self, data: &str) -> Result<DataEvent, ParserError> {
         // TODO: iterator overloading mwould be better since this would be done on every price history twice
 
         let event = self.parser.parse(data).await?;
-        if let Event::Market(Market::DataEvent(ph)) = event.clone() {
-            self.add(&ph)
-                .await
-                .map_err(|e| ParserError::OtherError(e.into()))?;
-        }
+        let DataEvent::PriceEvent(ph) = event.clone();
+        self.add(&ph)
+            .await
+            .map_err(|e| ParserError::OtherError(e.into()))?;
 
         Ok(event)
     }

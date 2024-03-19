@@ -4,14 +4,14 @@ use crate::{
 };
 
 #[derive(Debug, Clone)]
-pub enum Market {
-    DataEvent(PriceHistory),
+pub enum DataEvent {
+    PriceEvent(PriceHistory),
 }
 
 #[derive(Debug, Clone)]
 // TODO: consuder making pointers to the actual enum data
 pub enum Event {
-    Market(Market),
+    Market(DataEvent),
     Signal(Signal),
     Order(Order),
 }

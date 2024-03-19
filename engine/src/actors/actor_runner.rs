@@ -62,12 +62,8 @@ impl ActorRunner {
 
         while let Some(dr) = self.data_stream.next().await {
             let raw_data = dr?;
-            let event = self.parser.parse(&raw_data).await?;
-            if let Event::Market(x) = event {
-                let algo_msg = AlgoEvent::Market(x);
-                sleep(Duration::from_millis(10)).await;
-                event_bus.notify(algo_msg)?;
-            }
+            let data_event = self.parser.parse(&raw_data).await?;
+            event_bus.notify(data_event)?;
         }
 
         Ok(())
