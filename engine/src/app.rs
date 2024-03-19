@@ -14,7 +14,7 @@ use crate::{
     event_providers::{
         back_test::BackTester,
         file_provider,
-        market::polygon::{api_client, parser::PolygonParser},
+        market::polygon::{self, api_client, parser::PolygonParser},
     },
 };
 use domain::{
@@ -70,11 +70,7 @@ pub async fn runApp() -> color_eyre::eyre::Result<()> {
 
     let subscription = "A.*";
 
-    // let data_stream = engine::event_providers::market::polygon::stream_client::create_stream(
-    //     &api_key,
-    //     &subscription,
-    // )
-    // ?;
+    // let data_stream = polygon::stream_client::create_stream(&api_key, &subscription)?;
 
     let file = env::var("FILE")?;
     let path = Path::new(&file);
