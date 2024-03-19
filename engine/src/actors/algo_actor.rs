@@ -14,18 +14,6 @@ pub struct AlgoActor {
     pub subscribers: Vec<Recipient<SignalMessage>>,
 }
 
-impl AlgoActor {
-    fn notify(&self, signal: Signal) {
-        for subscriber in &self.subscribers {
-            subscriber.do_send(SignalMessage(signal.clone()));
-        }
-    }
-
-    pub fn add_subscriber(&mut self, subscriber: Recipient<SignalMessage>) {
-        self.subscribers.push(subscriber)
-    }
-}
-
 impl Actor for AlgoActor {
     type Context = Context<Self>;
 }
