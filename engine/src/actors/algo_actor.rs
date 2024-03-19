@@ -15,10 +15,14 @@ pub struct AlgoActor {
 }
 
 impl AlgoActor {
-    fn notify(&mut self, signal: Signal) {
+    fn notify(&self, signal: Signal) {
         for subscriber in &self.subscribers {
             subscriber.do_send(SignalMessage(signal.clone()));
         }
+    }
+
+    pub fn add_subscriber(&mut self, subscriber: Recipient<SignalMessage>) {
+        self.subscribers.push(subscriber)
     }
 }
 
@@ -37,9 +41,13 @@ impl Handler<AlgoEventMessage> for AlgoActor {
 
         let algo_event = msg.0;
         let algorithm = self.algorithm.clone();
+        let subscribers = self.subscribers.clone();
         async move {
-            // TODO: think about how you would deal with errors and monitoring here. Imagine, you cannot close a position!
-            algorithm.on_event(algo_event).await;
+            if let Ok(Some(signal)) = algorithm.on_event(algo_event).await {
+                for subscriber in subscribers {
+                    let _ = subscriber.send(SignalMessage(signal.clone())).await;
+                }
+            }
         }
         .into_actor(self)
         .wait(ctx);

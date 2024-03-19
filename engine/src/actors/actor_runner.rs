@@ -1,4 +1,4 @@
-use std::{pin::Pin, sync::Arc};
+use std::{pin::Pin, sync::Arc, time::Duration};
 
 use crate::event_providers::provider::Parser;
 
@@ -15,19 +15,17 @@ use domain::{
 };
 use eyre::Ok;
 use futures_util::{Stream, StreamExt};
+use tokio::time::sleep;
 
 pub struct ActorRunner {
-    algorithms: Vec<Arc<dyn Algorithm>>,
-    risk_engine: RiskEngine,
-    // event_bus: EventBus,
-    parser: Box<dyn Parser + Sync + Send>,
+    pub algorithms: Vec<Arc<dyn Algorithm>>,
+    pub risk_engine: RiskEngine,
+    pub parser: Arc<dyn Parser + Sync + Send>,
+    pub data_stream: Pin<Box<dyn Stream<Item = Result<String>> + Sync + Send>>,
 }
 
 impl ActorRunner {
-    pub async fn run(
-        &self,
-        mut data_stream: Pin<Box<dyn Stream<Item = Result<String>> + Sync + Send>>,
-    ) -> Result<()> {
+    pub async fn run(&mut self) -> Result<()> {
         let algos_addresses: Vec<_> = self
             .algorithms
             .iter()
@@ -54,12 +52,13 @@ impl ActorRunner {
             subscribers: event_subsribers,
         };
 
-        while let Some(dr) = data_stream.next().await {
+        while let Some(dr) = self.data_stream.next().await {
             let raw_data = dr?;
             let event = self.parser.parse(&raw_data).await?;
             if let Event::Market(x) = event {
                 let algo_msg = AlgoEvent::Market(x);
-                event_bus.notify(algo_msg);
+                sleep(Duration::from_millis(10)).await;
+                event_bus.notify(algo_msg)?;
             }
         }
 

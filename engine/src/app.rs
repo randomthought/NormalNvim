@@ -9,6 +9,7 @@ use std::{
 use tokio_stream::wrappers::ReceiverStream;
 
 use crate::{
+    actors::actor_runner::ActorRunner,
     algorithms::fake_algo::algo::FakeAlgo,
     event_providers::{
         back_test::BackTester,
@@ -56,7 +57,7 @@ pub async fn runApp() -> color_eyre::eyre::Result<()> {
     };
 
     let portfolio = Portfolio::new(broker_.clone(), broker_.clone(), qoute_provider.clone());
-    let risk_egnine = RiskEngine::new(
+    let risk_engine = RiskEngine::new(
         risk_engine_config,
         broker_.clone(),
         event_producer.clone(),
@@ -74,45 +75,26 @@ pub async fn runApp() -> color_eyre::eyre::Result<()> {
         .unwrap();
 
     let strategies = vec![strategy];
-    let strategy_engine = StrategyEngine::new(strategies, event_producer.clone());
 
-    let event_handlers: Vec<Box<dyn EventHandler + Sync + Send>> =
-        vec![Box::new(strategy_engine), Box::new(risk_egnine)];
+    let subscription = "A.*";
 
-    let t1 = async move {
-        let subscription = "A.*";
+    // let data_stream = engine::event_providers::market::polygon::stream_client::create_stream(
+    //     &api_key,
+    //     &subscription,
+    // )
+    // ?;
 
-        // let data_stream = engine::event_providers::market::polygon::stream_client::create_stream(
-        //     &api_key,
-        //     &subscription,
-        // )
-        // ?;
-
-        println!("calling t1");
-        let file = env::var("FILE")?;
-        let path = Path::new(&file);
-        let buff_size = 4096usize;
-        let data_stream = file_provider::create_stream(path, buff_size)?;
-
-        let mut event_stream =
-            EventStream::new(event_producer.clone(), data_stream, parser.clone());
-
-        event_stream.start().await
+    let file = env::var("FILE")?;
+    let path = Path::new(&file);
+    let buff_size = 4096usize;
+    let data_stream = file_provider::create_stream(path, buff_size)?;
+    let mut actor_runner = ActorRunner {
+        risk_engine,
+        parser,
+        data_stream,
+        algorithms: vec![Arc::new(FakeAlgo {})],
     };
 
-    let t2 = async move {
-        println!("calling t2");
-        let rs = ReceiverStream::new(reciever);
-        let stream = Box::pin(rs);
-        let mut event_runner = Runner::new(event_handlers, stream);
-        event_runner.run().await
-    };
-
-    // TODO: findout how to 'race' threads or stop all thereads on the first one to finish
-    // tokio::spawn(t1).await?;
-    // tokio::spawn(t2).await?;
-
-    tokio::join!(t1, t2);
-
+    actor_runner.run().await?;
     Ok(())
 }

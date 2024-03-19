@@ -1,6 +1,6 @@
 use engine::app::{self, runApp};
 
-#[tokio::main]
+#[actix_rt::main]
 async fn main() {
     runApp().await.unwrap();
 }
