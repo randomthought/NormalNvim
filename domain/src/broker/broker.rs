@@ -260,22 +260,17 @@ impl StrategyPortfolio for Broker {
         let algo_positions: Vec<_> = open_positions
             .iter()
             .flat_map(|p| {
-                let holding_details: Vec<HoldingDetail> = p
-                    .holding_details
-                    .iter()
+                p.holding_details
+                    .to_owned()
+                    .into_iter()
                     .filter(|h| h.strategy_id == strategy_id)
-                    .map(|h| h.to_owned())
-                    .collect();
-
-                if holding_details.is_empty() {
-                    return None;
-                }
-
-                Some(SecurityPosition {
-                    holding_details,
-                    security: p.security.to_owned(),
-                    side: p.side,
-                })
+                    .fold(SecurityPosition::builder(), |mut spb, hd| {
+                        spb.add_holding_detail(hd).to_owned()
+                    })
+                    .with_security(p.security.to_owned())
+                    .with_side(p.side)
+                    .build()
+                    .ok()
             })
             .collect();
 
@@ -452,15 +447,16 @@ fn create_filled_order(
         .duration_since(UNIX_EPOCH)
         .map_err(|e| crate::error::Error::Any(e.into()))?;
 
-    let fo = FilledOrder::new(
-        security.to_owned(),
-        order_id,
-        price,
-        quantity,
-        side,
-        datetime,
-        strategy_id,
-    );
+    let fo = FilledOrder::builder()
+        .with_order_id(order_id)
+        .with_date_time(datetime)
+        .with_price(price)
+        .with_security(security.to_owned())
+        .with_quantity(quantity)
+        .with_side(side)
+        .with_strategy_id(strategy_id)
+        .build()
+        .map_err(|e| crate::error::Error::Any(e.into()))?;
 
     Ok(fo)
 }

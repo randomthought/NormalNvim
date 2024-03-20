@@ -251,6 +251,7 @@ async fn get_balance_after_profit() {
     stub.add_to_price(Decimal::new(1000, 0)).await;
     let market_order_close = NewOrder::Market(
         Market::builder()
+            .with_security(setup.security.to_owned())
             .with_side(Side::Short)
             .with_quantity(quantity)
             .with_strategy_id(strategy_id)
@@ -342,14 +343,9 @@ async fn get_pending_orders() {
     let side = Side::Long;
     let pending_order = NewOrder::Limit(
         Limit::builder()
-            .with_order_details(
-                OrderDetails::builder()
-                    .with_side(side)
-                    .with_strategy_id(strategy_id)
-                    .with_quantity(quantity)
-                    .build()
-                    .unwrap(),
-            )
+            .with_side(side)
+            .with_strategy_id(strategy_id)
+            .with_quantity(quantity)
             .with_security(setup.security.to_owned())
             .with_times_in_force(TimeInForce::GTC)
             .with_price(setup.price)
@@ -514,14 +510,9 @@ async fn cancel_pending_order() {
     let side = Side::Long;
     let limit_order = NewOrder::Limit(
         Limit::builder()
-            .with_order_details(
-                OrderDetails::builder()
-                    .with_side(side)
-                    .with_strategy_id(strategy_id)
-                    .with_quantity(quantity)
-                    .build()
-                    .unwrap(),
-            )
+            .with_side(side)
+            .with_strategy_id(strategy_id)
+            .with_quantity(quantity)
             .with_security(setup.security.to_owned())
             .with_times_in_force(TimeInForce::GTC)
             .with_price(setup.price)
@@ -558,14 +549,9 @@ async fn update_pending_order() {
     let side = Side::Long;
     let limit_order = NewOrder::Limit(
         Limit::builder()
-            .with_order_details(
-                OrderDetails::builder()
-                    .with_side(side)
-                    .with_strategy_id(strategy_id)
-                    .with_quantity(quantity)
-                    .build()
-                    .unwrap(),
-            )
+            .with_side(side)
+            .with_strategy_id(strategy_id)
+            .with_quantity(quantity)
             .with_security(setup.security.to_owned())
             .with_times_in_force(TimeInForce::GTC)
             .with_price(setup.price)
@@ -582,14 +568,9 @@ async fn update_pending_order() {
         order_id: p.order_id.to_owned(),
         order: NewOrder::Limit(
             Limit::builder()
-                .with_order_details(
-                    OrderDetails::builder()
-                        .with_side(side)
-                        .with_strategy_id(strategy_id)
-                        .with_quantity(20)
-                        .build()
-                        .unwrap(),
-                )
+                .with_side(side)
+                .with_strategy_id(strategy_id)
+                .with_quantity(20)
                 .with_security(setup.security.to_owned())
                 .with_times_in_force(TimeInForce::GTC)
                 .with_price(setup.price)

@@ -6,7 +6,7 @@ use crate::{
 };
 
 use super::{
-    common::{OrderDetails, Quantity, Side, TimeInForce},
+    common::{Quantity, Side, TimeInForce},
     limit::Limit,
 };
 
@@ -67,15 +67,10 @@ impl OneCancelsOthersSeed {
         let mut orders: Vec<Limit> = vec![];
 
         for (s, p) in self.prices.iter() {
-            let od = OrderDetails::builder()
+            let limit = Limit::builder()
                 .with_quantity(self.quantity)
                 .with_strategy_id(self.strategy_id)
                 .with_side(s.to_owned())
-                .build()
-                .map_err(|e| e.to_string())?;
-
-            let limit = Limit::builder()
-                .with_order_details(od)
                 .with_price(p.to_owned())
                 .with_times_in_force(self.time_in_force)
                 .with_security(self.security.to_owned())
