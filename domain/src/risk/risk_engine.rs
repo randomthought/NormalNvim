@@ -4,7 +4,7 @@ use std::sync::Arc;
 use super::config::RiskEngineConfig;
 use super::error::RiskError;
 use crate::data::QouteProvider;
-use crate::models::orders::common::Side;
+use crate::models::orders::common::{OrderDetails, Side};
 use crate::models::orders::market::Market;
 use crate::models::orders::new_order::NewOrder;
 use crate::models::orders::order_result::OrderResult;
@@ -135,8 +135,17 @@ impl RiskEngine {
                     Side::Long => Side::Short,
                     Side::Short => Side::Long,
                 };
-                let order =
-                    Market::new(sp.get_quantity(), side, sp.security.to_owned(), strategy_id);
+                let order = Market::builder()
+                    .with_order_details(
+                        OrderDetails::builder()
+                            .with_side(side)
+                            .with_quantity(sp.get_quantity())
+                            .with_strategy_id(strategy_id)
+                            .build()
+                            .unwrap(),
+                    )
+                    .build()
+                    .unwrap();
                 NewOrder::Market(order)
             })
             .collect();

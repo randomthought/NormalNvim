@@ -5,7 +5,11 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use domain::{
     event::{self, model},
-    models::orders::{common::Side, market::Market, new_order::NewOrder},
+    models::orders::{
+        common::{OrderDetails, Side},
+        market::Market,
+        new_order::NewOrder,
+    },
     strategy::{
         algorithm::{Algorithm, StrategyId},
         model::{
@@ -43,9 +47,25 @@ impl Algorithm for FakeAlgo {
 
         let rm = rand::thread_rng().gen_range(0.0..1.0);
         if rm <= 0.02 {
+            let rm2 = rand::thread_rng().gen_range(0.0..1.0);
+            if rm2 < 0.05 {
+                println!("fake_algo liquidate signal");
+                return Ok(Some(Signal::Liquidate(self.strategy_id())));
+            }
             println!("fake_algo sending signal");
             let security = price_history.security.to_owned();
-            let market = Market::new(1, Side::Long, security, self.strategy_id());
+            let market = Market::builder()
+                .with_security(security)
+                .with_order_details(
+                    OrderDetails::builder()
+                        .with_strategy_id(self.strategy_id())
+                        .with_quantity(1)
+                        .with_side(Side::Long)
+                        .build()
+                        .unwrap(),
+                )
+                .build()
+                .unwrap();
             let order = NewOrder::Market(market);
             let datetime = SystemTime::now()
                 .duration_since(UNIX_EPOCH)

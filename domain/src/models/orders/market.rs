@@ -1,29 +1,20 @@
+use derive_builder::Builder;
+
 use crate::{models::security::Security, strategy::algorithm::StrategyId};
 
 use super::common::{OrderDetails, Quantity, Side};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Builder, Debug, Clone, PartialEq, Eq)]
 pub struct Market {
+    #[builder(setter(prefix = "with"))]
     pub security: Security,
+    #[builder(setter(prefix = "with"))]
     pub order_details: OrderDetails,
 }
 
 impl Market {
-    // constructor
-    pub fn new(
-        quantity: Quantity,
-        side: Side,
-        security: Security,
-        strategy_id: StrategyId,
-    ) -> Self {
-        Self {
-            security,
-            order_details: OrderDetails {
-                quantity,
-                side,
-                strategy_id,
-            },
-        }
+    pub fn builder() -> MarketBuilder {
+        MarketBuilder::default()
     }
 
     pub fn startegy_id(&self) -> StrategyId {
