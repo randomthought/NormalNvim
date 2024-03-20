@@ -12,7 +12,7 @@ pub enum Side {
 
 // https://ibkrguides.com/tws/usersguidebook/ordertypes/time%20in%20force%20for%20orders.htm
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
-pub enum TimesInForce {
+pub enum TimeInForce {
     Day,
     GTC,
     OPG,

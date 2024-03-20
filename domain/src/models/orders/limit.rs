@@ -3,13 +3,13 @@ use crate::{
     strategy::algorithm::StrategyId,
 };
 
-use super::common::{OrderDetails, Side, TimesInForce};
+use super::common::{OrderDetails, Side, TimeInForce};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct Limit {
     pub price: Price,
     pub security: Security,
-    pub times_in_force: TimesInForce,
+    pub times_in_force: TimeInForce,
     pub order_details: OrderDetails,
 }
 
@@ -19,7 +19,7 @@ impl Limit {
         price: Price,
         side: Side,
         security: Security,
-        times_in_force: TimesInForce,
+        times_in_force: TimeInForce,
         strategy_id: StrategyId,
     ) -> Self {
         Self {

@@ -1,19 +1,18 @@
+use derive_builder::Builder;
+
 use crate::{
     models::{price::Price, security::Security},
     strategy::algorithm::StrategyId,
 };
 
 use super::{
-    common::{Quantity, Side, TimesInForce},
+    common::{Quantity, Side, TimeInForce},
     limit::Limit,
 };
 
 #[derive(Debug, Clone, PartialEq, Eq)]
 pub struct OneCancelsOthers {
     pub orders: Vec<Limit>,
-    security: Security,
-    quantity: Quantity,
-    strategy_id: StrategyId,
 }
 
 impl OneCancelsOthers {
@@ -21,100 +20,72 @@ impl OneCancelsOthers {
         OneCancelsOthersBuilder::default()
     }
 
-    pub fn get_quantity(&self) -> Quantity {
-        self.quantity
+    pub fn strategy_id(&self) -> StrategyId {
+        self.orders.first().unwrap().strategy_id()
     }
 
     pub fn get_security(&self) -> &Security {
-        &self.security
-    }
-
-    pub fn strategy_id(&self) -> StrategyId {
-        &self.strategy_id
+        &self.orders.first().unwrap().security
     }
 }
 
-#[derive(Default)]
-pub struct OneCancelsOthersBuilder {
-    strategy_id: Option<StrategyId>,
-    times_in_force: Option<TimesInForce>,
-    security: Option<Security>,
-    quantity: Option<u64>,
+#[derive(Builder)]
+#[builder(
+    name = "OneCancelsOthersBuilder",
+    build_fn(private, name = "build_seed",)
+)]
+#[builder(public)]
+struct OneCancelsOthersSeed {
+    #[builder(private)]
     prices: Vec<(Side, Price)>,
+    #[builder(setter(prefix = "with"))]
+    time_in_force: TimeInForce,
+    #[builder(setter(prefix = "with"))]
+    quantity: Quantity,
+    #[builder(setter(prefix = "with"))]
+    strategy_id: StrategyId,
+    #[builder(setter(prefix = "with"))]
+    security: Security,
 }
 
 impl OneCancelsOthersBuilder {
-    pub fn new() -> Self {
-        OneCancelsOthersBuilder {
-            strategy_id: None,
-            times_in_force: None,
-            security: None,
-            quantity: None,
-            prices: vec![],
-        }
-    }
+    pub fn add_limit(&mut self, side: Side, price: Price) -> &mut Self {
+        let item = (side, price);
+        let Some(prices) = self.prices.as_mut() else {
+            self.prices = Some(vec![item]);
+            return self;
+        };
 
-    pub fn with_time_in_force(mut self, times_in_force: TimesInForce) -> Self {
-        self.times_in_force = Some(times_in_force);
+        prices.push(item);
+
         self
     }
-    pub fn with_strategy_id(mut self, strategy_id: StrategyId) -> Self {
-        self.strategy_id = Some(strategy_id);
-        self
-    }
-    pub fn with_security(mut self, security: Security) -> Self {
-        self.security = Some(security);
-        self
-    }
+}
 
-    pub fn with_quantity(mut self, quantity: u64) -> Self {
-        self.quantity = Some(quantity);
-        self
-    }
-
-    pub fn add_limit(mut self, side: Side, price: Price) -> Self {
-        self.prices.push((side, price));
-        self
-    }
-
-    pub fn build(self) -> Result<OneCancelsOthers, String> {
-        if self.prices.is_empty() {
-            return Err("prices cannot be empty".to_string());
-        }
-
-        let security = self.security.ok_or("security is required".to_string())?;
-        let quantity = self.quantity.ok_or("quantity is required".to_string())?;
-        if quantity == 0 {
-            return Err("quantity cannot be zero".to_string());
-        }
-
-        let strategy_id = self
-            .strategy_id
-            .ok_or("strategy_id is required".to_string())?;
-        let times_in_force = self
-            .times_in_force
-            .ok_or("times_in_force is required".to_string())?;
-
+impl OneCancelsOthersSeed {
+    fn build(&self) -> OneCancelsOthers {
         let orders: Vec<_> = self
             .prices
             .iter()
             .map(|(s, p)| {
                 Limit::new(
-                    quantity,
+                    self.quantity,
                     p.to_owned(),
                     s.to_owned(),
-                    security.to_owned(),
-                    times_in_force,
-                    strategy_id,
+                    self.security.to_owned(),
+                    self.time_in_force,
+                    self.strategy_id,
                 )
             })
             .collect();
 
-        Ok(OneCancelsOthers {
-            strategy_id,
-            security,
-            quantity,
-            orders,
-        })
+        OneCancelsOthers { orders }
+    }
+}
+
+impl OneCancelsOthersBuilder {
+    pub fn build(&self) -> Result<OneCancelsOthers, String> {
+        let seed = self.build_seed().map_err(|e| e.to_string())?;
+        Ok(seed.build())
     }
 }

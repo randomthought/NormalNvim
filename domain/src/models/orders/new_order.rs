@@ -14,6 +14,7 @@ pub enum NewOrder {
 }
 
 impl NewOrder {
+    // TODO: do we really need this here?
     pub fn startegy_id(&self) -> StrategyId {
         match self {
             NewOrder::Market(o) => o.startegy_id(),

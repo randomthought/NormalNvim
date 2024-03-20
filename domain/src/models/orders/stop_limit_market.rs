@@ -4,7 +4,7 @@ use crate::{
 };
 
 use super::{
-    common::{Side, TimesInForce},
+    common::{Side, TimeInForce},
     limit::Limit,
     market::Market,
     one_cancels_others::OneCancelsOthers,
@@ -41,7 +41,7 @@ impl StopLimitMarket {
             }
         }
 
-        let times_in_force = TimesInForce::GTC;
+        let times_in_force = TimeInForce::GTC;
         let market = Market::new(quantity, limit_side, security.to_owned(), strategy_id);
         let stop_side = match limit_side {
             Side::Long => Side::Short,

@@ -313,7 +313,7 @@ impl OrderManager for Broker {
                 .add_limit(o.get_stop().order_details.side, o.get_stop().price)
                 .add_limit(o.get_limit().order_details.side, o.get_limit().price)
                 .build()
-                .map_err(|e| crate::error::Error::Message(e.into()))?;
+                .map_err(|e| crate::error::Error::Any(e.into()))?;
 
             let no = NewOrder::OCO(oco);
             return self.place_order(&no).await;

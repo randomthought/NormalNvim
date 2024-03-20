@@ -18,7 +18,7 @@ use crate::{
     data::QouteProvider,
     models::{
         orders::{
-            common::{Side, TimesInForce},
+            common::{Side, TimeInForce},
             market::Market,
             new_order::NewOrder,
             one_cancels_others::OneCancelsOthers,
@@ -297,7 +297,7 @@ async fn get_pending_orders() {
         setup.price,
         side,
         setup.security.to_owned(),
-        TimesInForce::GTC,
+        TimeInForce::GTC,
         strategy_id,
     ));
     broker.place_order(&pending_order).await.unwrap();
@@ -354,7 +354,7 @@ async fn insert_market_stop_limit_order() {
         .with_quantity(quantity)
         .with_strategy_id(strategy_id)
         .with_security(setup.security.to_owned())
-        .with_time_in_force(TimesInForce::GTC)
+        .with_time_in_force(TimeInForce::GTC)
         .add_limit(Side::Short, stop_price)
         .add_limit(side, limit_price)
         .build()
@@ -460,7 +460,7 @@ async fn cancel_pending_order() {
         setup.price,
         side,
         setup.security.to_owned(),
-        TimesInForce::GTC,
+        TimeInForce::GTC,
         strategy_id,
     ));
 
@@ -496,7 +496,7 @@ async fn update_pending_order() {
         setup.price,
         side,
         setup.security.to_owned(),
-        TimesInForce::GTC,
+        TimeInForce::GTC,
         strategy_id,
     ));
 
@@ -512,7 +512,7 @@ async fn update_pending_order() {
             setup.price,
             side,
             setup.security.to_owned(),
-            TimesInForce::GTC,
+            TimeInForce::GTC,
             strategy_id,
         )),
     };
