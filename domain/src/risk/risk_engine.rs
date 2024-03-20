@@ -136,14 +136,9 @@ impl RiskEngine {
                     Side::Short => Side::Long,
                 };
                 let order = Market::builder()
-                    .with_order_details(
-                        OrderDetails::builder()
-                            .with_side(side)
-                            .with_quantity(sp.get_quantity())
-                            .with_strategy_id(strategy_id)
-                            .build()
-                            .unwrap(),
-                    )
+                    .with_side(side)
+                    .with_quantity(sp.get_quantity())
+                    .with_strategy_id(strategy_id)
                     .build()
                     .unwrap();
                 NewOrder::Market(order)

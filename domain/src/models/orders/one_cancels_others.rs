@@ -31,10 +31,10 @@ impl OneCancelsOthers {
 
 #[derive(Builder)]
 #[builder(
+    public,
     name = "OneCancelsOthersBuilder",
     build_fn(private, name = "build_seed",)
 )]
-#[builder(public)]
 struct OneCancelsOthersSeed {
     #[builder(private)]
     prices: Vec<(Side, Price)>,
@@ -72,7 +72,7 @@ impl OneCancelsOthersSeed {
                 .with_strategy_id(self.strategy_id)
                 .with_side(s.to_owned())
                 .build()
-                .map_err(|e| OneCancelsOthersBuilderError::ValidationError(e.to_string()))?;
+                .map_err(|e| e.to_string())?;
 
             let limit = Limit::builder()
                 .with_order_details(od)
@@ -80,7 +80,7 @@ impl OneCancelsOthersSeed {
                 .with_times_in_force(self.time_in_force)
                 .with_security(self.security.to_owned())
                 .build()
-                .map_err(|e| OneCancelsOthersBuilderError::ValidationError(e.to_string()))?;
+                .map_err(|e| e.to_string())?;
 
             orders.push(limit);
         }

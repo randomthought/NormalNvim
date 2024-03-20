@@ -112,66 +112,33 @@ async fn close_order() {
     let broker = Broker::new(balance, stub.to_owned());
 
     let quantity_1 = 10;
-    // let market_order_1 = NewOrder::Market(Market::new(
-    //     quantity_1,
-    //     Side::Long,
-    //     setup.security.to_owned(),
-    //     strategy_id,
-    // ));
     let market_order_1 = NewOrder::Market(
         Market::builder()
             .with_security(setup.security.to_owned())
-            .with_order_details(
-                OrderDetails::builder()
-                    .with_side(Side::Long)
-                    .with_quantity(quantity_1)
-                    .with_strategy_id(strategy_id)
-                    .build()
-                    .unwrap(),
-            )
+            .with_side(Side::Long)
+            .with_quantity(quantity_1)
+            .with_strategy_id(strategy_id)
             .build()
             .unwrap(),
     );
     broker.place_order(&market_order_1).await.unwrap();
     let quantity_2 = 10;
-    // let market_order_2 = NewOrder::Market(Market::new(
-    //     quantity_2,
-    //     Side::Long,
-    //     setup.security.to_owned(),
-    //     strategy_id,
-    // ));
     let market_order_2 = NewOrder::Market(
         Market::builder()
             .with_security(setup.security.to_owned())
-            .with_order_details(
-                OrderDetails::builder()
-                    .with_side(Side::Long)
-                    .with_quantity(quantity_2)
-                    .with_strategy_id(strategy_id)
-                    .build()
-                    .unwrap(),
-            )
+            .with_side(Side::Long)
+            .with_quantity(quantity_2)
+            .with_strategy_id(strategy_id)
             .build()
             .unwrap(),
     );
     broker.place_order(&market_order_2).await.unwrap();
-    // let market_order_3 = NewOrder::Market(Market::new(
-    //     quantity_1 + quantity_2,
-    //     Side::Short,
-    //     setup.security.to_owned(),
-    //     strategy_id,
-    // ));
     let market_order_3 = NewOrder::Market(
         Market::builder()
             .with_security(setup.security.to_owned())
-            .with_order_details(
-                OrderDetails::builder()
-                    .with_side(Side::Short)
-                    .with_quantity(quantity_1 + quantity_2)
-                    .with_strategy_id(strategy_id)
-                    .build()
-                    .unwrap(),
-            )
+            .with_side(Side::Short)
+            .with_quantity(quantity_1 + quantity_2)
+            .with_strategy_id(strategy_id)
             .build()
             .unwrap(),
     );
@@ -191,23 +158,12 @@ async fn flip_order() {
     let broker = Broker::new(balance, stub.to_owned());
 
     let quantity_1 = 10;
-    // let market_order_1 = NewOrder::Market(Market::new(
-    //     quantity_1,
-    //     Side::Long,
-    //     setup.security.to_owned(),
-    //     strategy_id,
-    // ));
     let market_order_1 = NewOrder::Market(
         Market::builder()
             .with_security(setup.security.to_owned())
-            .with_order_details(
-                OrderDetails::builder()
-                    .with_side(Side::Long)
-                    .with_quantity(quantity_1)
-                    .with_strategy_id(strategy_id)
-                    .build()
-                    .unwrap(),
-            )
+            .with_side(Side::Long)
+            .with_quantity(quantity_1)
+            .with_strategy_id(strategy_id)
             .build()
             .unwrap(),
     );
@@ -216,14 +172,9 @@ async fn flip_order() {
     let market_order_2 = NewOrder::Market(
         Market::builder()
             .with_security(setup.security.to_owned())
-            .with_order_details(
-                OrderDetails::builder()
-                    .with_side(Side::Long)
-                    .with_quantity(quantity_2)
-                    .with_strategy_id(strategy_id)
-                    .build()
-                    .unwrap(),
-            )
+            .with_side(Side::Long)
+            .with_quantity(quantity_2)
+            .with_strategy_id(strategy_id)
             .build()
             .unwrap(),
     );
@@ -232,14 +183,9 @@ async fn flip_order() {
     let market_order_3 = NewOrder::Market(
         Market::builder()
             .with_security(setup.security.to_owned())
-            .with_order_details(
-                OrderDetails::builder()
-                    .with_side(Side::Short)
-                    .with_quantity(quantity_3)
-                    .with_strategy_id(strategy_id)
-                    .build()
-                    .unwrap(),
-            )
+            .with_side(Side::Short)
+            .with_quantity(quantity_3)
+            .with_strategy_id(strategy_id)
             .build()
             .unwrap(),
     );
@@ -270,14 +216,9 @@ async fn get_balance_after_order() {
     let side = Side::Long;
     let market = Market::builder()
         .with_security(setup.security.to_owned())
-        .with_order_details(
-            OrderDetails::builder()
-                .with_side(side)
-                .with_quantity(quantity)
-                .with_strategy_id(strategy_id)
-                .build()
-                .unwrap(),
-        )
+        .with_side(side)
+        .with_quantity(quantity)
+        .with_strategy_id(strategy_id)
         .build()
         .unwrap();
     let market_order = NewOrder::Market(market);
@@ -300,14 +241,9 @@ async fn get_balance_after_profit() {
     let side = Side::Long;
     let market = Market::builder()
         .with_security(setup.security.to_owned())
-        .with_order_details(
-            OrderDetails::builder()
-                .with_side(side)
-                .with_quantity(quantity)
-                .with_strategy_id(strategy_id)
-                .build()
-                .unwrap(),
-        )
+        .with_side(side)
+        .with_quantity(quantity)
+        .with_strategy_id(strategy_id)
         .build()
         .unwrap();
     let market_order = NewOrder::Market(market);
@@ -315,15 +251,9 @@ async fn get_balance_after_profit() {
     stub.add_to_price(Decimal::new(1000, 0)).await;
     let market_order_close = NewOrder::Market(
         Market::builder()
-            .with_security(setup.security.to_owned())
-            .with_order_details(
-                OrderDetails::builder()
-                    .with_side(Side::Short)
-                    .with_quantity(quantity)
-                    .with_strategy_id(strategy_id)
-                    .build()
-                    .unwrap(),
-            )
+            .with_side(Side::Short)
+            .with_quantity(quantity)
+            .with_strategy_id(strategy_id)
             .build()
             .unwrap(),
     );
@@ -344,14 +274,9 @@ async fn get_balance_after_loss() {
     let side = Side::Long;
     let market = Market::builder()
         .with_security(setup.security.to_owned())
-        .with_order_details(
-            OrderDetails::builder()
-                .with_side(side)
-                .with_quantity(quantity)
-                .with_strategy_id(strategy_id)
-                .build()
-                .unwrap(),
-        )
+        .with_side(side)
+        .with_quantity(quantity)
+        .with_strategy_id(strategy_id)
         .build()
         .unwrap();
 
@@ -361,14 +286,9 @@ async fn get_balance_after_loss() {
     let market_order_close = NewOrder::Market(
         Market::builder()
             .with_security(setup.security.to_owned())
-            .with_order_details(
-                OrderDetails::builder()
-                    .with_side(Side::Short)
-                    .with_quantity(quantity)
-                    .with_strategy_id(strategy_id)
-                    .build()
-                    .unwrap(),
-            )
+            .with_side(Side::Short)
+            .with_quantity(quantity)
+            .with_strategy_id(strategy_id)
             .build()
             .unwrap(),
     );
@@ -389,14 +309,9 @@ async fn get_positions() {
     let side = Side::Long;
     let market = Market::builder()
         .with_security(setup.security.to_owned())
-        .with_order_details(
-            OrderDetails::builder()
-                .with_side(side)
-                .with_quantity(quantity)
-                .with_strategy_id(strategy_id)
-                .build()
-                .unwrap(),
-        )
+        .with_side(side)
+        .with_quantity(quantity)
+        .with_strategy_id(strategy_id)
         .build()
         .unwrap();
     let market_order = NewOrder::Market(market);
@@ -463,15 +378,15 @@ async fn insert_market_stop_limit_order() {
     let side = Side::Long;
     let limit_price = Decimal::new(100, 0);
     let stop_price = Decimal::new(90, 0);
-    let stop_limit_market = StopLimitMarket::new(
-        setup.security.to_owned(),
-        quantity,
-        side,
-        stop_price,
-        limit_price,
-        strategy_id,
-    )
-    .unwrap();
+    let stop_limit_market = StopLimitMarket::builder()
+        .with_security(setup.security.to_owned())
+        .with_quantity(quantity)
+        .with_limit_side(side)
+        .with_stop_price(stop_price)
+        .with_limit_price(limit_price)
+        .with_strategy_id(strategy_id)
+        .build()
+        .unwrap();
     let order = NewOrder::StopLimitMarket(stop_limit_market);
     let OrderResult::PendingOrder(pending_order) = broker.place_order(&order).await.unwrap() else {
         panic!("expected a pending order")
@@ -523,15 +438,16 @@ async fn cancel_oco_order() {
     let side = Side::Long;
     let limit_price = Decimal::new(100, 0);
     let stop_price = Decimal::new(90, 0);
-    let stop_limit_market = StopLimitMarket::new(
-        setup.security.to_owned(),
-        quantity,
-        side,
-        stop_price,
-        limit_price,
-        strategy_id,
-    )
-    .unwrap();
+    let stop_limit_market = StopLimitMarket::builder()
+        .with_security(setup.security.to_owned())
+        .with_quantity(quantity)
+        .with_limit_side(side)
+        .with_stop_price(stop_price)
+        .with_limit_price(limit_price)
+        .with_strategy_id(strategy_id)
+        .build()
+        .unwrap();
+
     let order = NewOrder::StopLimitMarket(stop_limit_market);
     let order_result = broker.place_order(&order).await.unwrap();
 
@@ -561,15 +477,15 @@ async fn cancel_market_stop_limit_order() {
     let side = Side::Long;
     let limit_price = Decimal::new(100, 0);
     let stop_price = Decimal::new(90, 0);
-    let stop_limit_market = StopLimitMarket::new(
-        setup.security.to_owned(),
-        quantity,
-        side,
-        stop_price,
-        limit_price,
-        strategy_id,
-    )
-    .unwrap();
+    let stop_limit_market = StopLimitMarket::builder()
+        .with_security(setup.security.to_owned())
+        .with_quantity(quantity)
+        .with_limit_side(side)
+        .with_stop_price(stop_price)
+        .with_limit_price(limit_price)
+        .with_strategy_id(strategy_id)
+        .build()
+        .unwrap();
     let order = NewOrder::StopLimitMarket(stop_limit_market);
     let order_result = broker.place_order(&order).await.unwrap();
 
@@ -701,46 +617,24 @@ async fn close_existing_trade_on_low_balance() {
     let broker = Broker::new(balance, stub.to_owned());
 
     let quantity_1 = 100;
-    // let market_order_1 = NewOrder::Market(Market::new(
-    //     quantity_1,
-    //     Side::Long,
-    //     setup.security.to_owned(),
-    //     strategy_id,
-    // ));
     let market_order_1 = NewOrder::Market(
         Market::builder()
             .with_security(setup.security.to_owned())
-            .with_order_details(
-                OrderDetails::builder()
-                    .with_side(Side::Long)
-                    .with_quantity(quantity_1)
-                    .with_strategy_id(strategy_id)
-                    .build()
-                    .unwrap(),
-            )
+            .with_side(Side::Long)
+            .with_quantity(quantity_1)
+            .with_strategy_id(strategy_id)
             .build()
             .unwrap(),
     );
 
     broker.place_order(&market_order_1).await.unwrap();
     let quantity_2 = 100;
-    // let market_order_2 = NewOrder::Market(Market::new(
-    //     quantity_2,
-    //     Side::Short,
-    //     setup.security.to_owned(),
-    //     strategy_id,
-    // ));
     let market_order_2 = NewOrder::Market(
         Market::builder()
             .with_security(setup.security.to_owned())
-            .with_order_details(
-                OrderDetails::builder()
-                    .with_side(Side::Short)
-                    .with_quantity(quantity_2)
-                    .with_strategy_id(strategy_id)
-                    .build()
-                    .unwrap(),
-            )
+            .with_side(Side::Short)
+            .with_quantity(quantity_2)
+            .with_strategy_id(strategy_id)
             .build()
             .unwrap(),
     );
@@ -766,14 +660,9 @@ async fn get_algo_holdings() {
     let market_order_1 = NewOrder::Market(
         Market::builder()
             .with_security(setup.security.to_owned())
-            .with_order_details(
-                OrderDetails::builder()
-                    .with_side(Side::Long)
-                    .with_quantity(quantity)
-                    .with_strategy_id(strategy_id)
-                    .build()
-                    .unwrap(),
-            )
+            .with_side(Side::Long)
+            .with_quantity(quantity)
+            .with_strategy_id(strategy_id)
             .build()
             .unwrap(),
     );
@@ -807,46 +696,24 @@ async fn get_algo_profits() {
     let broker = Broker::new(balance, stub.to_owned());
 
     let quantity = 10;
-    // let market_order_1 = NewOrder::Market(Market::new(
-    //     quantity,
-    //     Side::Long,
-    //     setup.security.to_owned(),
-    //     strategy_id,
-    // ));
     let market_order_1 = NewOrder::Market(
         Market::builder()
             .with_security(setup.security.to_owned())
-            .with_order_details(
-                OrderDetails::builder()
-                    .with_side(Side::Long)
-                    .with_quantity(quantity)
-                    .with_strategy_id(strategy_id)
-                    .build()
-                    .unwrap(),
-            )
+            .with_side(Side::Long)
+            .with_quantity(quantity)
+            .with_strategy_id(strategy_id)
             .build()
             .unwrap(),
     );
     broker.place_order(&market_order_1).await.unwrap();
 
     stub.add_to_price(Decimal::new(100, 0)).await;
-    // let market_order_2 = NewOrder::Market(Market::new(
-    //     quantity,
-    //     Side::Long,
-    //     setup.security.to_owned(),
-    //     strategy_id,
-    // ));
     let market_order_2 = NewOrder::Market(
         Market::builder()
             .with_security(setup.security.to_owned())
-            .with_order_details(
-                OrderDetails::builder()
-                    .with_side(Side::Long)
-                    .with_quantity(quantity)
-                    .with_strategy_id(strategy_id)
-                    .build()
-                    .unwrap(),
-            )
+            .with_side(Side::Long)
+            .with_quantity(quantity)
+            .with_strategy_id(strategy_id)
             .build()
             .unwrap(),
     );
@@ -855,14 +722,9 @@ async fn get_algo_profits() {
     let market_order_3 = NewOrder::Market(
         Market::builder()
             .with_security(setup.security.to_owned())
-            .with_order_details(
-                OrderDetails::builder()
-                    .with_side(Side::Short)
-                    .with_quantity(quantity * 2)
-                    .with_strategy_id(strategy_id)
-                    .build()
-                    .unwrap(),
-            )
+            .with_side(Side::Short)
+            .with_quantity(quantity * 2)
+            .with_strategy_id(strategy_id)
             .build()
             .unwrap(),
     );

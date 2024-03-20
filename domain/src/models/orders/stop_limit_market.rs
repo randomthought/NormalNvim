@@ -1,3 +1,5 @@
+use derive_builder::Builder;
+
 use crate::{
     models::{price::Price, security::Security},
     strategy::algorithm::StrategyId,
@@ -17,14 +19,96 @@ pub struct StopLimitMarket {
 }
 
 impl StopLimitMarket {
-    pub fn new(
-        security: Security,
-        quantity: u64,
-        limit_side: Side,
-        stop_price: Price,
-        limit_price: Price,
-        strategy_id: StrategyId,
-    ) -> Result<Self, String> {
+    pub fn builder() -> StopLimitMarketBuilder {
+        StopLimitMarketBuilder::default()
+    }
+
+    pub fn strategy_id(&self) -> StrategyId {
+        self.market.startegy_id()
+    }
+
+    pub fn get_limit(&self) -> &Limit {
+        self.one_cancels_others.orders.last().unwrap()
+    }
+
+    pub fn get_stop(&self) -> &Limit {
+        self.one_cancels_others.orders.first().unwrap()
+    }
+}
+
+#[derive(Builder)]
+#[builder(
+    public,
+    name = "StopLimitMarketBuilder",
+    build_fn(private, name = "build_seed",)
+)]
+struct StopLimitMarketSeed {
+    #[builder(setter(prefix = "with"))]
+    security: Security,
+    #[builder(setter(prefix = "with"))]
+    quantity: u64,
+    #[builder(setter(prefix = "with"))]
+    limit_side: Side,
+    #[builder(setter(prefix = "with"))]
+    stop_price: Price,
+    #[builder(setter(prefix = "with"))]
+    limit_price: Price,
+    #[builder(setter(prefix = "with"))]
+    strategy_id: StrategyId,
+    #[builder(setter(prefix = "with"), default = "TimeInForce::GTC")]
+    times_in_force: TimeInForce,
+}
+
+impl StopLimitMarketSeed {
+    fn build(&self) -> Result<StopLimitMarket, StopLimitMarketBuilderError> {
+        let market = Market::builder()
+            .with_security(self.security.to_owned())
+            .with_strategy_id(self.strategy_id)
+            .with_quantity(self.quantity)
+            .with_side(self.limit_side)
+            .build()
+            .map_err(|e| e.to_string())?;
+
+        let stop_side = match self.limit_side {
+            Side::Long => Side::Short,
+            Side::Short => Side::Long,
+        };
+
+        let one_cancels_others = OneCancelsOthers::builder()
+            .with_quantity(self.quantity)
+            .with_security(self.security.to_owned())
+            .with_strategy_id(self.strategy_id)
+            .with_time_in_force(self.times_in_force)
+            .add_limit(stop_side, self.stop_price)
+            .add_limit(self.limit_side, self.limit_price)
+            .build()
+            .map_err(|e| e.to_string())?;
+
+        Ok(StopLimitMarket {
+            market,
+            one_cancels_others,
+        })
+    }
+}
+
+impl StopLimitMarketBuilder {
+    pub fn build(&self) -> Result<StopLimitMarket, StopLimitMarketBuilderError> {
+        let seed = self.build_seed()?;
+        seed.build()
+    }
+
+    fn validate(&self) -> Result<(), String> {
+        let Some(limit_side) = self.limit_side else {
+            return Ok(());
+        };
+
+        let Some(stop_price) = self.stop_price else {
+            return Ok(());
+        };
+        let Some(limit_price) = self.limit_price else {
+            return Ok(());
+        };
+
         if let Side::Long = limit_side {
             if stop_price > limit_price {
                 return Err(
@@ -41,51 +125,6 @@ impl StopLimitMarket {
             }
         }
 
-        let times_in_force = TimeInForce::GTC;
-        // let market = Market::new(quantity, limit_side, security.to_owned(), strategy_id);
-        let market = Market::builder()
-            .with_security(security.to_owned())
-            .with_order_details(
-                OrderDetails::builder()
-                    .with_strategy_id(strategy_id)
-                    .with_quantity(quantity)
-                    .with_side(limit_side)
-                    .build()
-                    .map_err(|e| e.to_string())?,
-            )
-            .build()
-            .map_err(|e| e.to_string())?;
-
-        let stop_side = match limit_side {
-            Side::Long => Side::Short,
-            Side::Short => Side::Long,
-        };
-
-        let one_cancels_others = OneCancelsOthers::builder()
-            .with_quantity(quantity)
-            .with_security(security.to_owned())
-            .with_strategy_id(strategy_id)
-            .with_time_in_force(times_in_force)
-            .add_limit(stop_side, stop_price)
-            .add_limit(limit_side, limit_price)
-            .build()
-            .unwrap();
-
-        Ok(Self {
-            market,
-            one_cancels_others,
-        })
-    }
-
-    pub fn strategy_id(&self) -> StrategyId {
-        self.market.startegy_id()
-    }
-
-    pub fn get_limit(&self) -> &Limit {
-        self.one_cancels_others.orders.last().unwrap()
-    }
-
-    pub fn get_stop(&self) -> &Limit {
-        self.one_cancels_others.orders.first().unwrap()
+        Ok(())
     }
 }

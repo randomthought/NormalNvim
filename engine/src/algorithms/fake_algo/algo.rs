@@ -56,14 +56,9 @@ impl Algorithm for FakeAlgo {
             let security = price_history.security.to_owned();
             let market = Market::builder()
                 .with_security(security)
-                .with_order_details(
-                    OrderDetails::builder()
-                        .with_strategy_id(self.strategy_id())
-                        .with_quantity(1)
-                        .with_side(Side::Long)
-                        .build()
-                        .unwrap(),
-                )
+                .with_strategy_id(self.strategy_id())
+                .with_quantity(1)
+                .with_side(Side::Long)
                 .build()
                 .unwrap();
             let order = NewOrder::Market(market);
