@@ -1,12 +1,5 @@
 use actix::{Message, Recipient};
-use domain::{
-    event::model::Event,
-    strategy::model::{algo_event::AlgoEvent, signal::Signal},
-};
-
-#[derive(Message)]
-#[rtype(result = "()")]
-pub struct EventMessage(pub Event);
+use domain::strategy::model::{algo_event::AlgoEvent, signal::Signal};
 
 #[derive(Message)]
 #[rtype(result = "()")]

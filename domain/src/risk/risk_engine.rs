@@ -4,18 +4,15 @@ use std::sync::Arc;
 use super::config::RiskEngineConfig;
 use super::error::RiskError;
 use crate::data::QouteProvider;
-use crate::event::model::Event;
 use crate::models::orders::common::Side;
 use crate::models::orders::market::Market;
 use crate::models::orders::new_order::NewOrder;
 use crate::models::orders::order_result::OrderResult;
-use crate::models::orders::pending_order::Order;
 use crate::order::OrderManager;
 use crate::portfolio::Portfolio;
 use crate::strategy::algorithm::StrategyId;
 use crate::strategy::model::signal::Signal;
 use crate::strategy::portfolio::StrategyPortfolio;
-use async_trait::async_trait;
 
 #[derive(Debug)]
 pub enum SignalResult {

@@ -16,7 +16,6 @@ use tokio::sync::RwLock;
 use crate::{
     broker::broker::Broker,
     data::QouteProvider,
-    event::model::Event,
     models::{
         orders::{
             common::{Side, TimesInForce},

@@ -4,7 +4,6 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use domain::event::model::DataEvent;
-use domain::event::model::Event;
 use domain::{
     data::QouteProvider,
     models::{

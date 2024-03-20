@@ -1,5 +1,5 @@
 use async_trait::async_trait;
-use domain::event::model::{DataEvent, Event};
+use domain::event::model::DataEvent;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ParserError {

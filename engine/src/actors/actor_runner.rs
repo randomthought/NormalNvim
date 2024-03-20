@@ -11,7 +11,6 @@ use super::{
 use actix::Actor;
 use color_eyre::eyre::Result;
 use domain::{
-    event::model::Event,
     risk::risk_engine::RiskEngine,
     strategy::{algorithm::Algorithm, model::algo_event::AlgoEvent},
 };
@@ -63,6 +62,7 @@ impl ActorRunner {
         while let Some(dr) = self.data_stream.next().await {
             let raw_data = dr?;
             let data_event = self.parser.parse(&raw_data).await?;
+            // println!("Runner: data_event={:?}", data_event);
             event_bus.notify(data_event)?;
         }
 

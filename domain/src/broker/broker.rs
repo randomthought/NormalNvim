@@ -1,7 +1,7 @@
 use crate::{
     broker::security_transaction::Transation,
     data::QouteProvider,
-    event::{self, model::Event},
+    event::{self},
     models::{
         orders::{
             common::{OrderDetails, Side},

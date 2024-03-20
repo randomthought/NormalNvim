@@ -31,7 +31,6 @@ pub async fn runApp() -> color_eyre::eyre::Result<()> {
     color_eyre::install()?;
 
     let client = reqwest::Client::new();
-    let api_key = env::var("API_KEY")?;
 
     let back_tester = BackTester::new(0.05, Box::new(PolygonParser::new()));
     let back_tester_ = Arc::new(back_tester);
@@ -58,18 +57,8 @@ pub async fn runApp() -> color_eyre::eyre::Result<()> {
         Box::new(portfolio),
     );
 
-    let strategy = Strategy::builder()
-        .with_algorithm(Box::new(FakeAlgo {}))
-        .with_portfolio(broker_.clone())
-        .with_qoute_provider(qoute_provider.clone())
-        .with_open_trades(4)
-        .build()
-        .unwrap();
-
-    let strategies = vec![strategy];
-
-    let subscription = "A.*";
-
+    // let api_key = env::var("API_KEY")?;
+    // let subscription = "A.*";
     // let data_stream = polygon::stream_client::create_stream(&api_key, &subscription)?;
 
     let file = env::var("FILE")?;
