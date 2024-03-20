@@ -1,3 +1,5 @@
+use derive_builder::Builder;
+
 use crate::strategy::algorithm::StrategyId;
 
 pub type Quantity = u64;
@@ -23,9 +25,18 @@ pub enum TimeInForce {
     // Fill/Trigger Outside RTH
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Builder, Debug, Clone, PartialEq, Eq)]
 pub struct OrderDetails {
+    #[builder(setter(prefix = "with"))]
     pub strategy_id: StrategyId,
+    #[builder(setter(prefix = "with"))]
     pub quantity: Quantity,
+    #[builder(setter(prefix = "with"))]
     pub side: Side,
+}
+
+impl OrderDetails {
+    pub fn builder() -> OrderDetailsBuilder {
+        OrderDetailsBuilder::default()
+    }
 }

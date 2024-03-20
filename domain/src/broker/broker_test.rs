@@ -18,7 +18,7 @@ use crate::{
     data::QouteProvider,
     models::{
         orders::{
-            common::{Side, TimeInForce},
+            common::{OrderDetails, Side, TimeInForce},
             market::Market,
             new_order::NewOrder,
             one_cancels_others::OneCancelsOthers,
@@ -292,14 +292,22 @@ async fn get_pending_orders() {
     let broker = Broker::new(balance, stub.to_owned());
     let quantity = 10;
     let side = Side::Long;
-    let pending_order = NewOrder::Limit(Limit::new(
-        quantity,
-        setup.price,
-        side,
-        setup.security.to_owned(),
-        TimeInForce::GTC,
-        strategy_id,
-    ));
+    let pending_order = NewOrder::Limit(
+        Limit::builder()
+            .with_order_details(
+                OrderDetails::builder()
+                    .with_side(side)
+                    .with_strategy_id(strategy_id)
+                    .with_quantity(quantity)
+                    .build()
+                    .unwrap(),
+            )
+            .with_security(setup.security.to_owned())
+            .with_times_in_force(TimeInForce::GTC)
+            .with_price(setup.price)
+            .build()
+            .unwrap(),
+    );
     broker.place_order(&pending_order).await.unwrap();
 
     let result = broker.get_pending_orders().await.unwrap();
@@ -455,14 +463,22 @@ async fn cancel_pending_order() {
     let broker = Broker::new(balance, stub.to_owned());
     let quantity = 10;
     let side = Side::Long;
-    let limit_order = NewOrder::Limit(Limit::new(
-        quantity,
-        setup.price,
-        side,
-        setup.security.to_owned(),
-        TimeInForce::GTC,
-        strategy_id,
-    ));
+    let limit_order = NewOrder::Limit(
+        Limit::builder()
+            .with_order_details(
+                OrderDetails::builder()
+                    .with_side(side)
+                    .with_strategy_id(strategy_id)
+                    .with_quantity(quantity)
+                    .build()
+                    .unwrap(),
+            )
+            .with_security(setup.security.to_owned())
+            .with_times_in_force(TimeInForce::GTC)
+            .with_price(setup.price)
+            .build()
+            .unwrap(),
+    );
 
     let OrderResult::PendingOrder(po) = broker.place_order(&limit_order).await.unwrap() else {
         panic!("must get a filled result")
@@ -491,14 +507,22 @@ async fn update_pending_order() {
     let broker = Broker::new(balance, stub.to_owned());
     let quantity = 10;
     let side = Side::Long;
-    let limit_order = NewOrder::Limit(Limit::new(
-        quantity,
-        setup.price,
-        side,
-        setup.security.to_owned(),
-        TimeInForce::GTC,
-        strategy_id,
-    ));
+    let limit_order = NewOrder::Limit(
+        Limit::builder()
+            .with_order_details(
+                OrderDetails::builder()
+                    .with_side(side)
+                    .with_strategy_id(strategy_id)
+                    .with_quantity(quantity)
+                    .build()
+                    .unwrap(),
+            )
+            .with_security(setup.security.to_owned())
+            .with_times_in_force(TimeInForce::GTC)
+            .with_price(setup.price)
+            .build()
+            .unwrap(),
+    );
 
     let order_result = broker.place_order(&limit_order).await.unwrap();
     let OrderResult::PendingOrder(p) = order_result else {
@@ -507,14 +531,22 @@ async fn update_pending_order() {
 
     let pending_order = PendingOrder {
         order_id: p.order_id.to_owned(),
-        order: NewOrder::Limit(Limit::new(
-            20,
-            setup.price,
-            side,
-            setup.security.to_owned(),
-            TimeInForce::GTC,
-            strategy_id,
-        )),
+        order: NewOrder::Limit(
+            Limit::builder()
+                .with_order_details(
+                    OrderDetails::builder()
+                        .with_side(side)
+                        .with_strategy_id(strategy_id)
+                        .with_quantity(20)
+                        .build()
+                        .unwrap(),
+                )
+                .with_security(setup.security.to_owned())
+                .with_times_in_force(TimeInForce::GTC)
+                .with_price(setup.price)
+                .build()
+                .unwrap(),
+        ),
     };
 
     broker.update(&pending_order).await.unwrap();

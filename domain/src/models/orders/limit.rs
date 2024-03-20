@@ -1,3 +1,5 @@
+use derive_builder::Builder;
+
 use crate::{
     models::{price::Price, security::Security},
     strategy::algorithm::StrategyId,
@@ -5,33 +7,21 @@ use crate::{
 
 use super::common::{OrderDetails, Side, TimeInForce};
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Builder, Debug, Clone, PartialEq, Eq)]
 pub struct Limit {
+    #[builder(setter(prefix = "with"))]
     pub price: Price,
+    #[builder(setter(prefix = "with"))]
     pub security: Security,
+    #[builder(setter(prefix = "with"))]
     pub times_in_force: TimeInForce,
+    #[builder(setter(prefix = "with"))]
     pub order_details: OrderDetails,
 }
 
 impl Limit {
-    pub fn new(
-        quantity: u64,
-        price: Price,
-        side: Side,
-        security: Security,
-        times_in_force: TimeInForce,
-        strategy_id: StrategyId,
-    ) -> Self {
-        Self {
-            price,
-            security,
-            times_in_force,
-            order_details: OrderDetails {
-                quantity,
-                side,
-                strategy_id,
-            },
-        }
+    pub fn builder() -> LimitBuilder {
+        LimitBuilder::default()
     }
 
     pub fn strategy_id(&self) -> StrategyId {

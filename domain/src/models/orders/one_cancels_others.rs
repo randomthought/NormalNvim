@@ -6,7 +6,7 @@ use crate::{
 };
 
 use super::{
-    common::{Quantity, Side, TimeInForce},
+    common::{OrderDetails, Quantity, Side, TimeInForce},
     limit::Limit,
 };
 
@@ -63,29 +63,35 @@ impl OneCancelsOthersBuilder {
 }
 
 impl OneCancelsOthersSeed {
-    fn build(&self) -> OneCancelsOthers {
-        let orders: Vec<_> = self
-            .prices
-            .iter()
-            .map(|(s, p)| {
-                Limit::new(
-                    self.quantity,
-                    p.to_owned(),
-                    s.to_owned(),
-                    self.security.to_owned(),
-                    self.time_in_force,
-                    self.strategy_id,
-                )
-            })
-            .collect();
+    fn build(&self) -> Result<OneCancelsOthers, OneCancelsOthersBuilderError> {
+        let mut orders: Vec<Limit> = vec![];
 
-        OneCancelsOthers { orders }
+        for (s, p) in self.prices.iter() {
+            let od = OrderDetails::builder()
+                .with_quantity(self.quantity)
+                .with_strategy_id(self.strategy_id)
+                .with_side(s.to_owned())
+                .build()
+                .map_err(|e| OneCancelsOthersBuilderError::ValidationError(e.to_string()))?;
+
+            let limit = Limit::builder()
+                .with_order_details(od)
+                .with_price(p.to_owned())
+                .with_times_in_force(self.time_in_force)
+                .with_security(self.security.to_owned())
+                .build()
+                .map_err(|e| OneCancelsOthersBuilderError::ValidationError(e.to_string()))?;
+
+            orders.push(limit);
+        }
+
+        Ok(OneCancelsOthers { orders })
     }
 }
 
 impl OneCancelsOthersBuilder {
-    pub fn build(&self) -> Result<OneCancelsOthers, String> {
-        let seed = self.build_seed().map_err(|e| e.to_string())?;
-        Ok(seed.build())
+    pub fn build(&self) -> Result<OneCancelsOthers, OneCancelsOthersBuilderError> {
+        let seed = self.build_seed()?;
+        seed.build()
     }
 }
