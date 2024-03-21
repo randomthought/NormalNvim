@@ -1,17 +1,23 @@
 use std::sync::Arc;
 
 use actix::{dev::ContextFutureSpawner, Actor, Context, Handler, Recipient, WrapFuture};
-use domain::strategy::{
-    algorithm::Algorithm,
-    model::{algo_event::AlgoEvent, signal::Signal},
-};
+use derive_builder::Builder;
+use domain::strategy::algorithm::Algorithm;
 
 use super::models::{AddSignalSubscribers, AlgoEventMessage, SignalMessage};
 
-#[derive(Clone)]
+#[derive(Builder, Clone)]
 pub struct AlgoActor {
-    pub algorithm: Arc<dyn Algorithm>,
-    pub subscribers: Vec<Recipient<SignalMessage>>,
+    #[builder(public, setter(prefix = "with"))]
+    algorithm: Arc<dyn Algorithm>,
+    #[builder(public, default, setter(each = "add_subscriber"))]
+    subscribers: Vec<Recipient<SignalMessage>>,
+}
+
+impl AlgoActor {
+    pub fn builder() -> AlgoActorBuilder {
+        AlgoActorBuilder::default()
+    }
 }
 
 impl Actor for AlgoActor {
@@ -21,12 +27,6 @@ impl Actor for AlgoActor {
 impl Handler<AlgoEventMessage> for AlgoActor {
     type Result = ();
     fn handle(&mut self, msg: AlgoEventMessage, ctx: &mut Self::Context) -> Self::Result {
-        if let AlgoEvent::OrderResult(x) = msg.0.clone() {
-            if x.startegy_id() != self.algorithm.strategy_id() {
-                return;
-            }
-        }
-
         let algo_event = msg.0;
         let algorithm = self.algorithm.clone();
         let subscribers = self.subscribers.clone();

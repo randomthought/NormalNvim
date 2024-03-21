@@ -18,8 +18,11 @@ use crate::{
     },
 };
 use domain::{
-    broker::broker::Broker, data::QouteProvider, portfolio::Portfolio,
-    risk::risk_engine::RiskEngine,
+    broker::broker::Broker,
+    data::QouteProvider,
+    portfolio::Portfolio,
+    risk::{algo_risk_config::AlgorithmRiskConfig, risk_engine::RiskEngine},
+    strategy::algorithm::Strategy,
 };
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use tokio::sync::{mpsc, Mutex};
@@ -40,7 +43,18 @@ pub async fn runApp() -> color_eyre::eyre::Result<()> {
     );
     let broker_ = Arc::new(broker);
 
-    let risk_engine = RiskEngine::builder()
+    let algorithms = vec![Arc::new(FakeAlgo {})];
+
+    let risk_engine = algorithms
+        .iter()
+        .fold(&mut RiskEngine::builder(), |b, algo| {
+            let config = AlgorithmRiskConfig::builder()
+                .with_strategy_id(algo.strategy_id())
+                .with_max_open_trades(1)
+                .build()
+                .unwrap();
+            b.add_algorithm_risk_config(config)
+        })
         .with_strategy_portrfolio(broker_.clone())
         .with_order_manager(broker_.clone())
         .with_qoute_provider(qoute_provider.clone())
@@ -54,13 +68,21 @@ pub async fn runApp() -> color_eyre::eyre::Result<()> {
     let path = Path::new(&file);
     let buff_size = 4096usize;
     let data_stream = file_provider::create_stream(path, buff_size)?;
-    let mut actor_runner = ActorRunner {
-        risk_engine,
-        parser,
-        data_stream,
-        algorithms: vec![Arc::new(FakeAlgo {})],
-    };
+    // let mut actor_runner = ActorRunner {
+    //     risk_engine,
+    //     parser,
+    //     data_stream,
+    //     algorithms: vec![Arc::new(FakeAlgo {})],
+    // };
+    let actor_runner = algorithms
+        .into_iter()
+        .fold(&mut ActorRunner::builder(), |b, x| {
+            b.add_algorithm(x.strategy_id(), x)
+        })
+        .with_parser(parser)
+        .with_risk_engine(risk_engine)
+        .build()?;
 
-    actor_runner.run().await?;
+    actor_runner.run(data_stream).await?;
     Ok(())
 }

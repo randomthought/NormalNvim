@@ -11,7 +11,7 @@ use domain::{
         new_order::NewOrder,
     },
     strategy::{
-        algorithm::{Algorithm, StrategyId},
+        algorithm::{Algorithm, Strategy, StrategyId},
         model::{
             algo_event::AlgoEvent,
             signal::{Entry, Signal},
@@ -22,11 +22,14 @@ use rand::{rngs::StdRng, Rng, SeedableRng};
 
 pub struct FakeAlgo {}
 
-#[async_trait]
-impl Algorithm for FakeAlgo {
+impl Strategy for FakeAlgo {
     fn strategy_id(&self) -> StrategyId {
         "fake_algo".into()
     }
+}
+
+#[async_trait]
+impl Algorithm for FakeAlgo {
     async fn on_event(
         &self,
         algo_event: AlgoEvent,

@@ -13,7 +13,7 @@ use crate::models::orders::new_order::NewOrder;
 use crate::models::orders::order_result::OrderResult;
 use crate::models::security::Security;
 use crate::order::OrderManager;
-use crate::strategy::algorithm::StrategyId;
+use crate::strategy::algorithm::{Strategy, StrategyId};
 use crate::strategy::model::signal::{Entry, Signal};
 use crate::strategy::portfolio::StrategyPortfolio;
 
@@ -91,7 +91,7 @@ impl RiskEngine {
             return Ok(order_results);
         }
 
-        let strategy_id = algo_risk_config.strategy_id;
+        let strategy_id = algo_risk_config.strategy_id();
         if let Some(max) = algo_risk_config.max_portfolio_loss {
             let profit = self
                 .strategy_portrfolio
@@ -164,39 +164,48 @@ impl RiskEngine {
         Ok(order_results)
     }
 
-    async fn liquidate(
-        &self,
-        strategy_id: StrategyId,
-    ) -> Result<Vec<OrderResult>, crate::error::Error> {
-        let positions = self.strategy_portrfolio.get_holdings(strategy_id).await?;
+    async fn liquidate(&self, strategy_id: StrategyId) -> Result<Vec<OrderResult>, RiskError> {
+        let positions = self
+            .strategy_portrfolio
+            .get_holdings(strategy_id)
+            .await
+            .map_err(|e| RiskError::OtherError(e.into()))?;
 
-        let orders: Vec<NewOrder> = positions
+        let orders_: Result<Vec<NewOrder>, _> = positions
             .iter()
             .map(|sp| {
                 let side = match sp.side {
                     Side::Long => Side::Short,
                     Side::Short => Side::Long,
                 };
-                let order = Market::builder()
+                Market::builder()
+                    .with_security(sp.security.to_owned())
                     .with_side(side)
                     .with_quantity(sp.get_quantity())
                     .with_strategy_id(strategy_id)
                     .build()
-                    .unwrap();
-                NewOrder::Market(order)
+                    .map(|o| NewOrder::Market(o))
             })
             .collect();
 
+        let orders = orders_.map_err(|e| RiskError::OtherError(e.into()))?;
+
         let f1 = orders.iter().map(|o| self.order_manager.place_order(&o));
 
-        let pending_orders = self.strategy_portrfolio.get_pending(strategy_id).await?;
+        let pending_orders = self
+            .strategy_portrfolio
+            .get_pending(strategy_id)
+            .await
+            .map_err(|e| RiskError::OtherError(e.into()))?;
 
         let f2 = pending_orders
             .iter()
             .map(|p| self.order_manager.cancel(p))
             .chain(f1);
 
-        let order_results = future::try_join_all(f2).await?;
+        let order_results = future::try_join_all(f2)
+            .await
+            .map_err(|e| RiskError::OtherError(e.into()))?;
 
         Ok(order_results)
     }
@@ -258,13 +267,15 @@ impl RiskEngineBuilder {
         &mut self,
         algo_risk_config: AlgorithmRiskConfig,
     ) -> &mut Self {
+        let strategy_id = algo_risk_config.strategy_id();
+
         if let Some(config_map) = self.algorithm_risk_configs.as_mut() {
-            config_map.insert(algo_risk_config.strategy_id, algo_risk_config);
+            config_map.insert(strategy_id, algo_risk_config);
             return self;
         };
 
         let mut map = HashMap::new();
-        map.insert(algo_risk_config.strategy_id, algo_risk_config);
+        map.insert(strategy_id, algo_risk_config);
         self.algorithm_risk_configs = Some(map);
 
         self

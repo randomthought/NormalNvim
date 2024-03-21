@@ -9,42 +9,59 @@ use super::{
     risk_engine_actor::RiskEngineActor,
 };
 use actix::Actor;
-use color_eyre::eyre::Result;
+use derive_builder::Builder;
 use domain::{
     risk::risk_engine::RiskEngine,
-    strategy::{algorithm::Algorithm, model::algo_event::AlgoEvent},
+    strategy::algorithm::{Algorithm, Strategy, StrategyId},
 };
-use eyre::Ok;
 use futures_util::{Stream, StreamExt};
-use tokio::time::sleep;
 
+#[derive(Builder)]
 pub struct ActorRunner {
-    pub algorithms: Vec<Arc<dyn Algorithm>>,
-    pub risk_engine: RiskEngine,
-    pub parser: Arc<dyn Parser + Sync + Send>,
-    pub data_stream: Pin<Box<dyn Stream<Item = Result<String>> + Sync + Send>>,
+    #[builder(private)]
+    algorithms: Vec<(StrategyId, Arc<dyn Algorithm>)>,
+    #[builder(public, setter(prefix = "with"))]
+    risk_engine: RiskEngine,
+    #[builder(public, setter(prefix = "with"))]
+    parser: Arc<dyn Parser + Sync + Send>,
 }
 
 impl ActorRunner {
-    pub async fn run(&mut self) -> Result<()> {
-        let algos_addresses: Vec<_> = self
+    pub fn builder() -> ActorRunnerBuilder {
+        ActorRunnerBuilder::default()
+    }
+
+    pub async fn run(
+        &self,
+        mut data_stream: Pin<Box<dyn Stream<Item = eyre::Result<String>> + Sync + Send>>,
+    ) -> eyre::Result<()> {
+        let algos_addresses_: Result<Vec<_>, _> = self
             .algorithms
-            .iter()
-            .map(|algo| AlgoActor {
-                algorithm: algo.clone(),
-                subscribers: vec![],
+            .clone()
+            .into_iter()
+            .map(|(id, algo)| {
+                let ao = AlgoActor::builder().with_algorithm(algo).build();
+                match ao {
+                    Ok(x) => Ok((id, x.start())),
+                    Err(x) => Err(x),
+                }
             })
-            .map(|algo| algo.start())
             .collect();
 
-        let risk_engine = RiskEngineActor {
-            risk_engine: self.risk_engine.clone(),
-            subscribers: algos_addresses.clone(),
-        };
+        let algos_addresses = algos_addresses_?;
+
+        let risk_engine = algos_addresses
+            .clone()
+            .into_iter()
+            .fold(&mut RiskEngineActor::builder(), |b, (id, algo_add)| {
+                b.add_subscriber(id, algo_add)
+            })
+            .with_risk_engine(self.risk_engine.clone())
+            .build()?;
 
         let risk_engine_address = risk_engine.start();
 
-        for ad in algos_addresses.iter() {
+        for (_, ad) in algos_addresses.iter() {
             let recipient = risk_engine_address.clone().recipient();
             let cmd = AddSignalSubscribers(recipient);
             ad.send(cmd).await?;
@@ -52,14 +69,15 @@ impl ActorRunner {
 
         let event_subsribers: Vec<_> = algos_addresses
             .iter()
-            .map(|addr| addr.clone().recipient())
+            .map(|(_, addr)| addr.clone().recipient())
             .collect();
 
-        let event_bus = EventBus {
-            subscribers: event_subsribers,
-        };
+        let event_bus = event_subsribers
+            .into_iter()
+            .fold(&mut EventBus::builder(), |b, ebs| b.add_subscriber(ebs))
+            .build()?;
 
-        while let Some(dr) = self.data_stream.next().await {
+        while let Some(dr) = data_stream.next().await {
             let raw_data = dr?;
             let data_event = self.parser.parse(&raw_data).await?;
             // println!("Runner: data_event={:?}", data_event);
@@ -67,5 +85,24 @@ impl ActorRunner {
         }
 
         Ok(())
+    }
+}
+
+impl ActorRunnerBuilder {
+    pub fn add_algorithm(
+        &mut self,
+        strategy_id: StrategyId,
+        algorithm: Arc<dyn Algorithm>,
+    ) -> &mut Self {
+        let entry = (strategy_id, algorithm);
+
+        if let Some(algorithms) = self.algorithms.as_mut() {
+            algorithms.push(entry);
+            return self;
+        }
+
+        self.algorithms = Some(vec![entry]);
+
+        self
     }
 }

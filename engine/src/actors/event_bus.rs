@@ -1,11 +1,19 @@
 use actix::{dev::SendError, Actor, Context, Recipient};
+use derive_builder::Builder;
 use domain::{event::model::DataEvent, strategy::model::algo_event::AlgoEvent};
 
 use super::models::AlgoEventMessage;
 
-#[derive(Default, Clone)]
+#[derive(Builder, Default, Clone)]
 pub struct EventBus {
-    pub subscribers: Vec<Recipient<AlgoEventMessage>>,
+    #[builder(public, setter(each = "add_subscriber"))]
+    subscribers: Vec<Recipient<AlgoEventMessage>>,
+}
+
+impl EventBus {
+    pub fn builder() -> EventBusBuilder {
+        EventBusBuilder::default()
+    }
 }
 
 impl EventBus {
