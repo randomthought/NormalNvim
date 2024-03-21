@@ -27,7 +27,7 @@ impl PolygonParser {
 impl Parser for PolygonParser {
     async fn parse(&self, data: &str) -> Result<DataEvent, ParserError> {
         let deserialized: Vec<Aggregates> =
-            serde_json::from_str(data).map_err(|e| ParserError::Json(e.into()))?;
+            serde_json::from_str(data).map_err(|e| ParserError::UnableToParseData(data.into()))?;
 
         let results: Result<Vec<_>, _> = deserialized
             .into_iter()

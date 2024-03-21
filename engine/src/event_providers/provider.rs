@@ -3,7 +3,7 @@ use domain::event::model::DataEvent;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ParserError {
-    #[error("{0}")]
+    #[error("enable to parse raw data `{0}`")]
     UnableToParseData(String),
     #[error(transparent)]
     OtherError(#[from] Box<dyn std::error::Error + Send + Sync>),

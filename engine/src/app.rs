@@ -1,5 +1,5 @@
 use color_eyre::eyre::Result;
-use eyre::{bail, Context, ContextCompat, Ok};
+use eyre::{bail, Context, ContextCompat};
 use futures_util::future::try_join;
 use std::{
     env,
@@ -47,14 +47,17 @@ pub async fn runApp() -> color_eyre::eyre::Result<()> {
 
     let risk_engine = algorithms
         .iter()
-        .fold(&mut RiskEngine::builder(), |b, algo| {
-            let config = AlgorithmRiskConfig::builder()
+        .fold(Ok(&mut RiskEngine::builder()), |b_, algo| {
+            let Ok(b) = b_ else {
+                return b_;
+            };
+
+            AlgorithmRiskConfig::builder()
                 .with_strategy_id(algo.strategy_id())
                 .with_max_open_trades(1)
                 .build()
-                .unwrap();
-            b.add_algorithm_risk_config(config)
-        })
+                .map(|conf| b.add_algorithm_risk_config(conf))
+        })?
         .with_strategy_portrfolio(broker_.clone())
         .with_order_manager(broker_.clone())
         .with_qoute_provider(qoute_provider.clone())

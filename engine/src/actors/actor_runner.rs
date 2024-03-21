@@ -3,9 +3,7 @@ use std::{pin::Pin, sync::Arc, time::Duration};
 use crate::event_providers::provider::Parser;
 
 use super::{
-    algo_actor::AlgoActor,
-    event_bus::EventBus,
-    models::{AddSignalSubscribers, AlgoEventMessage},
+    algo_actor::AlgoActor, event_bus::EventBus, models::AddSignalSubscribers,
     risk_engine_actor::RiskEngineActor,
 };
 use actix::Actor;
@@ -47,7 +45,6 @@ impl ActorRunner {
                 }
             })
             .collect();
-
         let algos_addresses = algos_addresses_?;
 
         let risk_engine = algos_addresses
@@ -80,7 +77,6 @@ impl ActorRunner {
         while let Some(dr) = data_stream.next().await {
             let raw_data = dr?;
             let data_event = self.parser.parse(&raw_data).await?;
-            // println!("Runner: data_event={:?}", data_event);
             event_bus.notify(data_event)?;
         }
 

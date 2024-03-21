@@ -62,8 +62,6 @@ impl BackTester {
 #[async_trait]
 impl Parser for BackTester {
     async fn parse(&self, data: &str) -> Result<DataEvent, ParserError> {
-        // TODO: iterator overloading mwould be better since this would be done on every price history twice
-
         let event = self.parser.parse(data).await?;
         let DataEvent::PriceEvent(ph) = event.clone();
         self.add(&ph)
