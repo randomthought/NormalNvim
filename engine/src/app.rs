@@ -18,11 +18,8 @@ use crate::{
     },
 };
 use domain::{
-    broker::broker::Broker,
-    data::QouteProvider,
-    portfolio::Portfolio,
-    risk::{config::RiskEngineConfig, risk_engine::RiskEngine},
-    strategy::{algorithm::Algorithm, strategy::Strategy},
+    broker::broker::Broker, data::QouteProvider, portfolio::Portfolio,
+    risk::risk_engine::RiskEngine,
 };
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use tokio::sync::{mpsc, Mutex};
@@ -42,20 +39,12 @@ pub async fn runApp() -> color_eyre::eyre::Result<()> {
         qoute_provider.clone(),
     );
     let broker_ = Arc::new(broker);
-    let risk_engine_config = RiskEngineConfig {
-        max_trade_portfolio_accumulaton: 0.10,
-        max_portfolio_risk: 0.10,
-        max_open_trades: Some(2),
-    };
 
-    let portfolio = Portfolio::new(broker_.clone(), broker_.clone(), qoute_provider.clone());
-    let risk_engine = RiskEngine::new(
-        risk_engine_config,
-        broker_.clone(),
-        qoute_provider.clone(),
-        broker_.clone(),
-        Box::new(portfolio),
-    );
+    let risk_engine = RiskEngine::builder()
+        .with_strategy_portrfolio(broker_.clone())
+        .with_order_manager(broker_.clone())
+        .with_qoute_provider(qoute_provider.clone())
+        .build()?;
 
     // let api_key = env::var("API_KEY")?;
     // let subscription = "A.*";
