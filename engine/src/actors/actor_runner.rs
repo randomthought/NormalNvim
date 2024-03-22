@@ -9,6 +9,7 @@ use super::{
 use actix::Actor;
 use derive_builder::Builder;
 use domain::{
+    event::model::DataEvent,
     risk::risk_engine::RiskEngine,
     strategy::algorithm::{Algorithm, Strategy, StrategyId},
 };
@@ -31,7 +32,7 @@ impl ActorRunner {
 
     pub async fn run(
         &self,
-        mut data_stream: Pin<Box<dyn Stream<Item = eyre::Result<String>> + Sync + Send>>,
+        mut data_stream: Pin<Box<dyn Stream<Item = eyre::Result<DataEvent>> + Send>>,
     ) -> eyre::Result<()> {
         let algos_addresses_: Result<Vec<_>, _> = self
             .algorithms
@@ -75,9 +76,7 @@ impl ActorRunner {
             .build()?;
 
         while let Some(dr) = data_stream.next().await {
-            let raw_data = dr?;
-            let data_event = self.parser.parse(&raw_data).await?;
-            event_bus.notify(data_event)?;
+            event_bus.notify(dr?)?;
         }
 
         Ok(())

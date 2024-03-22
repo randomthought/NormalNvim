@@ -4,6 +4,7 @@ use futures_util::future::try_join;
 use std::{
     env,
     path::Path,
+    pin::Pin,
     sync::{atomic::AtomicBool, Arc},
 };
 use tokio_stream::wrappers::ReceiverStream;
@@ -15,6 +16,8 @@ use crate::{
         back_test::BackTester,
         file_provider,
         market::polygon::{self, api_client, parser::PolygonParser},
+        provider::Parser,
+        utils,
     },
 };
 use domain::{
@@ -35,7 +38,6 @@ pub async fn runApp() -> color_eyre::eyre::Result<()> {
     let back_tester = BackTester::new(0.05, Box::new(PolygonParser::new()));
     let back_tester_ = Arc::new(back_tester);
     let qoute_provider = back_tester_.clone();
-    let parser = back_tester_.clone();
 
     let broker = Broker::new(
         Decimal::from_u64(100_000).wrap_err("error parsing account balance")?,
@@ -54,7 +56,7 @@ pub async fn runApp() -> color_eyre::eyre::Result<()> {
 
             AlgorithmRiskConfig::builder()
                 .with_strategy_id(algo.strategy_id())
-                .with_max_open_trades(1)
+                .with_max_open_trades(2)
                 .build()
                 .map(|conf| b.add_algorithm_risk_config(conf))
         })?
@@ -70,7 +72,9 @@ pub async fn runApp() -> color_eyre::eyre::Result<()> {
     let file = env::var("FILE")?;
     let path = Path::new(&file);
     let buff_size = 4096usize;
-    let data_stream = file_provider::create_stream(path, buff_size)?;
+    let file_stream = file_provider::create_stream(path, buff_size)?;
+    let parser = back_tester_.clone();
+    let data_stream = utils::parse_stream(file_stream, parser.clone());
     // let mut actor_runner = ActorRunner {
     //     risk_engine,
     //     parser,
@@ -82,10 +86,11 @@ pub async fn runApp() -> color_eyre::eyre::Result<()> {
         .fold(&mut ActorRunner::builder(), |b, x| {
             b.add_algorithm(x.strategy_id(), x)
         })
-        .with_parser(parser)
+        .with_parser(parser.clone())
         .with_risk_engine(risk_engine)
         .build()?;
 
     actor_runner.run(data_stream).await?;
+
     Ok(())
 }

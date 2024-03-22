@@ -37,15 +37,3 @@ impl<'a> QouteProvider for FileProvider<'a> {
         todo!()
     }
 }
-
-impl<'a> Stream for FileProvider<'a> {
-    type Item = Result<PriceHistory>;
-
-    fn poll_next(
-        self: std::pin::Pin<&mut Self>,
-        // TODO: learn to use context
-        cx: &mut std::task::Context<'_>,
-    ) -> std::task::Poll<Option<Self::Item>> {
-        todo!()
-    }
-}
