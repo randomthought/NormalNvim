@@ -1,4 +1,4 @@
-use std::time::Duration;
+use std::{cmp::Ordering, time::Duration};
 
 use derive_builder::Builder;
 
@@ -6,7 +6,7 @@ use crate::models::security::Security;
 
 use super::common::{Price, Resolution};
 
-#[derive(Builder, Debug, Clone)]
+#[derive(Builder, Debug, Clone, Eq, PartialEq)]
 #[non_exhaustive]
 pub struct Candle {
     #[builder(setter(prefix = "with"))]
@@ -33,6 +33,18 @@ pub struct Candle {
 impl Candle {
     pub fn builder() -> CandleBuilder {
         CandleBuilder::default()
+    }
+}
+
+impl PartialOrd for Candle {
+    fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
+        Some(self.cmp(other)) // Delegate to the implementation of `cmp`.
+    }
+}
+
+impl Ord for Candle {
+    fn cmp(&self, other: &Self) -> Ordering {
+        self.start_time.cmp(&other.start_time)
     }
 }
 
