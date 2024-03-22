@@ -22,3 +22,8 @@ async fn reject_trade_on_portfolio_risk() {
 async fn reject_trade_on_max_open_trades() {
     todo!()
 }
+
+#[tokio::test]
+async fn do_not_trade_on_insufficient_balance() {
+    todo!()
+}
