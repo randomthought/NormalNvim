@@ -10,6 +10,8 @@ pub enum RiskError {
     ExceededAlgoMaxOpenTrades,
     #[error("exceed max algorithm loss")]
     ExceededAlgoMaxLoss,
+    #[error("insufficient algoirthim account balance")]
+    InsufficientAlgoAccountBalance,
     #[error("unable to find algorithm risk config {0}")]
     UnableToFindAlgoRiskConfig(StrategyId),
     #[error("exceeded max portfolio open trades")]

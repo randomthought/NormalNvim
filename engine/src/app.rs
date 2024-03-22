@@ -55,6 +55,7 @@ pub async fn runApp() -> color_eyre::eyre::Result<()> {
             };
 
             AlgorithmRiskConfig::builder()
+                .with_starting_balance(Decimal::new(100, 0))
                 .with_strategy_id(algo.strategy_id())
                 .with_max_open_trades(2)
                 .build()
