@@ -1,16 +1,8 @@
 use core::panic;
-use std::{
-    borrow::BorrowMut,
-    cell::{Cell, RefCell},
-    ops::Add,
-    sync::Arc,
-    time::Duration,
-};
+use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
-use crossbeam::epoch::Pointable;
-use futures_util::lock::Mutex;
-use rust_decimal::{prelude::FromPrimitive, Decimal};
+use rust_decimal::Decimal;
 use tokio::sync::RwLock;
 
 use crate::{
@@ -18,7 +10,7 @@ use crate::{
     data::QouteProvider,
     models::{
         orders::{
-            common::{OrderDetails, Side, TimeInForce},
+            common::{Side, TimeInForce},
             market::Market,
             new_order::NewOrder,
             one_cancels_others::OneCancelsOthers,

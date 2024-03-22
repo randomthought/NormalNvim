@@ -21,8 +21,6 @@ pub struct ActorRunner {
     algorithms: Vec<(StrategyId, Arc<dyn Algorithm>)>,
     #[builder(public, setter(prefix = "with"))]
     risk_engine: RiskEngine,
-    #[builder(public, setter(prefix = "with"))]
-    parser: Arc<dyn Parser + Sync + Send>,
 }
 
 impl ActorRunner {

@@ -1,19 +1,32 @@
 use std::time::Duration;
 
+use derive_builder::Builder;
+use getset::Getters;
+
 use crate::{
     models::orders::{new_order::NewOrder, pending_order::PendingOrder},
     strategy::algorithm::StrategyId,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Builder, Getters, Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub struct Entry {
+    #[builder(public, setter(prefix = "with"))]
+    #[getset(get)]
     pub order: NewOrder,
+    #[builder(public, setter(prefix = "with"))]
+    #[getset(get)]
     pub datetime: Duration,
+    #[builder(public, setter(prefix = "with"))]
+    #[getset(get)]
     pub strength: f32,
 }
 
 impl Entry {
+    pub fn builder() -> EntryBuilder {
+        EntryBuilder::default()
+    }
+
     pub fn new(order: NewOrder, datetime: Duration, strength: f32) -> Self {
         Self {
             order,
@@ -23,21 +36,21 @@ impl Entry {
     }
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct Modify {
     pub pending_order: PendingOrder,
     pub datetime: Duration,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct Cancel {
     pub pending_order: PendingOrder,
     pub datetime: Duration,
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, PartialEq)]
 #[non_exhaustive]
 pub enum Signal {
     Entry(Entry),
