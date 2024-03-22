@@ -1,5 +1,5 @@
 use crate::models::{
-    price::{PriceHistory, Quote, Resolution},
+    price::{candle::Candle, common::Resolution, quote::Quote},
     security::Security,
 };
 use async_trait::async_trait;
@@ -16,5 +16,5 @@ pub trait DataProvider {
         security: &Security,
         resolution: Resolution,
         lookback: u32,
-    ) -> PriceHistory;
+    ) -> Vec<Candle>;
 }

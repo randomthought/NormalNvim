@@ -1,11 +1,8 @@
 use std::{pin::Pin, sync::Arc, time::Duration};
 
-use domain::{
-    event::model::DataEvent,
-    models::price::{Candle, PriceHistory},
-};
+use domain::event::model::DataEvent;
 use eyre::Ok;
-use futures_util::{FutureExt, Stream, StreamExt};
+use futures_util::{Stream, StreamExt};
 use tokio::time::sleep;
 
 use super::provider::Parser;

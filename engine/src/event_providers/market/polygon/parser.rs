@@ -31,7 +31,7 @@ impl Parser for PolygonParser {
 
         let results: Result<Vec<_>, _> = deserialized
             .into_iter()
-            .map(|ag| utils::to_price_history(&ag).map(|ph| DataEvent::PriceEvent(ph)))
+            .map(|ag| utils::to_price_history(&ag).map(|cnd| DataEvent::Candle(cnd)))
             .collect();
 
         let events = results.map_err(|e| ParserError::OtherError(e.into()))?;

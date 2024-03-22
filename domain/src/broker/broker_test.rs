@@ -27,7 +27,7 @@ use crate::{
             security_position::{HoldingDetail, SecurityPosition},
             stop_limit_market::StopLimitMarket,
         },
-        price::{self, Price, Quote},
+        price::{common::Price, quote::Quote},
         security::{AssetType, Exchange, Security},
     },
     strategy::{algorithm::StrategyId, portfolio::StrategyPortfolio},
@@ -77,14 +77,15 @@ impl QouteProvider for Stub {
     async fn get_quote(&self, security: &Security) -> Result<Quote, crate::error::Error> {
         let price = self.price.read().await;
 
-        let quote = Quote {
-            security: security.to_owned(),
-            bid: *price,
-            ask: *price,
-            ask_size: 0,
-            bid_size: 0,
-            timestamp: Duration::new(5, 0),
-        };
+        let quote = Quote::builder()
+            .with_security(security.to_owned())
+            .with_bid(*price)
+            .with_ask(*price)
+            .with_ask_size(0)
+            .with_bid_size(0)
+            .with_timestamp(Duration::new(5, 0))
+            .build()
+            .unwrap();
 
         Ok(quote)
     }

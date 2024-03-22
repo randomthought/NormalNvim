@@ -1,10 +1,7 @@
 use derive_builder::Builder;
 
 use crate::{
-    models::{
-        price::Price,
-        security::{Security, SecurityBuilder},
-    },
+    models::{price::common::Price, security::Security},
     strategy::algorithm::StrategyId,
 };
 

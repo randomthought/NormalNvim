@@ -1,9 +1,6 @@
-use crate::{
-    models::{orders::pending_order::Order, price::PriceHistory},
-    strategy::model::signal::Signal,
-};
+use crate::models::price::candle::Candle;
 
 #[derive(Debug, Clone)]
 pub enum DataEvent {
-    PriceEvent(PriceHistory),
+    Candle(Candle),
 }

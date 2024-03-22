@@ -39,7 +39,7 @@ impl Algorithm for FakeAlgo {
             return Ok(None);
         };
 
-        let AlgoEvent::DataEvent(event::model::DataEvent::PriceEvent(price_history)) = algo_event
+        let AlgoEvent::DataEvent(event::model::DataEvent::Candle(price_history)) = algo_event
         else {
             return Ok(None);
         };

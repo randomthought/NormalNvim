@@ -13,7 +13,7 @@ use crate::{
             pending_order::PendingOrder,
             security_position::{HoldingDetail, SecurityPosition},
         },
-        price::{Price, Quote},
+        price::{common::Price, quote::Quote},
         security::Security,
     },
     order::{Account, OrderManager, OrderReader},
