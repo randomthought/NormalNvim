@@ -3,20 +3,15 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use domain::event::model::Event;
-use domain::event::model::Market;
-use domain::{
-    data::QouteProvider,
-    models::{
-        price::{PriceHistory, Quote},
-        security::Security,
-    },
-};
-use eyre::ContextCompat;
+use domain::event::model::DataEvent;
+use domain::models::price::candle::Candle;
+use domain::models::price::quote::Quote;
+use domain::{data::QouteProvider, models::security::Security};
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 use tokio::sync::RwLock;
 
+use super::market::polygon::models::PolygonQuote;
 use super::provider::Parser;
 use super::provider::ParserError;
 
@@ -38,20 +33,22 @@ impl BackTester {
         }
     }
 
-    async fn add(&self, price_history: &PriceHistory) -> Result<()> {
-        let c = price_history.history.last().wrap_err(format!(
-            "no price history in 'security={}",
-            price_history.security.ticker
-        ))?;
+    async fn add(&self, candle: &Candle) -> Result<()> {
+        let spread_half = (candle.close * self.spread) / Decimal::from(2);
+        let bid = candle.close - spread_half;
+        let ask = candle.close + spread_half;
+        let ticker = candle.security.ticker.clone();
+        let security = candle.security.clone();
 
-        let spread_half = (c.close * self.spread) / Decimal::from(2);
-        let bid = c.close - spread_half;
-        let ask = c.close + spread_half;
-        let ticker = price_history.security.ticker.clone();
-        let security = price_history.security.clone();
-
-        let q =
-            Quote::new(security, bid, ask, 0, 0, c.end_time).map_err(|e| eyre::Report::msg(e))?;
+        let q = Quote::builder()
+            .with_security(security)
+            .with_bid(bid)
+            .with_ask(ask)
+            .with_ask_size(0)
+            .with_bid_size(0)
+            .with_timestamp(candle.end_time)
+            .build()
+            .map_err(|e| eyre::Report::msg(e))?;
 
         let mut map = self.map.write().await;
         map.insert(ticker, q);
@@ -62,15 +59,12 @@ impl BackTester {
 
 #[async_trait]
 impl Parser for BackTester {
-    async fn parse(&self, data: &str) -> Result<Event, ParserError> {
-        // TODO: iterator overloading mwould be better since this would be done on every price history twice
-
+    async fn parse(&self, data: &str) -> Result<DataEvent, ParserError> {
         let event = self.parser.parse(data).await?;
-        if let Event::Market(Market::DataEvent(ph)) = event.clone() {
-            self.add(&ph)
-                .await
-                .map_err(|e| ParserError::OtherError(e.into()))?;
-        }
+        let DataEvent::Candle(ph) = event.clone();
+        self.add(&ph)
+            .await
+            .map_err(|e| ParserError::OtherError(e.into()))?;
 
         Ok(event)
     }

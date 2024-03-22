@@ -1,8 +1,10 @@
 use std::collections::VecDeque;
+use std::time::Duration;
 
 use async_trait::async_trait;
-use domain::event::model::{Event, Market};
+use domain::event::model::DataEvent;
 use tokio::sync::Mutex;
+use tokio::time::sleep;
 
 use crate::event_providers::provider::Parser;
 use crate::event_providers::provider::ParserError;
@@ -10,7 +12,7 @@ use crate::event_providers::provider::ParserError;
 use super::{models::Aggregates, utils};
 
 pub struct PolygonParser {
-    event_queue: Mutex<VecDeque<Event>>,
+    event_queue: Mutex<VecDeque<DataEvent>>,
 }
 
 impl PolygonParser {
@@ -23,13 +25,13 @@ impl PolygonParser {
 
 #[async_trait]
 impl Parser for PolygonParser {
-    async fn parse(&self, data: &str) -> Result<Event, ParserError> {
+    async fn parse(&self, data: &str) -> Result<DataEvent, ParserError> {
         let deserialized: Vec<Aggregates> =
-            serde_json::from_str(data).map_err(|e| ParserError::Json(e.into()))?;
+            serde_json::from_str(data).map_err(|e| ParserError::UnableToParseData(data.into()))?;
 
         let results: Result<Vec<_>, _> = deserialized
             .into_iter()
-            .map(|ag| utils::to_price_history(&ag).map(|ph| Event::Market(Market::DataEvent(ph))))
+            .map(|ag| utils::to_price_history(&ag).map(|cnd| DataEvent::Candle(cnd)))
             .collect();
 
         let events = results.map_err(|e| ParserError::OtherError(e.into()))?;
@@ -40,6 +42,7 @@ impl Parser for PolygonParser {
         }
 
         if let Some(event) = event_queue.pop_front() {
+            sleep(Duration::from_millis(1)).await;
             return Ok(event);
         }
 

@@ -34,13 +34,13 @@ pub struct ResponseMessage {
 pub struct QuoteResponse {
     #[serde(rename = "request_id")]
     pub request_id: String,
-    pub results: Quote,
+    pub results: PolygonQuote,
     pub status: String,
 }
 
 #[derive(Default, Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(rename_all = "camelCase")]
-pub struct Quote {
+pub struct PolygonQuote {
     #[serde(rename = "P")]
     pub p: f64,
     #[serde(rename = "S")]

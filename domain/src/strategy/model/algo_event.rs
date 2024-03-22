@@ -1,6 +1,7 @@
-use crate::{event::model::Market, models::orders::order_result::OrderResult};
+use crate::{event::model::DataEvent, models::orders::order_result::OrderResult};
 
-pub enum AlgoEvent<'a> {
-    Market(&'a Market),
-    OrderResult(&'a OrderResult),
+#[derive(Clone)]
+pub enum AlgoEvent {
+    DataEvent(DataEvent),
+    OrderResult(OrderResult),
 }

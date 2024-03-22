@@ -1,9 +1,9 @@
 use async_trait::async_trait;
-use domain::event::model::Event;
+use domain::event::model::DataEvent;
 
 #[derive(thiserror::Error, Debug)]
 pub enum ParserError {
-    #[error("{0}")]
+    #[error("enable to parse raw data `{0}`")]
     UnableToParseData(String),
     #[error(transparent)]
     OtherError(#[from] Box<dyn std::error::Error + Send + Sync>),
@@ -13,5 +13,5 @@ pub enum ParserError {
 
 #[async_trait]
 pub trait Parser {
-    async fn parse(&self, data: &str) -> Result<Event, ParserError>;
+    async fn parse(&self, data: &str) -> Result<DataEvent, ParserError>;
 }

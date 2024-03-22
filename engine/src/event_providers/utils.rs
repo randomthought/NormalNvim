@@ -1,45 +1,27 @@
-use std::{
-    pin::Pin,
-    sync::{
-        atomic::{AtomicBool, Ordering},
-        Arc,
-    },
-    time::Duration,
-};
+use std::{pin::Pin, sync::Arc, time::Duration};
 
-use domain::event::event::EventProducer;
+use domain::event::model::DataEvent;
+use eyre::Ok;
 use futures_util::{Stream, StreamExt};
 use tokio::time::sleep;
 
 use super::provider::Parser;
-use color_eyre::eyre::Result;
 
-pub struct EventStream {
-    event_producer: Arc<dyn EventProducer + Sync + Send>,
-    data_stream: Pin<Box<dyn Stream<Item = Result<String>> + Sync + Send>>,
+pub fn parse_stream(
+    stream: Pin<Box<dyn Stream<Item = eyre::Result<String>> + Send>>,
     parser: Arc<dyn Parser + Sync + Send>,
+) -> Pin<Box<dyn Stream<Item = eyre::Result<DataEvent>> + Send>> {
+    let mapped = stream.then(move |raw_data| transform_data(raw_data, parser.clone()));
+    Box::pin(mapped)
 }
 
-impl EventStream {
-    pub fn new(
-        event_producer: Arc<dyn EventProducer + Sync + Send>,
-        data_stream: Pin<Box<dyn Stream<Item = Result<String>> + Sync + Send>>,
-        parser: Arc<dyn Parser + Sync + Send>,
-    ) -> Self {
-        Self {
-            event_producer,
-            data_stream,
-            parser,
-        }
-    }
+async fn transform_data(
+    data_result: eyre::Result<String>,
+    parser: Arc<dyn Parser + Sync + Send>,
+) -> eyre::Result<DataEvent> {
+    let data = data_result?;
 
-    pub async fn start(&mut self) -> Result<()> {
-        while let Some(dr) = self.data_stream.next().await {
-            let raw_data = dr?;
-            let event = self.parser.parse(&raw_data).await?;
-            self.event_producer.produce(event).await?;
-        }
-
-        Ok(())
-    }
+    sleep(Duration::from_millis(1)).await;
+    let data_event = parser.parse(&data).await?;
+    Ok(data_event)
 }

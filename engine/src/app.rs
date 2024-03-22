@@ -1,30 +1,31 @@
 use color_eyre::eyre::Result;
-use eyre::{bail, Context, ContextCompat, Ok};
+use eyre::{bail, Context, ContextCompat};
 use futures_util::future::try_join;
 use std::{
     env,
     path::Path,
+    pin::Pin,
     sync::{atomic::AtomicBool, Arc},
 };
 use tokio_stream::wrappers::ReceiverStream;
 
 use crate::{
-    algorithms::fake_algo::FakeAlgo,
+    actors::actor_runner::ActorRunner,
+    algorithms::fake_algo::algo::FakeAlgo,
     event_providers::{
         back_test::BackTester,
         file_provider,
-        market::polygon::{api_client, parser::PolygonParser},
-        utils::EventStream,
+        market::polygon::{self, api_client, parser::PolygonParser},
+        provider::Parser,
+        utils,
     },
 };
 use domain::{
     broker::broker::Broker,
     data::QouteProvider,
-    event::{self, event::EventHandler},
     portfolio::Portfolio,
-    risk::{config::RiskEngineConfig, risk_engine::RiskEngine},
-    runner::Runner,
-    strategy::{algorithm::Algorithm, strategy::Strategy, strategy_engine::StrategyEngine},
+    risk::{algo_risk_config::AlgorithmRiskConfig, risk_engine::RiskEngine},
+    strategy::algorithm::Strategy,
 };
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use tokio::sync::{mpsc, Mutex};
@@ -33,86 +34,63 @@ pub async fn runApp() -> color_eyre::eyre::Result<()> {
     color_eyre::install()?;
 
     let client = reqwest::Client::new();
-    let api_key = env::var("API_KEY")?;
 
     let back_tester = BackTester::new(0.05, Box::new(PolygonParser::new()));
     let back_tester_ = Arc::new(back_tester);
     let qoute_provider = back_tester_.clone();
-    let parser = back_tester_.clone();
-    let (sender, reciever) = mpsc::channel(2);
-    let channel_producer = event::channel::ChannelProducer::new(sender);
-    let event_producer = Arc::new(channel_producer);
 
     let broker = Broker::new(
         Decimal::from_u64(100_000).wrap_err("error parsing account balance")?,
         qoute_provider.clone(),
-        event_producer.clone(),
     );
     let broker_ = Arc::new(broker);
-    let risk_engine_config = RiskEngineConfig {
-        max_trade_portfolio_accumulaton: 0.10,
-        max_portfolio_risk: 0.10,
-        max_open_trades: None,
-    };
 
-    let portfolio = Portfolio::new(broker_.clone(), broker_.clone(), qoute_provider.clone());
-    let risk_egnine = RiskEngine::new(
-        risk_engine_config,
-        broker_.clone(),
-        event_producer.clone(),
-        qoute_provider.clone(),
-        broker_.clone(),
-        Box::new(portfolio),
-    );
+    let algorithms = vec![Arc::new(FakeAlgo {})];
 
-    let strategy = Strategy::builder()
-        .with_algorithm(Box::new(FakeAlgo {}))
-        .with_portfolio(broker_.clone())
+    let risk_engine = algorithms
+        .iter()
+        .fold(Ok(&mut RiskEngine::builder()), |b_, algo| {
+            let Ok(b) = b_ else {
+                return b_;
+            };
+
+            AlgorithmRiskConfig::builder()
+                .with_strategy_id(algo.strategy_id())
+                .with_max_open_trades(2)
+                .build()
+                .map(|conf| b.add_algorithm_risk_config(conf))
+        })?
+        .with_strategy_portrfolio(broker_.clone())
+        .with_order_manager(broker_.clone())
         .with_qoute_provider(qoute_provider.clone())
-        .with_open_trades(4)
-        .build()
-        .unwrap();
+        .build()?;
 
-    let strategies = vec![strategy];
-    let strategy_engine = StrategyEngine::new(strategies, event_producer.clone());
+    // let api_key = env::var("API_KEY")?;
+    // let subscription = "A.*";
+    // let data_stream = polygon::stream_client::create_stream(&api_key, &subscription)?;
 
-    let event_handlers: Vec<Box<dyn EventHandler + Sync + Send>> =
-        vec![Box::new(strategy_engine), Box::new(risk_egnine)];
+    let file = env::var("FILE")?;
+    let path = Path::new(&file);
+    let buff_size = 4096usize;
+    let file_stream = file_provider::create_stream(path, buff_size)?;
+    let parser = back_tester_.clone();
+    let data_stream = utils::parse_stream(file_stream, parser.clone());
+    // let mut actor_runner = ActorRunner {
+    //     risk_engine,
+    //     parser,
+    //     data_stream,
+    //     algorithms: vec![Arc::new(FakeAlgo {})],
+    // };
+    let actor_runner = algorithms
+        .into_iter()
+        .fold(&mut ActorRunner::builder(), |b, x| {
+            b.add_algorithm(x.strategy_id(), x)
+        })
+        .with_parser(parser.clone())
+        .with_risk_engine(risk_engine)
+        .build()?;
 
-    let t1 = async move {
-        let subscription = "A.*";
-
-        // let data_stream = engine::event_providers::market::polygon::stream_client::create_stream(
-        //     &api_key,
-        //     &subscription,
-        // )
-        // ?;
-
-        println!("calling t1");
-        let file = env::var("FILE")?;
-        let path = Path::new(&file);
-        let buff_size = 4096usize;
-        let data_stream = file_provider::create_stream(path, buff_size)?;
-
-        let mut event_stream =
-            EventStream::new(event_producer.clone(), data_stream, parser.clone());
-
-        event_stream.start().await
-    };
-
-    let t2 = async move {
-        println!("calling t2");
-        let rs = ReceiverStream::new(reciever);
-        let stream = Box::pin(rs);
-        let mut event_runner = Runner::new(event_handlers, stream);
-        event_runner.run().await
-    };
-
-    // TODO: findout how to 'race' threads or stop all thereads on the first one to finish
-    // tokio::spawn(t1).await?;
-    // tokio::spawn(t2).await?;
-
-    tokio::join!(t1, t2);
+    actor_runner.run(data_stream).await?;
 
     Ok(())
 }

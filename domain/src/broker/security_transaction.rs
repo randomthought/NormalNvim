@@ -4,7 +4,7 @@ use crate::models::{
         filled_order::FilledOrder,
         security_position::{HoldingDetail, SecurityPosition},
     },
-    price::Price,
+    price::common::Price,
     security::Security,
 };
 use std::time::Duration;

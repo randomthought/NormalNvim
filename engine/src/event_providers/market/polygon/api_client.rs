@@ -3,9 +3,8 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use domain::{
     data::QouteProvider,
-    models::{price::Quote, security::Security},
+    models::{price::quote::Quote, security::Security},
 };
-use futures_util::TryFutureExt;
 
 pub struct ApiClient {
     api_key: String,
@@ -38,7 +37,7 @@ impl QouteProvider for ApiClient {
             .map_err(|e| domain::error::Error::Any(e.into()))?;
 
         let qoute =
-            utils::to_quote(&qoute_response).map_err(|e| domain::error::Error::Message(e))?;
+            utils::to_quote(&qoute_response).map_err(|e| domain::error::Error::Any(e.into()))?;
 
         Ok(qoute)
     }
