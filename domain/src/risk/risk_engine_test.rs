@@ -447,6 +447,13 @@ async fn do_not_trade_on_insufficient_balance() {
             .unwrap(),
     );
 
+    if let Err(e) = risk_engine.process_signal(&entry_signal).await {
+        panic!(
+            "failed to make the fist trade when sufficient balance exists: `{:?}`",
+            e
+        );
+    }
+
     match risk_engine.process_signal(&entry_signal).await {
         Err(RiskError::InsufficientAlgoAccountBalance) => (),
         Err(e) => panic!("failed with incorrect error: {:?}", e),
@@ -513,6 +520,11 @@ async fn trading_state_reduce_on_modify() {
 }
 
 #[tokio::test]
-async fn reject_trade_on_portfolio_risk() {
+async fn reject_trade_on_portfolio_risk_market() {
+    todo!()
+}
+
+#[tokio::test]
+async fn reject_trade_on_portfolio_risk_limit() {
     todo!()
 }

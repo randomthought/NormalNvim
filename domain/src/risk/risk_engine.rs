@@ -168,6 +168,26 @@ impl RiskEngine {
             return Err(RiskError::InsufficientAlgoAccountBalance);
         }
 
+        let all_open_trades = self
+            .order_manager
+            .get_positions()
+            .await
+            .map_err(|e| RiskError::OtherError(e.into()))?;
+
+        let security_already_traded = all_open_trades
+            .iter()
+            .filter(|s| {
+                s.holding_details
+                    .iter()
+                    .all(|hd| hd.strategy_id != strategy_id)
+            })
+            .filter(|s| &s.security == entry.order.get_security())
+            .flat_map(|s| s.holding_details.clone());
+
+        if let Some(s) = security_already_traded.last() {
+            return Err(RiskError::InstrumentTradedByAglorithm(s.strategy_id));
+        }
+
         let order_result = self
             .order_manager
             .place_order(&entry.order)
