@@ -456,7 +456,50 @@ async fn do_not_trade_on_insufficient_balance() {
 
 #[tokio::test]
 async fn do_not_trade_without_algo_risk_config() {
-    todo!()
+    let setup = Setup::new();
+
+    let stub = Arc::new(Stub::new());
+    let balance = Decimal::new(100_000, 0);
+    let broker = Arc::new(Broker::new(balance, stub.to_owned()));
+    let algo_risk_config = AlgorithmRiskConfig::builder()
+        .with_strategy_id(strategy_id)
+        .with_starting_balance(balance)
+        .with_max_open_trades(0)
+        .build()
+        .unwrap();
+
+    let risk_engine = RiskEngine::builder()
+        .add_algorithm_risk_config(algo_risk_config)
+        .with_qoute_provider(stub.clone())
+        .with_strategy_portrfolio(broker.clone())
+        .with_order_manager(broker.clone())
+        .build()
+        .unwrap();
+
+    let market_order = NewOrder::Market(
+        Market::builder()
+            .with_security(setup.security.to_owned())
+            .with_side(Side::Long)
+            .with_quantity(1)
+            .with_strategy_id("some_algo")
+            .build()
+            .unwrap(),
+    );
+
+    let entry_signal = Signal::Entry(
+        Entry::builder()
+            .with_datetime(SystemTime::now().duration_since(UNIX_EPOCH).unwrap())
+            .with_order(market_order)
+            .with_strength(0.1)
+            .build()
+            .unwrap(),
+    );
+
+    match risk_engine.process_signal(&entry_signal).await {
+        Err(RiskError::UnableToFindAlgoRiskConfig(_)) => (),
+        Err(e) => panic!("failed with incorrect error: {:?}", e),
+        Ok(result) => panic!("trade cannot be succesful: {:?}", result),
+    }
 }
 
 #[tokio::test]
