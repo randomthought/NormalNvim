@@ -6,10 +6,14 @@ pub enum RiskError {
     OtherError(#[from] Box<dyn std::error::Error + Send + Sync>),
     #[error("trading is set to halted")]
     TradingHalted,
+    #[error("instrument is already traded by strategy_id=`{0}`")]
+    InstrumentTradedByAglorithm(StrategyId),
     #[error("exceed max algorithm open trades")]
     ExceededAlgoMaxOpenTrades,
     #[error("exceed max algorithm loss")]
     ExceededAlgoMaxLoss,
+    #[error("insufficient algoirthim account balance")]
+    InsufficientAlgoAccountBalance,
     #[error("unable to find algorithm risk config {0}")]
     UnableToFindAlgoRiskConfig(StrategyId),
     #[error("exceeded max portfolio open trades")]

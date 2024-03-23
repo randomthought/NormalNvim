@@ -65,9 +65,9 @@ impl Orders {
         pending.get(PendingKey::None)
     }
 
-    pub async fn get_pending_order(&self, security: &Security) -> Vec<PendingOrder> {
+    pub async fn get_pending_order(&self, pending_key: PendingKey) -> Vec<PendingOrder> {
         let pending = self.pending.read().await;
-        pending.get(PendingKey::SecurityKey(security.to_owned()))
+        pending.get(pending_key)
     }
 
     pub async fn remove(&self, pending_order: &PendingOrder) -> Result<(), String> {

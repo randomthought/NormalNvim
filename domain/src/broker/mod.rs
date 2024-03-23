@@ -1,5 +1,7 @@
 pub mod broker;
-mod broker_test;
 mod orders;
 mod pending;
 mod security_transaction;
+
+#[cfg(test)]
+mod broker_test;

@@ -1,4 +1,5 @@
 use derive_builder::Builder;
+use rust_decimal::{prelude::FromPrimitive, Decimal};
 
 use crate::{
     models::{price::common::Price, security::Security},
@@ -26,6 +27,14 @@ impl SecurityPosition {
         self.holding_details
             .iter()
             .fold(0, |acc, next| acc + next.quantity)
+    }
+
+    pub fn get_cost(&self) -> Decimal {
+        self.holding_details
+            .iter()
+            .fold(Decimal::default(), |acc, next| {
+                acc + (next.price * Decimal::from_u64(next.quantity).unwrap())
+            })
     }
 }
 

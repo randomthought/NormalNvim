@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use rust_decimal::Decimal;
 
 use crate::models::orders::{
-    new_order::NewOrder, order_result::OrderResult, pending_order::PendingOrder,
+    common::OrderId, new_order::NewOrder, order_result::OrderResult, pending_order::PendingOrder,
     security_position::SecurityPosition,
 };
 
@@ -27,5 +27,5 @@ pub trait OrderManager: OrderReader {
     async fn update(&self, order_ticket: &PendingOrder)
         -> Result<OrderResult, crate::error::Error>;
     // TODO: don't you think having the ID should be good enought to cancel the order?
-    async fn cancel(&self, order: &PendingOrder) -> Result<OrderResult, crate::error::Error>;
+    async fn cancel(&self, order: &OrderId) -> Result<OrderResult, crate::error::Error>;
 }

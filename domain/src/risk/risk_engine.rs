@@ -11,6 +11,7 @@ use crate::models::orders::common::Side;
 use crate::models::orders::market::Market;
 use crate::models::orders::new_order::NewOrder;
 use crate::models::orders::order_result::OrderResult;
+use crate::models::orders::security_position::SecurityPosition;
 use crate::models::security::Security;
 use crate::order::OrderManager;
 use crate::strategy::algorithm::{Strategy, StrategyId};
@@ -72,7 +73,7 @@ impl RiskEngine {
             Signal::Cancel(s) => {
                 let order_result = self
                     .order_manager
-                    .cancel(&s.pending_order)
+                    .cancel(&s.order_id)
                     .await
                     .map_err(|e| RiskError::OtherError(e.into()))?;
                 Some(vec![order_result])
@@ -92,6 +93,22 @@ impl RiskEngine {
         }
 
         let strategy_id = algo_risk_config.strategy_id();
+
+        let profit = self
+            .strategy_portrfolio
+            .get_profit(strategy_id)
+            .await
+            .map_err(|e| RiskError::OtherError(e.into()))?;
+
+        let open_trades = self
+            .strategy_portrfolio
+            .get_holdings(strategy_id)
+            .await
+            .map_err(|e| RiskError::OtherError(e.into()))?;
+
+        let acc_balance =
+            algo_account_balance(profit, algo_risk_config.starting_balance, &open_trades[..]);
+
         if let Some(max) = algo_risk_config.max_portfolio_loss {
             let profit = self
                 .strategy_portrfolio
@@ -110,15 +127,8 @@ impl RiskEngine {
         if let (Some(mrpt), Signal::Entry(s)) =
             (algo_risk_config.max_risk_per_trade, signal.to_owned())
         {
-            let profit = self
-                .strategy_portrfolio
-                .get_profit(strategy_id)
-                .await
-                .map_err(|e| RiskError::OtherError(e.into()))?;
-
-            let acc_balance = profit + algo_risk_config.starting_balance;
-
-            let max_risk_per_trade = acc_balance * Decimal::from_f64(mrpt).unwrap();
+            let balance = profit + algo_risk_config.starting_balance;
+            let max_risk_per_trade = balance * Decimal::from_f64(mrpt).unwrap();
             let trade_risk = self.calaulate_trade_risk(&s).await?;
             if trade_risk > max_risk_per_trade {
                 return Err(RiskError::ExceededAlgoMaxRiskPerTrade(signal.to_owned()));
@@ -149,13 +159,38 @@ impl RiskEngine {
             }
         }
 
-        let Signal::Entry(s) = signal else {
+        let Signal::Entry(entry) = signal else {
             return Err(RiskError::UnsupportedSignalType);
         };
 
+        let trade_cost = self.get_trade_cost(&entry).await?;
+        if trade_cost > acc_balance {
+            return Err(RiskError::InsufficientAlgoAccountBalance);
+        }
+
+        let all_open_trades = self
+            .order_manager
+            .get_positions()
+            .await
+            .map_err(|e| RiskError::OtherError(e.into()))?;
+
+        let security_already_traded = all_open_trades
+            .iter()
+            .filter(|s| {
+                s.holding_details
+                    .iter()
+                    .all(|hd| hd.strategy_id != strategy_id)
+            })
+            .filter(|s| &s.security == entry.order.get_security())
+            .flat_map(|s| s.holding_details.clone());
+
+        if let Some(s) = security_already_traded.last() {
+            return Err(RiskError::InstrumentTradedByAglorithm(s.strategy_id));
+        }
+
         let order_result = self
             .order_manager
-            .place_order(&s.order)
+            .place_order(&entry.order)
             .await
             .map_err(|e| RiskError::OtherError(e.into()))?;
 
@@ -200,7 +235,7 @@ impl RiskEngine {
 
         let f2 = pending_orders
             .iter()
-            .map(|p| self.order_manager.cancel(p))
+            .map(|p| self.order_manager.cancel(&p.order_id))
             .chain(f1);
 
         let order_results = future::try_join_all(f2)
@@ -260,6 +295,18 @@ impl RiskEngine {
             _ => self.get_trade_cost(entry).await,
         }
     }
+}
+
+fn algo_account_balance(
+    profit: Decimal,
+    starting_balance: Decimal,
+    open_trades: &[SecurityPosition],
+) -> Decimal {
+    let open_trades_cost = open_trades
+        .iter()
+        .fold(Decimal::default(), |acc, n| acc + n.get_cost());
+
+    (profit + starting_balance) - open_trades_cost
 }
 
 impl RiskEngineBuilder {

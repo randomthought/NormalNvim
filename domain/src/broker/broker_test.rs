@@ -1,16 +1,8 @@
 use core::panic;
-use std::{
-    borrow::BorrowMut,
-    cell::{Cell, RefCell},
-    ops::Add,
-    sync::Arc,
-    time::Duration,
-};
+use std::{sync::Arc, time::Duration};
 
 use async_trait::async_trait;
-use crossbeam::epoch::Pointable;
-use futures_util::lock::Mutex;
-use rust_decimal::{prelude::FromPrimitive, Decimal};
+use rust_decimal::Decimal;
 use tokio::sync::RwLock;
 
 use crate::{
@@ -18,7 +10,7 @@ use crate::{
     data::QouteProvider,
     models::{
         orders::{
-            common::{OrderDetails, Side, TimeInForce},
+            common::{Side, TimeInForce},
             market::Market,
             new_order::NewOrder,
             one_cancels_others::OneCancelsOthers,
@@ -452,7 +444,7 @@ async fn cancel_oco_order() {
         panic!("pending order should be returned when placing limit order")
     };
 
-    broker.cancel(&pending_order).await.unwrap();
+    broker.cancel(&pending_order.order_id).await.unwrap();
 
     let pending_orders = broker.get_pending_orders().await.unwrap();
 
@@ -490,7 +482,7 @@ async fn cancel_market_stop_limit_order() {
         panic!("pending order should be returned when placing limit order")
     };
 
-    broker.cancel(&pending_order).await.unwrap();
+    broker.cancel(&pending_order.order_id).await.unwrap();
 
     let pending_orders = broker.get_pending_orders().await.unwrap();
 
@@ -529,7 +521,7 @@ async fn cancel_pending_order() {
         order_id: po.order_id.to_owned(),
         order: limit_order.to_owned(),
     };
-    broker.cancel(&pending_order).await.unwrap();
+    broker.cancel(&pending_order.order_id).await.unwrap();
 
     let pending_orders = broker.get_pending_orders().await.unwrap();
 
