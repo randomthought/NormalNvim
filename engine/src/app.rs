@@ -1,6 +1,7 @@
 use color_eyre::eyre::Result;
 use eyre::{bail, Context, ContextCompat};
 use futures_util::future::try_join;
+use opentelemetry::global;
 use std::{
     env,
     path::Path,
@@ -19,6 +20,7 @@ use crate::{
         provider::Parser,
         utils,
     },
+    telemetry::{metrics::Metrics, wrappers::algorithm::AlgorithmTelemetry},
 };
 use domain::{
     broker::broker::Broker,
@@ -45,7 +47,19 @@ pub async fn runApp() -> color_eyre::eyre::Result<()> {
     );
     let broker_ = Arc::new(broker);
 
-    let algorithms = vec![Arc::new(FakeAlgo {})];
+    let meter = global::meter("trading-engine");
+    let metrics = Metrics::new(&meter);
+
+    let algo_telem = AlgorithmTelemetry::builder()
+        .with_algorithm(Arc::new(FakeAlgo {}))
+        .with_strategy_id("fake_algo".into())
+        .with_event_counter(metrics.algo_event_counter)
+        .with_signal_counter(metrics.algo_signal_counter)
+        .with_histogram(metrics.algo_histogram)
+        .build()?;
+
+    // let algorithms = vec![Arc::new(FakeAlgo {})];
+    let algorithms = vec![Arc::new(algo_telem)];
 
     let risk_engine = algorithms
         .iter()

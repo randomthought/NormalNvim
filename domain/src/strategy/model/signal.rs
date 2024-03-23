@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use derive_builder::Builder;
 use getset::Getters;
+use strum_macros::{AsRefStr, VariantNames};
 
 use crate::{
     models::orders::{common::OrderId, new_order::NewOrder, pending_order::PendingOrder},
@@ -51,7 +52,7 @@ pub struct Cancel {
     pub datetime: Duration,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, AsRefStr, VariantNames)]
 #[non_exhaustive]
 pub enum Signal {
     Entry(Entry),
