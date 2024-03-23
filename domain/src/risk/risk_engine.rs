@@ -73,7 +73,7 @@ impl RiskEngine {
             Signal::Cancel(s) => {
                 let order_result = self
                     .order_manager
-                    .cancel(&s.pending_order)
+                    .cancel(&s.order_id)
                     .await
                     .map_err(|e| RiskError::OtherError(e.into()))?;
                 Some(vec![order_result])
@@ -215,7 +215,7 @@ impl RiskEngine {
 
         let f2 = pending_orders
             .iter()
-            .map(|p| self.order_manager.cancel(p))
+            .map(|p| self.order_manager.cancel(&p.order_id))
             .chain(f1);
 
         let order_results = future::try_join_all(f2)

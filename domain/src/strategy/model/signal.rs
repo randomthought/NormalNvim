@@ -4,7 +4,7 @@ use derive_builder::Builder;
 use getset::Getters;
 
 use crate::{
-    models::orders::{new_order::NewOrder, pending_order::PendingOrder},
+    models::orders::{common::OrderId, new_order::NewOrder, pending_order::PendingOrder},
     strategy::algorithm::StrategyId,
 };
 
@@ -46,7 +46,8 @@ pub struct Modify {
 #[derive(Debug, Clone, PartialEq, Eq)]
 #[non_exhaustive]
 pub struct Cancel {
-    pub pending_order: PendingOrder,
+    pub order_id: OrderId,
+    pub strategy_id: StrategyId,
     pub datetime: Duration,
 }
 
@@ -64,7 +65,7 @@ impl Signal {
         match self {
             Signal::Entry(s) => s.order.startegy_id(),
             Signal::Modify(s) => s.pending_order.startegy_id(),
-            Signal::Cancel(s) => s.pending_order.startegy_id(),
+            Signal::Cancel(s) => s.strategy_id,
             Signal::Liquidate(s) => s,
         }
     }

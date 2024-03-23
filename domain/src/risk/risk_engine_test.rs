@@ -82,6 +82,13 @@ impl QouteProvider for Stub {
 #[cfg(test)]
 #[tokio::test]
 async fn reject_trade_on_halt() {
+    use crate::{
+        models::orders::pending_order::PendingOrder,
+        strategy::model::signal::{Cancel, Modify},
+    };
+
+    let setup = Setup::new();
+
     let stub = Arc::new(Stub::new());
     let balance = Decimal::new(100_000, 0);
     let broker = Arc::new(Broker::new(balance, stub.to_owned()));
@@ -104,6 +111,59 @@ async fn reject_trade_on_halt() {
         Err(e) => panic!("failed with incorrect error: {:?}", e),
         Ok(result) => panic!("second trade cannot be succesful: {:?}", result),
     }
+
+    let market_order = NewOrder::Market(
+        Market::builder()
+            .with_security(setup.security.to_owned())
+            .with_side(Side::Long)
+            .with_quantity(1)
+            .with_strategy_id(strategy_id)
+            .build()
+            .unwrap(),
+    );
+
+    let entry_signal = Signal::Entry(
+        Entry::builder()
+            .with_datetime(SystemTime::now().duration_since(UNIX_EPOCH).unwrap())
+            .with_order(market_order.clone())
+            .with_strength(0.1)
+            .build()
+            .unwrap(),
+    );
+
+    match risk_engine.process_signal(&entry_signal).await {
+        Err(RiskError::TradingHalted) => (),
+        Err(e) => panic!("failed with incorrect error: {:?}", e),
+        Ok(result) => panic!("second trade cannot be succesful: {:?}", result),
+    }
+
+    let modify_order = Modify {
+        pending_order: PendingOrder {
+            order_id: "pending_order".into(),
+            order: market_order.clone(),
+        },
+        datetime: SystemTime::now().duration_since(UNIX_EPOCH).unwrap(),
+    };
+
+    let modify_signal = Signal::Modify(modify_order);
+    match risk_engine.process_signal(&modify_signal).await {
+        Err(RiskError::TradingHalted) => (),
+        Err(e) => panic!("failed with incorrect error: {:?}", e),
+        Ok(result) => panic!("second trade cannot be succesful: {:?}", result),
+    }
+
+    let cancel_order = Cancel {
+        strategy_id,
+        order_id: "cancel_order".into(),
+        datetime: SystemTime::now().duration_since(UNIX_EPOCH).unwrap(),
+    };
+
+    let cancel_signal = Signal::Cancel(cancel_order);
+    match risk_engine.process_signal(&cancel_signal).await {
+        Err(RiskError::TradingHalted) => (),
+        Err(e) => panic!("failed with incorrect error: {:?}", e),
+        Ok(result) => panic!("second trade cannot be succesful: {:?}", result),
+    }
 }
 
 #[tokio::test]
@@ -113,14 +173,22 @@ async fn two_algos_cannot_trade_same_instrument() {
     let stub = Arc::new(Stub::new());
     let balance = Decimal::new(100_000, 0);
     let broker = Arc::new(Broker::new(balance, stub.to_owned()));
-    let algo_risk_config = AlgorithmRiskConfig::builder()
+    let algo_risk_config_1 = AlgorithmRiskConfig::builder()
         .with_strategy_id(strategy_id)
         .with_starting_balance(balance)
         .build()
         .unwrap();
 
+    let strategy_id_2 = "second_algo";
+    let algo_risk_config_2 = AlgorithmRiskConfig::builder()
+        .with_strategy_id(strategy_id_2)
+        .with_starting_balance(balance)
+        .build()
+        .unwrap();
+
     let risk_engine = RiskEngine::builder()
-        .add_algorithm_risk_config(algo_risk_config)
+        .add_algorithm_risk_config(algo_risk_config_1)
+        .add_algorithm_risk_config(algo_risk_config_2)
         .with_qoute_provider(stub.clone())
         .with_strategy_portrfolio(broker.clone())
         .with_order_manager(broker.clone())
@@ -156,7 +224,7 @@ async fn two_algos_cannot_trade_same_instrument() {
             .with_security(setup.security.to_owned())
             .with_side(Side::Long)
             .with_quantity(quantity)
-            .with_strategy_id("strategy_2")
+            .with_strategy_id(strategy_id_2)
             .build()
             .unwrap(),
     );
@@ -177,7 +245,111 @@ async fn two_algos_cannot_trade_same_instrument() {
             }
         }
         Err(e) => panic!("failed with incorrect error: {:?}", e),
-        Ok(result) => panic!("second trade cannot be succesful: {:?}", result),
+        Ok(_) => panic!("second trade cannot be succesful"),
+    }
+}
+
+#[tokio::test]
+async fn reject_trade_on_max_open_trades_zero() {
+    let setup = Setup::new();
+
+    let stub = Arc::new(Stub::new());
+    let balance = Decimal::new(100_000, 0);
+    let broker = Arc::new(Broker::new(balance, stub.to_owned()));
+    let algo_risk_config = AlgorithmRiskConfig::builder()
+        .with_strategy_id(strategy_id)
+        .with_starting_balance(balance)
+        .with_max_open_trades(0)
+        .build()
+        .unwrap();
+
+    let risk_engine = RiskEngine::builder()
+        .add_algorithm_risk_config(algo_risk_config)
+        .with_qoute_provider(stub.clone())
+        .with_strategy_portrfolio(broker.clone())
+        .with_order_manager(broker.clone())
+        .build()
+        .unwrap();
+
+    let market_order = NewOrder::Market(
+        Market::builder()
+            .with_security(setup.security.to_owned())
+            .with_side(Side::Long)
+            .with_quantity(1)
+            .with_strategy_id(strategy_id)
+            .build()
+            .unwrap(),
+    );
+
+    let entry_signal = Signal::Entry(
+        Entry::builder()
+            .with_datetime(SystemTime::now().duration_since(UNIX_EPOCH).unwrap())
+            .with_order(market_order)
+            .with_strength(0.1)
+            .build()
+            .unwrap(),
+    );
+
+    match risk_engine.process_signal(&entry_signal).await {
+        Err(RiskError::ExceededAlgoMaxOpenTrades) => (),
+        Err(e) => panic!("failed with incorrect error: {:?}", e),
+        Ok(result) => panic!("trade cannot be succesful: {:?}", result),
+    }
+}
+
+#[tokio::test]
+async fn reject_trade_on_max_open_trades() {
+    let setup = Setup::new();
+
+    let stub = Arc::new(Stub::new());
+    let balance = Decimal::new(100_000, 0);
+    let broker = Arc::new(Broker::new(balance, stub.to_owned()));
+    let algo_risk_config = AlgorithmRiskConfig::builder()
+        .with_strategy_id(strategy_id)
+        .with_starting_balance(balance)
+        .with_max_open_trades(2)
+        .build()
+        .unwrap();
+
+    let risk_engine = RiskEngine::builder()
+        .add_algorithm_risk_config(algo_risk_config)
+        .with_qoute_provider(stub.clone())
+        .with_strategy_portrfolio(broker.clone())
+        .with_order_manager(broker.clone())
+        .build()
+        .unwrap();
+
+    let market_order = NewOrder::Market(
+        Market::builder()
+            .with_security(setup.security.to_owned())
+            .with_side(Side::Long)
+            .with_quantity(1)
+            .with_strategy_id(strategy_id)
+            .build()
+            .unwrap(),
+    );
+
+    let entry_signal = Signal::Entry(
+        Entry::builder()
+            .with_datetime(SystemTime::now().duration_since(UNIX_EPOCH).unwrap())
+            .with_order(market_order)
+            .with_strength(0.1)
+            .build()
+            .unwrap(),
+    );
+
+    if let Err(e) = risk_engine.process_signal(&entry_signal).await {
+        panic!("first trade failed with error: {:?}", e);
+    }
+
+    if let Err(e) = risk_engine.process_signal(&entry_signal).await {
+        panic!("second trade failed with error: {:?}", e);
+    }
+
+    match risk_engine.process_signal(&entry_signal).await {
+        Err(RiskError::ExceededAlgoMaxOpenTrades) => (),
+        Err(e) => panic!("failed with incorrect error: {:?}", e),
+        Ok(result) => panic!("trade cannot be succesful: {:?}", result),
     }
 }
 
@@ -193,11 +365,6 @@ async fn trading_state_reduce_on_modify() {
 
 #[tokio::test]
 async fn reject_trade_on_portfolio_risk() {
-    todo!()
-}
-
-#[tokio::test]
-async fn reject_trade_on_max_open_trades() {
     todo!()
 }
 

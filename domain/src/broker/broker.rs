@@ -4,7 +4,7 @@ use crate::{
     event::{self},
     models::{
         orders::{
-            common::{OrderDetails, Side},
+            common::{OrderDetails, OrderId, Side},
             filled_order::FilledOrder,
             market::Market,
             new_order::NewOrder,
@@ -26,7 +26,7 @@ use std::{sync::Arc, u64};
 use tokio::sync::RwLock;
 use uuid::Uuid;
 
-use super::{orders::Orders, security_transaction::SecurityTransaction};
+use super::{orders::Orders, pending::PendingKey, security_transaction::SecurityTransaction};
 
 pub struct Broker {
     qoute_provider: Arc<dyn QouteProvider + Sync + Send>,
@@ -369,17 +369,28 @@ impl OrderManager for Broker {
         }))
     }
 
-    async fn cancel(
-        &self,
-        pending_order: &PendingOrder,
-    ) -> Result<OrderResult, crate::error::Error> {
+    async fn cancel(&self, order_id: &OrderId) -> Result<OrderResult, crate::error::Error> {
+        let key = PendingKey::OrderIdKey(order_id.to_owned());
+        let pending_orders = self.orders.get_pending_order(key).await;
+        let pending_order = match &pending_orders[..] {
+            [a] => Ok(a),
+            [] => Err(crate::error::Error::Message(format!(
+                "no orders associated with the order_id=`{:?}`",
+                order_id
+            ))),
+            _ => Err(crate::error::Error::Message(format!(
+                "more than one order associated with the order_id=`{:?}`",
+                order_id
+            ))),
+        }?;
+
         self.orders
             .remove(&pending_order)
             .await
             .map_err(|e| crate::error::Error::Message(e))?;
 
         Ok(OrderResult::Updated(OrderMeta {
-            order_id: pending_order.order_id.to_owned(),
+            order_id: order_id.to_owned(),
             strategy_id: pending_order.startegy_id(),
         }))
     }
