@@ -1,4 +1,11 @@
-use std::{pin::Pin, sync::Arc, time::Duration};
+use std::{
+    pin::Pin,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
 
 use crate::event_providers::provider::Parser;
 
@@ -18,9 +25,11 @@ use futures_util::{Stream, StreamExt};
 #[derive(Builder)]
 pub struct ActorRunner {
     #[builder(private)]
-    algorithms: Vec<(StrategyId, Arc<dyn Algorithm>)>,
+    algorithms: Vec<(StrategyId, Arc<dyn Algorithm + Send + Sync>)>,
     #[builder(public, setter(prefix = "with"))]
     risk_engine: RiskEngine,
+    #[builder(public, setter(prefix = "with"))]
+    shutdown_signal: Arc<AtomicBool>,
 }
 
 impl ActorRunner {
@@ -74,7 +83,11 @@ impl ActorRunner {
             .build()?;
 
         while let Some(dr) = data_stream.next().await {
-            event_bus.notify(dr?)?;
+            if self.shutdown_signal.load(Ordering::SeqCst) {
+                break;
+            }
+            let data_event = dr?;
+            event_bus.notify(data_event)?;
         }
 
         Ok(())
@@ -85,7 +98,7 @@ impl ActorRunnerBuilder {
     pub fn add_algorithm(
         &mut self,
         strategy_id: StrategyId,
-        algorithm: Arc<dyn Algorithm>,
+        algorithm: Arc<dyn Algorithm + Send + Sync>,
     ) -> &mut Self {
         let entry = (strategy_id, algorithm);
 

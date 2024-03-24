@@ -1,41 +1,49 @@
-use color_eyre::eyre::Result;
-use eyre::{bail, Context, ContextCompat};
-use futures_util::future::try_join;
-use opentelemetry::global;
-use std::{
-    env,
-    path::Path,
-    pin::Pin,
-    sync::{atomic::AtomicBool, Arc},
-};
-use tokio_stream::wrappers::ReceiverStream;
-
 use crate::{
     actors::actor_runner::ActorRunner,
     algorithms::fake_algo::algo::FakeAlgo,
     event_providers::{
         back_test::BackTester,
         file_provider,
-        market::polygon::{self, api_client, parser::PolygonParser},
-        provider::Parser,
+        market::polygon::{self, parser::PolygonParser},
         utils,
     },
     telemetry::{metrics::Metrics, wrappers::algorithm::AlgorithmTelemetry},
 };
+use actix_web::{web, App, HttpResponse, HttpServer, Responder};
+use color_eyre::eyre::Result;
 use domain::{
     broker::broker::Broker,
-    data::QouteProvider,
-    portfolio::Portfolio,
     risk::{algo_risk_config::AlgorithmRiskConfig, risk_engine::RiskEngine},
     strategy::algorithm::Strategy,
 };
+use eyre::ContextCompat;
+use opentelemetry::global;
+use opentelemetry_sdk::metrics::SdkMeterProvider;
+use prometheus::{Encoder, Registry, TextEncoder};
 use rust_decimal::{prelude::FromPrimitive, Decimal};
-use tokio::sync::{mpsc, Mutex};
+use std::{
+    env,
+    path::Path,
+    sync::{
+        atomic::{AtomicBool, Ordering},
+        Arc,
+    },
+};
 
-pub async fn runApp() -> color_eyre::eyre::Result<()> {
+pub async fn run_app() -> color_eyre::eyre::Result<()> {
     color_eyre::install()?;
 
-    let client = reqwest::Client::new();
+    let registry = prometheus::Registry::new();
+    let exporter = opentelemetry_prometheus::exporter()
+        .with_registry(registry.clone())
+        .build()
+        .unwrap();
+
+    let provider = SdkMeterProvider::builder().with_reader(exporter).build();
+    global::set_meter_provider(provider);
+
+    let meter = global::meter("trading_engine");
+    let metrics = Metrics::builder().with_meter(&meter).build()?;
 
     let back_tester = BackTester::new(0.05, Box::new(PolygonParser::new()));
     let back_tester_ = Arc::new(back_tester);
@@ -47,19 +55,23 @@ pub async fn runApp() -> color_eyre::eyre::Result<()> {
     );
     let broker_ = Arc::new(broker);
 
-    let meter = global::meter("trading-engine");
-    let metrics = Metrics::new(&meter);
+    let algos = vec![Arc::new(FakeAlgo {})];
 
-    let algo_telem = AlgorithmTelemetry::builder()
-        .with_algorithm(Arc::new(FakeAlgo {}))
-        .with_strategy_id("fake_algo".into())
-        .with_event_counter(metrics.algo_event_counter)
-        .with_signal_counter(metrics.algo_signal_counter)
-        .with_histogram(metrics.algo_histogram)
-        .build()?;
+    let algo_telems_: Result<Vec<_>, _> = algos
+        .iter()
+        .map(|algo| {
+            let metrics = metrics.clone();
+            AlgorithmTelemetry::builder()
+                .with_algorithm(algo.clone())
+                .with_strategy_id(algo.strategy_id())
+                .with_event_counter(metrics.algo_event_counter)
+                .with_signal_counter(metrics.algo_signal_counter)
+                .with_histogram(metrics.algo_histogram)
+                .build()
+        })
+        .collect();
 
-    // let algorithms = vec![Arc::new(FakeAlgo {})];
-    let algorithms = vec![Arc::new(algo_telem)];
+    let algorithms = algo_telems_?;
 
     let risk_engine = algorithms
         .iter()
@@ -80,31 +92,66 @@ pub async fn runApp() -> color_eyre::eyre::Result<()> {
         .with_qoute_provider(qoute_provider.clone())
         .build()?;
 
-    // let api_key = env::var("API_KEY")?;
-    // let subscription = "A.*";
-    // let data_stream = polygon::stream_client::create_stream(&api_key, &subscription)?;
+    let api_key = env::var("API_KEY")?;
+    let subscription = "A.*";
+    // let raw_data_stream = polygon::stream_client::create_stream(&api_key, &subscription)?;
 
     let file = env::var("FILE")?;
     let path = Path::new(&file);
     let buff_size = 4096usize;
-    let file_stream = file_provider::create_stream(path, buff_size)?;
+    let raw_data_stream = file_provider::create_stream(path, buff_size)?;
     let parser = back_tester_.clone();
-    let data_stream = utils::parse_stream(file_stream, parser.clone());
-    // let mut actor_runner = ActorRunner {
-    //     risk_engine,
-    //     parser,
-    //     data_stream,
-    //     algorithms: vec![Arc::new(FakeAlgo {})],
-    // };
+
+    let data_stream = utils::parse_stream(raw_data_stream, parser.clone());
+    let shutdown_signal = Arc::new(AtomicBool::new(false));
     let actor_runner = algorithms
         .into_iter()
         .fold(&mut ActorRunner::builder(), |b, x| {
-            b.add_algorithm(x.strategy_id(), x)
+            b.add_algorithm(x.strategy_id(), Arc::new(x))
         })
         .with_risk_engine(risk_engine)
+        .with_shutdown_signal(shutdown_signal.clone())
         .build()?;
 
-    actor_runner.run(data_stream).await?;
+    let metrics_server = HttpServer::new(move || {
+        let r = registry.clone();
+
+        App::new()
+            // Here, we're using an anonymous function directly
+            .route(
+                "/metrics",
+                web::get().to(move || prometheus_metrics_api(r.clone())),
+            )
+    })
+    .bind(("127.0.0.1", 8080))?
+    .run();
+
+    tokio::spawn(metrics_server);
+
+    let runner = actor_runner.run(data_stream);
+    tokio::select! {
+         _ = tokio::signal::ctrl_c() => {
+            println!("Shutdown signal received, shutting down...");
+            shutdown_signal.store(true, Ordering::SeqCst);
+        },
+        _ = runner => {
+            println!("Server error or shutdown");
+        },
+    }
 
     Ok(())
+}
+
+async fn prometheus_metrics_api(registry: Registry) -> impl Responder {
+    let encoder = TextEncoder::new();
+    let mut buffer = Vec::new();
+    encoder
+        .encode(&registry.gather(), &mut buffer)
+        .expect("Failed to encode metrics");
+
+    let output = String::from_utf8(buffer).unwrap();
+
+    HttpResponse::Ok()
+        .content_type(encoder.format_type())
+        .body(output)
 }
