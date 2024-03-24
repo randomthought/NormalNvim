@@ -1,4 +1,4 @@
-use std::{sync::Arc, time::Instant};
+use std::{sync::Arc, time::Instant, u64};
 
 use async_trait::async_trait;
 use derive_builder::Builder;
@@ -7,7 +7,7 @@ use domain::strategy::{
     model::{algo_event::AlgoEvent, signal::Signal},
 };
 use opentelemetry::{
-    metrics::{Counter, Histogram},
+    metrics::{Counter, Gauge, Histogram, ObservableGauge},
     KeyValue,
 };
 
@@ -23,6 +23,8 @@ pub struct AlgorithmTelemetry {
     event_counter: Counter<u64>,
     #[builder(setter(prefix = "with"))]
     histogram: Histogram<f64>,
+    #[builder(setter(prefix = "with"))]
+    event_guage: ObservableGauge<u64>,
 }
 
 impl AlgorithmTelemetry {
@@ -63,13 +65,14 @@ impl Algorithm for AlgorithmTelemetry {
                 return result;
             };
 
-            self.signal_counter.add(
-                1,
-                &[
-                    KeyValue::new("strategy_id", self.strategy_id),
-                    KeyValue::new("signal", format!("{}", s.as_ref())),
-                ],
-            );
+            let attr = &[
+                KeyValue::new("strategy_id", self.strategy_id),
+                KeyValue::new("signal", format!("{}", s.as_ref())),
+            ];
+
+            self.signal_counter.add(1, attr);
+
+            self.event_guage.observe(1, attr);
         }
 
         result

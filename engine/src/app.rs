@@ -67,6 +67,7 @@ pub async fn run_app() -> color_eyre::eyre::Result<()> {
                 .with_event_counter(metrics.algo_event_counter)
                 .with_signal_counter(metrics.algo_signal_counter)
                 .with_histogram(metrics.algo_histogram)
+                .with_event_guage(metrics.algo_event_guage)
                 .build()
         })
         .collect();
