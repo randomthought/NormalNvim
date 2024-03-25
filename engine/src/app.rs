@@ -2,12 +2,12 @@ use crate::{
     actors::actor_runner::ActorRunner,
     algorithms::fake_algo::algo::FakeAlgo,
     event_providers::{
-        back_test::BackTester,
-        file_provider,
-        market::polygon::{self, parser::PolygonParser},
-        utils,
+        back_test::BackTester, file_provider, market::polygon::parser::PolygonParser, utils,
     },
-    telemetry::{metrics::Metrics, wrappers::algorithm::AlgorithmTelemetry},
+    telemetry::{
+        metrics::Metrics,
+        wrappers::{algorithm::AlgorithmTelemetry, strategy_portfolio::StrategyPortfolioTelemtry},
+    },
 };
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use color_eyre::eyre::Result;
@@ -53,21 +53,43 @@ pub async fn run_app() -> color_eyre::eyre::Result<()> {
         Decimal::from_u64(100_000).wrap_err("error parsing account balance")?,
         qoute_provider.clone(),
     );
-    let broker_ = Arc::new(broker);
+    let broker = Arc::new(broker);
+
+    let m = metrics.clone();
+    let strategy_portfolio = StrategyPortfolioTelemtry::builder()
+        .with_strategy_portfolio(broker.clone())
+        .with_security_positions_gauge(m.strategy_portfolio_security_positions_gauge)
+        .with_security_positions_counter(m.strategy_portfolio_security_positions_counter)
+        .with_get_security_positions_histogram(
+            m.strategy_portfolio_get_security_positions_histogram,
+        )
+        .with_get_security_positions_error_counter(
+            m.strategy_portfolio_get_security_positions_error,
+        )
+        .with_profit_gauge(m.strategy_portfolio_profit_gauge)
+        .with_get_profit_histogram(m.strategy_portfolio_get_profit_histogram)
+        .with_get_profit_error_counter(m.strategy_portfolio_get_profit_error_counter)
+        .with_pending_orders_gauge(m.strategy_portfolio_pending_orders_gauge)
+        .with_get_pending_histogram(m.strategy_portfolio_get_pending_histogram)
+        .with_get_pending_error_counter(m.strategy_portfolio_get_pending_error_counter)
+        .build()?;
+
+    let strategy_portfolio = Arc::new(strategy_portfolio);
 
     let algos = vec![Arc::new(FakeAlgo {})];
 
     let algo_telems_: Result<Vec<_>, _> = algos
         .iter()
         .map(|algo| {
-            let metrics = metrics.clone();
+            let m = metrics.clone();
             AlgorithmTelemetry::builder()
                 .with_algorithm(algo.clone())
                 .with_strategy_id(algo.strategy_id())
-                .with_event_counter(metrics.algo_event_counter)
-                .with_signal_counter(metrics.algo_signal_counter)
-                .with_histogram(metrics.algo_histogram)
-                .with_event_guage(metrics.algo_event_guage)
+                .with_event_counter(m.algorithm_event_counter)
+                .with_signal_counter(m.algorithm_signal_counter)
+                .with_histogram(m.algorithm_histogram)
+                .with_event_guage(m.algorithm_event_guage)
+                .with_on_data_error(m.algorithm_on_data_error_counter)
                 .build()
         })
         .collect();
@@ -88,8 +110,8 @@ pub async fn run_app() -> color_eyre::eyre::Result<()> {
                 .build()
                 .map(|conf| b.add_algorithm_risk_config(conf))
         })?
-        .with_strategy_portrfolio(broker_.clone())
-        .with_order_manager(broker_.clone())
+        .with_strategy_portfolio(strategy_portfolio.clone())
+        .with_order_manager(broker.clone())
         .with_qoute_provider(qoute_provider.clone())
         .build()?;
 

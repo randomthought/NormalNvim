@@ -99,7 +99,7 @@ async fn reject_trade_on_halt() {
     let risk_engine = RiskEngine::builder()
         .add_algorithm_risk_config(algo_risk_config)
         .with_qoute_provider(stub.clone())
-        .with_strategy_portrfolio(broker.clone())
+        .with_strategy_portfolio(broker.clone())
         .with_order_manager(broker.clone())
         .with_trading_state(TradingState::Halted)
         .build()
@@ -190,7 +190,7 @@ async fn two_algos_cannot_trade_same_instrument() {
         .add_algorithm_risk_config(algo_risk_config_1)
         .add_algorithm_risk_config(algo_risk_config_2)
         .with_qoute_provider(stub.clone())
-        .with_strategy_portrfolio(broker.clone())
+        .with_strategy_portfolio(broker.clone())
         .with_order_manager(broker.clone())
         .build()
         .unwrap();
@@ -266,7 +266,7 @@ async fn reject_trade_on_max_open_trades_zero() {
     let risk_engine = RiskEngine::builder()
         .add_algorithm_risk_config(algo_risk_config)
         .with_qoute_provider(stub.clone())
-        .with_strategy_portrfolio(broker.clone())
+        .with_strategy_portfolio(broker.clone())
         .with_order_manager(broker.clone())
         .build()
         .unwrap();
@@ -312,7 +312,7 @@ async fn reject_trade_on_max_open_trades() {
     let risk_engine = RiskEngine::builder()
         .add_algorithm_risk_config(algo_risk_config)
         .with_qoute_provider(stub.clone())
-        .with_strategy_portrfolio(broker.clone())
+        .with_strategy_portfolio(broker.clone())
         .with_order_manager(broker.clone())
         .build()
         .unwrap();
@@ -376,7 +376,7 @@ async fn do_not_trade_on_insufficient_balance_zero() {
     let risk_engine = RiskEngine::builder()
         .add_algorithm_risk_config(algo_risk_config)
         .with_qoute_provider(stub.clone())
-        .with_strategy_portrfolio(broker.clone())
+        .with_strategy_portfolio(broker.clone())
         .with_order_manager(broker.clone())
         .build()
         .unwrap();
@@ -423,7 +423,7 @@ async fn do_not_trade_on_insufficient_balance() {
     let risk_engine = RiskEngine::builder()
         .add_algorithm_risk_config(algo_risk_config)
         .with_qoute_provider(stub.clone())
-        .with_strategy_portrfolio(broker.clone())
+        .with_strategy_portfolio(broker.clone())
         .with_order_manager(broker.clone())
         .build()
         .unwrap();
@@ -478,7 +478,7 @@ async fn do_not_trade_without_algo_risk_config() {
     let risk_engine = RiskEngine::builder()
         .add_algorithm_risk_config(algo_risk_config)
         .with_qoute_provider(stub.clone())
-        .with_strategy_portrfolio(broker.clone())
+        .with_strategy_portfolio(broker.clone())
         .with_order_manager(broker.clone())
         .build()
         .unwrap();

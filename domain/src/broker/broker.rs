@@ -251,7 +251,7 @@ impl StrategyPortfolio for Broker {
         Ok(result)
     }
 
-    async fn get_holdings(
+    async fn get_security_positions(
         &self,
         strategy_id: StrategyId,
     ) -> Result<Vec<SecurityPosition>, crate::error::Error> {

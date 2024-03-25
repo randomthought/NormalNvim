@@ -8,7 +8,7 @@ use super::algorithm::StrategyId;
 #[async_trait]
 pub trait StrategyPortfolio {
     async fn get_profit(&self, strategy_id: StrategyId) -> Result<Decimal, crate::error::Error>;
-    async fn get_holdings(
+    async fn get_security_positions(
         &self,
         strategy_id: StrategyId,
     ) -> Result<Vec<SecurityPosition>, crate::error::Error>;

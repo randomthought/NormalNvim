@@ -39,7 +39,7 @@ pub struct RiskEngine {
     #[builder(setter(prefix = "with"))]
     qoute_provider: Arc<dyn QouteProvider + Send + Sync>,
     #[builder(setter(prefix = "with"))]
-    strategy_portrfolio: Arc<dyn StrategyPortfolio + Send + Sync>,
+    strategy_portfolio: Arc<dyn StrategyPortfolio + Send + Sync>,
     #[builder(setter(prefix = "with"))]
     order_manager: Arc<dyn OrderManager + Send + Sync>,
 }
@@ -95,14 +95,14 @@ impl RiskEngine {
         let strategy_id = algo_risk_config.strategy_id();
 
         let profit = self
-            .strategy_portrfolio
+            .strategy_portfolio
             .get_profit(strategy_id)
             .await
             .map_err(|e| RiskError::OtherError(e.into()))?;
 
         let open_trades = self
-            .strategy_portrfolio
-            .get_holdings(strategy_id)
+            .strategy_portfolio
+            .get_security_positions(strategy_id)
             .await
             .map_err(|e| RiskError::OtherError(e.into()))?;
 
@@ -111,7 +111,7 @@ impl RiskEngine {
 
         if let Some(max) = algo_risk_config.max_portfolio_loss {
             let profit = self
-                .strategy_portrfolio
+                .strategy_portfolio
                 .get_profit(strategy_id)
                 .await
                 .map_err(|e| RiskError::OtherError(e.into()))?;
@@ -137,8 +137,8 @@ impl RiskEngine {
 
         if let Some(max) = algo_risk_config.max_open_trades {
             let open_trades = self
-                .strategy_portrfolio
-                .get_holdings(signal.strategy_id())
+                .strategy_portfolio
+                .get_security_positions(signal.strategy_id())
                 .await
                 .map_err(|e| RiskError::OtherError(e.into()))?;
 
@@ -201,8 +201,8 @@ impl RiskEngine {
 
     async fn liquidate(&self, strategy_id: StrategyId) -> Result<Vec<OrderResult>, RiskError> {
         let positions = self
-            .strategy_portrfolio
-            .get_holdings(strategy_id)
+            .strategy_portfolio
+            .get_security_positions(strategy_id)
             .await
             .map_err(|e| RiskError::OtherError(e.into()))?;
 
@@ -228,7 +228,7 @@ impl RiskEngine {
         let f1 = orders.iter().map(|o| self.order_manager.place_order(&o));
 
         let pending_orders = self
-            .strategy_portrfolio
+            .strategy_portfolio
             .get_pending(strategy_id)
             .await
             .map_err(|e| RiskError::OtherError(e.into()))?;

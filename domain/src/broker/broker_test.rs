@@ -642,7 +642,7 @@ async fn get_algo_holdings() {
     );
 
     broker.place_order(&market_order_1).await.unwrap();
-    let results_1 = broker.get_holdings(strategy_id).await.unwrap();
+    let results_1 = broker.get_security_positions(strategy_id).await.unwrap();
     let expected = vec![SecurityPosition {
         security: setup.security.to_owned(),
         side: Side::Long,
@@ -654,7 +654,10 @@ async fn get_algo_holdings() {
     }];
     assert_eq!(results_1, expected);
 
-    let results_2 = broker.get_holdings("algo_with_no_trades").await.unwrap();
+    let results_2 = broker
+        .get_security_positions("algo_with_no_trades")
+        .await
+        .unwrap();
     assert!(
         results_2.is_empty(),
         "the shouldn't be any trade for an aglorthim that didn't trade"

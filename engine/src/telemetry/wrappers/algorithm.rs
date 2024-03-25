@@ -7,7 +7,7 @@ use domain::strategy::{
     model::{algo_event::AlgoEvent, signal::Signal},
 };
 use opentelemetry::{
-    metrics::{Counter, Gauge, Histogram, ObservableGauge},
+    metrics::{Counter, Gauge, Histogram, ObservableGauge, UpDownCounter},
     KeyValue,
 };
 
@@ -25,6 +25,8 @@ pub struct AlgorithmTelemetry {
     histogram: Histogram<f64>,
     #[builder(setter(prefix = "with"))]
     event_guage: ObservableGauge<u64>,
+    #[builder(setter(prefix = "with"))]
+    on_data_error: Counter<u64>,
 }
 
 impl AlgorithmTelemetry {
@@ -45,6 +47,8 @@ impl Algorithm for AlgorithmTelemetry {
         &self,
         algo_event: AlgoEvent,
     ) -> Result<Option<Signal>, domain::error::Error> {
+        let default_attrs = &[KeyValue::new("strategy_id", self.strategy_id)];
+
         self.event_counter.add(
             1,
             &[
@@ -58,8 +62,7 @@ impl Algorithm for AlgorithmTelemetry {
 
         if let Ok(os) = result.as_ref() {
             let elapsed = start_time.elapsed().as_millis() as f64;
-            self.histogram
-                .record(elapsed, &[KeyValue::new("strategy_id", self.strategy_id)]);
+            self.histogram.record(elapsed, default_attrs);
 
             let Some(s) = os else {
                 return result;
@@ -73,6 +76,8 @@ impl Algorithm for AlgorithmTelemetry {
             self.signal_counter.add(1, attr);
 
             self.event_guage.observe(1, attr);
+        } else {
+            self.on_data_error.add(1, default_attrs);
         }
 
         result
