@@ -1,6 +1,10 @@
+use strum_macros::AsRefStr;
+use strum_macros::VariantNames;
+
 use crate::strategy::{algorithm::StrategyId, model::signal::Signal};
 
-#[derive(thiserror::Error, Debug)]
+#[derive(thiserror::Error, Debug, AsRefStr, VariantNames)]
+#[strum(serialize_all = "snake_case")]
 pub enum RiskError {
     #[error(transparent)]
     OtherError(#[from] Box<dyn std::error::Error + Send + Sync>),

@@ -53,6 +53,7 @@ pub struct Cancel {
 }
 
 #[derive(Debug, Clone, PartialEq, AsRefStr, VariantNames)]
+#[strum(serialize_all = "snake_case")]
 #[non_exhaustive]
 pub enum Signal {
     Entry(Entry),
