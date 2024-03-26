@@ -41,7 +41,7 @@ impl ActorRunner {
 
     pub async fn run(
         &self,
-        mut data_stream: Pin<Box<dyn Stream<Item = eyre::Result<DataEvent>> + Send>>,
+        mut data_stream: Pin<Box<dyn Stream<Item = eyre::Result<Option<DataEvent>>> + Send>>,
     ) -> eyre::Result<()> {
         let algos_addresses_: Result<Vec<_>, _> = self
             .algorithms
@@ -93,8 +93,9 @@ impl ActorRunner {
             if self.shutdown_signal.load(Ordering::SeqCst) {
                 break;
             }
-            let data_event = dr?;
-            event_bus.notify(data_event)?;
+            if let Some(data_event) = dr? {
+                event_bus.notify(data_event)?;
+            }
         }
 
         Ok(())

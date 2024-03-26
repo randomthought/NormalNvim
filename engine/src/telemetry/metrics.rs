@@ -95,7 +95,7 @@ impl MetricsBuilder {
         );
         self.algorithm_event_counter = Some(
             value
-                .u64_counter("algo_event_count")
+                .u64_counter("algo_event_counter")
                 .with_description("counts number of algo_event")
                 .init(),
         );

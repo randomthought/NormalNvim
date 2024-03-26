@@ -13,5 +13,5 @@ pub enum ParserError {
 
 #[async_trait]
 pub trait Parser {
-    async fn parse(&self, data: &str) -> Result<DataEvent, ParserError>;
+    async fn parse(&self, data: &str) -> Result<Option<DataEvent>, ParserError>;
 }

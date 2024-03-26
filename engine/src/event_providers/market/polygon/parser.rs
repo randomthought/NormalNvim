@@ -25,7 +25,11 @@ impl PolygonParser {
 
 #[async_trait]
 impl Parser for PolygonParser {
-    async fn parse(&self, data: &str) -> Result<DataEvent, ParserError> {
+    async fn parse(&self, data: &str) -> Result<Option<DataEvent>, ParserError> {
+        if data.is_empty() {
+            return Ok(None);
+        }
+
         let deserialized: Vec<Aggregates> =
             serde_json::from_str(data).map_err(|e| ParserError::UnableToParseData(data.into()))?;
 
@@ -42,8 +46,9 @@ impl Parser for PolygonParser {
         }
 
         if let Some(event) = event_queue.pop_front() {
-            sleep(Duration::from_millis(1)).await;
-            return Ok(event);
+            // sleep(Duration::from_millis(1)).await;
+
+            return Ok(Some(event));
         }
 
         Err(ParserError::UnableToParseData(data.into()))
