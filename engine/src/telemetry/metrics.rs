@@ -24,6 +24,16 @@ pub struct Metrics {
     pub algorithm_event_guage: ObservableGauge<u64>,
     #[builder(setter(prefix = "with"))]
     pub algorithm_on_data_error_counter: Counter<u64>,
+    // Risk Engine Metrics
+    // =======================================
+    #[builder(setter(prefix = "with"))]
+    pub risk_engine_error_counter: Counter<u64>,
+    #[builder(setter(prefix = "with"))]
+    pub risk_engine_order_result_counter: Counter<u64>,
+    #[builder(setter(prefix = "with"))]
+    pub risk_engine_order_result_gauge: ObservableGauge<u64>,
+    #[builder(setter(prefix = "with"))]
+    pub risk_engine_process_signal_histogram: Histogram<f64>,
     // Strategy Portfolio Metrics
     // =======================================
     #[getset(get)]
@@ -179,6 +189,24 @@ impl MetricsBuilder {
         self.strategy_portfolio_get_pending_error_counter = Some(
             value
                 .u64_counter("strategy_portfolio_get_pending_error_counter")
+                .init(),
+        );
+
+        self.risk_engine_error_counter =
+            Some(value.u64_counter("risk_engine_error_counter").init());
+
+        self.risk_engine_order_result_counter =
+            Some(value.u64_counter("risk_engine_order_result_counter").init());
+
+        self.risk_engine_order_result_gauge = Some(
+            value
+                .u64_observable_gauge("risk_engine_order_result_gauge")
+                .init(),
+        );
+
+        self.risk_engine_process_signal_histogram = Some(
+            value
+                .f64_histogram("risk_engine_process_signal_histogram")
                 .init(),
         );
 

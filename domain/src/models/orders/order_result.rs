@@ -1,3 +1,5 @@
+use strum_macros::{AsRefStr, VariantNames};
+
 use crate::strategy::algorithm::StrategyId;
 
 use super::{common::OrderId, filled_order::FilledOrder, pending_order::PendingOrder};
@@ -8,7 +10,8 @@ pub struct OrderMeta {
     pub strategy_id: StrategyId,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Clone, PartialEq, Eq, AsRefStr, VariantNames)]
+#[strum(serialize_all = "snake_case")]
 pub enum OrderResult {
     Updated(OrderMeta),
     Cancelled(OrderMeta),

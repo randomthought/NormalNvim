@@ -134,16 +134,17 @@ pub async fn run_app() -> color_eyre::eyre::Result<()> {
         })
         .with_risk_engine(risk_engine)
         .with_shutdown_signal(shutdown_signal.clone())
+        .with_metrics(metrics.clone())
         .build()?;
 
     let metrics_server = HttpServer::new(move || {
-        let r = registry.clone();
+        let registry = registry.clone();
 
         App::new()
             // Here, we're using an anonymous function directly
             .route(
                 "/metrics",
-                web::get().to(move || prometheus_metrics_api(r.clone())),
+                web::get().to(move || prometheus_metrics_api(registry.clone())),
             )
     })
     .bind(("127.0.0.1", 8080))?
@@ -157,8 +158,9 @@ pub async fn run_app() -> color_eyre::eyre::Result<()> {
             println!("Shutdown signal received, shutting down...");
             shutdown_signal.store(true, Ordering::SeqCst);
         },
-        _ = runner => {
+        Err(e) = runner => {
             println!("Server error or shutdown");
+            return Err(e);
         },
     }
 

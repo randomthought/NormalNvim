@@ -7,7 +7,7 @@ use std::{
     time::Duration,
 };
 
-use crate::event_providers::provider::Parser;
+use crate::{event_providers::provider::Parser, telemetry::metrics::Metrics};
 
 use super::{
     algo_actor::AlgoActor, event_bus::EventBus, models::AddSignalSubscribers,
@@ -30,6 +30,8 @@ pub struct ActorRunner {
     risk_engine: RiskEngine,
     #[builder(public, setter(prefix = "with"))]
     shutdown_signal: Arc<AtomicBool>,
+    #[builder(public, setter(prefix = "with"))]
+    metrics: Metrics,
 }
 
 impl ActorRunner {
@@ -55,6 +57,7 @@ impl ActorRunner {
             .collect();
         let algos_addresses = algos_addresses_?;
 
+        let metrics = self.metrics.clone();
         let risk_engine = algos_addresses
             .clone()
             .into_iter()
@@ -62,6 +65,10 @@ impl ActorRunner {
                 b.add_subscriber(id, algo_add)
             })
             .with_risk_engine(self.risk_engine.clone())
+            .with_risk_engine_error_counter(metrics.risk_engine_error_counter)
+            .with_risk_engine_order_result_gauge(metrics.risk_engine_order_result_gauge)
+            .with_risk_engine_order_result_counter(metrics.risk_engine_order_result_counter)
+            .with_risk_engine_process_signal_histogram(metrics.risk_engine_process_signal_histogram)
             .build()?;
 
         let risk_engine_address = risk_engine.start();
