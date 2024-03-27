@@ -1,3 +1,6 @@
+use derive_builder::Builder;
+use getset::Getters;
+
 use crate::strategy::algorithm::StrategyId;
 
 use super::{common::OrderId, new_order::NewOrder, order_result::OrderResult};
@@ -17,13 +20,19 @@ impl Order {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Getters, Builder, Clone, PartialEq, Eq)]
+#[getset(get)]
+#[builder(public, setter(prefix = "with"))]
 pub struct PendingOrder {
     pub order_id: OrderId,
     pub order: NewOrder,
 }
 
 impl PendingOrder {
+    pub fn builder() -> PendingOrderBuilder {
+        PendingOrderBuilder::default()
+    }
+
     pub fn startegy_id(&self) -> StrategyId {
         self.order.startegy_id()
     }

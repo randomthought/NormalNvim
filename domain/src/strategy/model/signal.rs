@@ -37,19 +37,35 @@ impl Entry {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Getters, Builder, Clone, PartialEq, Eq)]
+#[getset(get)]
+#[builder(public, setter(prefix = "with"))]
 #[non_exhaustive]
 pub struct Modify {
     pub pending_order: PendingOrder,
     pub datetime: Duration,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+impl Modify {
+    pub fn builder() -> ModifyBuilder {
+        ModifyBuilder::default()
+    }
+}
+
+#[derive(Debug, Builder, Getters, Clone, PartialEq, Eq)]
+#[getset(get)]
+#[builder(public, setter(prefix = "with"))]
 #[non_exhaustive]
 pub struct Cancel {
     pub order_id: OrderId,
     pub strategy_id: StrategyId,
     pub datetime: Duration,
+}
+
+impl Cancel {
+    pub fn builder() -> CancelBuilder {
+        CancelBuilder::default()
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, AsRefStr, VariantNames)]

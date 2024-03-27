@@ -20,6 +20,15 @@ pub enum OrderResult {
 }
 
 impl OrderResult {
+    pub fn order_id(&self) -> &OrderId {
+        match self {
+            OrderResult::Updated(o) => &o.order_id,
+            OrderResult::Cancelled(o) => &o.order_id,
+            OrderResult::FilledOrder(o) => &o.order_id,
+            OrderResult::PendingOrder(o) => &o.order_id,
+        }
+    }
+
     pub fn startegy_id(&self) -> StrategyId {
         match self {
             OrderResult::Updated(o) => o.strategy_id,

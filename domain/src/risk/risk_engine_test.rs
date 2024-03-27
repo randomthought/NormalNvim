@@ -7,14 +7,17 @@ use rust_decimal::Decimal;
 use tokio::sync::RwLock;
 
 use crate::broker::broker::Broker;
-use crate::models::orders::common::Side;
+use crate::models::orders::common::{Side, TimeInForce};
+use crate::models::orders::limit::Limit;
 use crate::models::orders::market::Market;
 use crate::models::orders::new_order::NewOrder;
+use crate::models::orders::pending_order::PendingOrder;
+use crate::order::OrderManager;
 use crate::risk::algo_risk_config::AlgorithmRiskConfig;
 use crate::risk::error::RiskError;
 use crate::risk::risk_engine::TradingState;
 use crate::strategy::algorithm::StrategyId;
-use crate::strategy::model::signal::{Entry, Signal};
+use crate::strategy::model::signal::{Cancel, Entry, Modify, Signal};
 use crate::{
     data::QouteProvider,
     models::{
@@ -510,13 +513,199 @@ async fn do_not_trade_without_algo_risk_config() {
 }
 
 #[tokio::test]
-async fn trading_state_reduce() {
-    todo!()
+async fn trading_state_reduce_market_order() {
+    let setup = Setup::new();
+
+    let stub = Arc::new(Stub::new());
+    let balance = Decimal::new(100_000, 0);
+    let broker = Arc::new(Broker::new(balance, stub.to_owned()));
+    let algo_risk_config = AlgorithmRiskConfig::builder()
+        .with_strategy_id(strategy_id)
+        .with_starting_balance(balance)
+        .build()
+        .unwrap();
+    let risk_engine = RiskEngine::builder()
+        .with_trading_state(TradingState::Reducing)
+        .add_algorithm_risk_config(algo_risk_config)
+        .with_qoute_provider(stub.clone())
+        .with_strategy_portfolio(broker.clone())
+        .with_order_manager(broker.clone())
+        .build()
+        .unwrap();
+
+    let quantity = 10;
+    let market_order_1 = NewOrder::Market(
+        Market::builder()
+            .with_security(setup.security.to_owned())
+            .with_side(Side::Long)
+            .with_quantity(quantity)
+            .with_strategy_id(strategy_id)
+            .build()
+            .unwrap(),
+    );
+
+    broker.place_order(&market_order_1).await.unwrap();
+
+    let market_order_2 = NewOrder::Market(
+        Market::builder()
+            .with_security(setup.security.to_owned())
+            .with_side(Side::Long)
+            .with_quantity(quantity)
+            .with_strategy_id(strategy_id)
+            .build()
+            .unwrap(),
+    );
+
+    let entry_signal = Signal::Entry(
+        Entry::builder()
+            .with_datetime(SystemTime::now().duration_since(UNIX_EPOCH).unwrap())
+            .with_order(market_order_2)
+            .with_strength(0.1)
+            .build()
+            .unwrap(),
+    );
+
+    if let Ok(_) = risk_engine.process_signal(&entry_signal).await {
+        panic!("cannot add to existing trade on reducing");
+    }
+
+    let market_order_3 = NewOrder::Market(
+        Market::builder()
+            .with_security(setup.security.to_owned())
+            .with_side(Side::Short)
+            .with_quantity(quantity)
+            .with_strategy_id(strategy_id)
+            .build()
+            .unwrap(),
+    );
+
+    let entry_signal = Signal::Entry(
+        Entry::builder()
+            .with_datetime(SystemTime::now().duration_since(UNIX_EPOCH).unwrap())
+            .with_order(market_order_3)
+            .with_strength(0.1)
+            .build()
+            .unwrap(),
+    );
+
+    if let Err(e) = risk_engine.process_signal(&entry_signal).await {
+        panic!("closing trade not succesful: {:?}", e);
+    }
 }
 
 #[tokio::test]
-async fn trading_state_reduce_on_modify() {
-    todo!()
+async fn trading_state_reduce_on_limit_order() {
+    let setup = Setup::new();
+
+    let stub = Arc::new(Stub::new());
+    let balance = Decimal::new(100_000, 0);
+    let broker = Arc::new(Broker::new(balance, stub.to_owned()));
+    let algo_risk_config = AlgorithmRiskConfig::builder()
+        .with_strategy_id(strategy_id)
+        .with_starting_balance(balance)
+        .build()
+        .unwrap();
+    let risk_engine = RiskEngine::builder()
+        .with_trading_state(TradingState::Reducing)
+        .add_algorithm_risk_config(algo_risk_config)
+        .with_qoute_provider(stub.clone())
+        .with_strategy_portfolio(broker.clone())
+        .with_order_manager(broker.clone())
+        .build()
+        .unwrap();
+
+    let quantity_1 = 10;
+    let limit_order_1 = NewOrder::Limit(
+        Limit::builder()
+            .with_security(setup.security.to_owned())
+            .with_security(setup.security.to_owned())
+            .with_side(Side::Long)
+            .with_quantity(quantity_1)
+            .with_strategy_id(strategy_id)
+            .with_times_in_force(TimeInForce::GTC)
+            .with_price(Decimal::new(100, 0))
+            .build()
+            .unwrap(),
+    );
+
+    let order_result = broker.place_order(&limit_order_1).await.unwrap();
+
+    let quantity_2 = 20;
+    let limit_order_2 = NewOrder::Limit(
+        Limit::builder()
+            .with_security(setup.security.to_owned())
+            .with_security(setup.security.to_owned())
+            .with_side(Side::Long)
+            .with_quantity(quantity_2)
+            .with_strategy_id(strategy_id)
+            .with_times_in_force(TimeInForce::GTC)
+            .with_price(Decimal::new(100, 0))
+            .build()
+            .unwrap(),
+    );
+
+    let entry_signal = Signal::Modify(
+        Modify::builder()
+            .with_pending_order(
+                PendingOrder::builder()
+                    .with_order(limit_order_2)
+                    .with_order_id(order_result.order_id().to_owned())
+                    .build()
+                    .unwrap(),
+            )
+            .with_datetime(SystemTime::now().duration_since(UNIX_EPOCH).unwrap())
+            .build()
+            .unwrap(),
+    );
+
+    if let Ok(_) = risk_engine.process_signal(&entry_signal).await {
+        panic!("cannot add more quantity to existing pending order when trading state is reducing");
+    }
+
+    let quantity_3 = 5;
+    let limit_order_3 = NewOrder::Limit(
+        Limit::builder()
+            .with_security(setup.security.to_owned())
+            .with_security(setup.security.to_owned())
+            .with_side(Side::Long)
+            .with_quantity(quantity_3)
+            .with_strategy_id(strategy_id)
+            .with_times_in_force(TimeInForce::GTC)
+            .with_price(Decimal::new(100, 0))
+            .build()
+            .unwrap(),
+    );
+
+    let entry_signal = Signal::Modify(
+        Modify::builder()
+            .with_pending_order(
+                PendingOrder::builder()
+                    .with_order(limit_order_3)
+                    .with_order_id(order_result.order_id().to_owned())
+                    .build()
+                    .unwrap(),
+            )
+            .with_datetime(SystemTime::now().duration_since(UNIX_EPOCH).unwrap())
+            .build()
+            .unwrap(),
+    );
+
+    if let Err(_) = risk_engine.process_signal(&entry_signal).await {
+        panic!("unable to reducing quantity for pending order");
+    }
+
+    let cancel_signal = Signal::Cancel(
+        Cancel::builder()
+            .with_order_id(order_result.order_id().to_owned())
+            .with_strategy_id(strategy_id)
+            .with_datetime(SystemTime::now().duration_since(UNIX_EPOCH).unwrap())
+            .build()
+            .unwrap(),
+    );
+
+    if let Err(_) = risk_engine.process_signal(&cancel_signal).await {
+        panic!("unable to reducing pending order by canceling it");
+    }
 }
 
 #[tokio::test]
