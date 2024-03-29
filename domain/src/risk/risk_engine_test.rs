@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use rust_decimal::Decimal;
 use tokio::sync::RwLock;
 
-use crate::broker::broker::Broker;
+use crate::broker::Broker;
 use crate::models::orders::common::{Side, TimeInForce};
 use crate::models::orders::limit::Limit;
 use crate::models::orders::market::Market;
@@ -94,7 +94,7 @@ async fn reject_trade_on_halt() {
 
     let stub = Arc::new(Stub::new());
     let balance = Decimal::new(100_000, 0);
-    let broker = Arc::new(Broker::new(balance, stub.to_owned()));
+    let broker = Arc::new(crate::broker::Broker::new(balance, stub.to_owned()));
     let algo_risk_config = AlgorithmRiskConfig::builder()
         .with_strategy_id(strategy_id)
         .build()

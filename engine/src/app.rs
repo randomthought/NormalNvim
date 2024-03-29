@@ -2,10 +2,7 @@ use crate::{
     actors::actor_runner::ActorRunner,
     algorithms::fake_algo::algo::FakeAlgo,
     event_providers::{
-        back_test::BackTester,
-        file_provider,
-        market::polygon::{self, parser::PolygonParser},
-        utils,
+        back_test::BackTester, file_provider, market::polygon::parser::PolygonParser, utils,
     },
     telemetry::{
         metrics::Metrics,
@@ -15,7 +12,7 @@ use crate::{
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use color_eyre::eyre::Result;
 use domain::{
-    broker::broker::Broker,
+    broker::Broker,
     risk::{algo_risk_config::AlgorithmRiskConfig, risk_engine::RiskEngine},
     strategy::algorithm::Strategy,
 };
@@ -120,12 +117,12 @@ pub async fn run_app() -> color_eyre::eyre::Result<()> {
 
     let api_key = env::var("API_KEY")?;
     let subscription = "A.*";
-    let raw_data_stream = polygon::stream_client::create_stream(&api_key, &subscription)?;
+    // let raw_data_stream = polygon::stream_client::create_stream(&api_key, &subscription)?;
 
     let file = env::var("FILE")?;
     let path = Path::new(&file);
     let buff_size = 4096usize;
-    // let raw_data_stream = file_provider::create_stream(path, buff_size)?;
+    let raw_data_stream = file_provider::create_stream(path, buff_size)?;
     let parser = back_tester_.clone();
 
     let data_stream = utils::parse_stream(raw_data_stream, parser.clone());
