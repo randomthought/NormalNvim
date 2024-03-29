@@ -364,7 +364,7 @@ async fn reject_trade_on_max_open_trades() {
 }
 
 #[tokio::test]
-async fn do_not_trade_on_insufficient_balance_zero() {
+async fn do_not_trade_on_insufficient_algo_balance_zero() {
     let setup = Setup::new();
 
     let stub = Arc::new(Stub::new());
@@ -411,7 +411,7 @@ async fn do_not_trade_on_insufficient_balance_zero() {
 }
 
 #[tokio::test]
-async fn do_not_trade_on_insufficient_balance() {
+async fn do_not_trade_on_insufficient_algo_balance() {
     let setup = Setup::new();
 
     let stub = Arc::new(Stub::new());
@@ -507,6 +507,125 @@ async fn do_not_trade_without_algo_risk_config() {
 
     match risk_engine.process_signal(&entry_signal).await {
         Err(RiskError::UnableToFindAlgoRiskConfig(_)) => (),
+        Err(e) => panic!("failed with incorrect error: {:?}", e),
+        Ok(result) => panic!("trade cannot be succesful: {:?}", result),
+    }
+}
+
+#[tokio::test]
+async fn exceeded_algo_max_risk_per_trade() {
+    let setup = Setup::new();
+
+    let stub = Arc::new(Stub::new());
+    let balance = Decimal::new(100_000, 0);
+    let broker = Arc::new(Broker::new(balance, stub.to_owned()));
+    let algo_risk_config = AlgorithmRiskConfig::builder()
+        .with_strategy_id(strategy_id)
+        .with_starting_balance(balance)
+        .with_max_risk_per_trade(0.01)
+        .build()
+        .unwrap();
+
+    let risk_engine = RiskEngine::builder()
+        .add_algorithm_risk_config(algo_risk_config)
+        .with_qoute_provider(stub.clone())
+        .with_strategy_portfolio(broker.clone())
+        .with_order_manager(broker.clone())
+        .build()
+        .unwrap();
+
+    let market_order = NewOrder::Market(
+        Market::builder()
+            .with_security(setup.security.to_owned())
+            .with_side(Side::Long)
+            .with_quantity(2)
+            .with_strategy_id(strategy_id)
+            .build()
+            .unwrap(),
+    );
+
+    let entry_signal = Signal::Entry(
+        Entry::builder()
+            .with_datetime(SystemTime::now().duration_since(UNIX_EPOCH).unwrap())
+            .with_order(market_order)
+            .with_strength(1.0)
+            .build()
+            .unwrap(),
+    );
+
+    match risk_engine.process_signal(&entry_signal).await {
+        Err(RiskError::ExceededAlgoMaxRiskPerTrade(_)) => (),
+        Err(e) => panic!("failed with incorrect error: {:?}", e),
+        Ok(result) => panic!("trade cannot be succesful: {:?}", result),
+    }
+}
+
+#[tokio::test]
+async fn exceeded_algo_max_risk_per_trade_adding_to_trade() {
+    let setup = Setup::new();
+
+    let stub = Arc::new(Stub::new());
+    let balance = Decimal::new(100_000, 0);
+    let broker = Arc::new(Broker::new(balance, stub.to_owned()));
+    let algo_risk_config = AlgorithmRiskConfig::builder()
+        .with_strategy_id(strategy_id)
+        .with_starting_balance(balance)
+        .with_max_risk_per_trade(0.01)
+        .build()
+        .unwrap();
+
+    let risk_engine = RiskEngine::builder()
+        .add_algorithm_risk_config(algo_risk_config)
+        .with_qoute_provider(stub.clone())
+        .with_strategy_portfolio(broker.clone())
+        .with_order_manager(broker.clone())
+        .build()
+        .unwrap();
+
+    let market_order = NewOrder::Market(
+        Market::builder()
+            .with_security(setup.security.to_owned())
+            .with_side(Side::Long)
+            .with_quantity(1)
+            .with_strategy_id(strategy_id)
+            .build()
+            .unwrap(),
+    );
+
+    let entry_signal = Signal::Entry(
+        Entry::builder()
+            .with_datetime(SystemTime::now().duration_since(UNIX_EPOCH).unwrap())
+            .with_order(market_order)
+            .with_strength(1.0)
+            .build()
+            .unwrap(),
+    );
+
+    if let Err(e) = risk_engine.process_signal(&entry_signal).await {
+        panic!("failed to execute trade with error: {:?}", e);
+    }
+
+    let market_order = NewOrder::Market(
+        Market::builder()
+            .with_security(setup.security.to_owned())
+            .with_side(Side::Long)
+            .with_quantity(1)
+            .with_strategy_id(strategy_id)
+            .build()
+            .unwrap(),
+    );
+
+    let entry_signal = Signal::Entry(
+        Entry::builder()
+            .with_datetime(SystemTime::now().duration_since(UNIX_EPOCH).unwrap())
+            .with_order(market_order)
+            .with_strength(1.0)
+            .build()
+            .unwrap(),
+    );
+
+    match risk_engine.process_signal(&entry_signal).await {
+        Err(RiskError::ExceededAlgoMaxRiskPerTrade(_)) => (),
         Err(e) => panic!("failed with incorrect error: {:?}", e),
         Ok(result) => panic!("trade cannot be succesful: {:?}", result),
     }
@@ -706,6 +825,106 @@ async fn trading_state_reduce_on_limit_order() {
     if let Err(_) = risk_engine.process_signal(&cancel_signal).await {
         panic!("unable to reducing pending order by canceling it");
     }
+}
+
+#[tokio::test]
+async fn exceeded_algo_max_loss() {
+    let setup = Setup::new();
+
+    let stub = Arc::new(Stub::new());
+    let balance = Decimal::new(100_000, 0);
+    let broker = Arc::new(Broker::new(balance, stub.to_owned()));
+    let algo_risk_config = AlgorithmRiskConfig::builder()
+        .with_strategy_id(strategy_id)
+        .with_starting_balance(balance)
+        .with_max_portfolio_loss(0.01)
+        .with_max_risk_per_trade(0.01)
+        .build()
+        .unwrap();
+
+    let risk_engine = RiskEngine::builder()
+        .add_algorithm_risk_config(algo_risk_config)
+        .with_qoute_provider(stub.clone())
+        .with_strategy_portfolio(broker.clone())
+        .with_order_manager(broker.clone())
+        .build()
+        .unwrap();
+
+    let market_order = NewOrder::Market(
+        Market::builder()
+            .with_security(setup.security.to_owned())
+            .with_side(Side::Long)
+            .with_quantity(1)
+            .with_strategy_id(strategy_id)
+            .build()
+            .unwrap(),
+    );
+
+    let entry_signal = Signal::Entry(
+        Entry::builder()
+            .with_datetime(SystemTime::now().duration_since(UNIX_EPOCH).unwrap())
+            .with_order(market_order)
+            .with_strength(1.0)
+            .build()
+            .unwrap(),
+    );
+
+    match risk_engine.process_signal(&entry_signal).await {
+        Err(e) => panic!("failed to make trade with error: {:?}", e),
+        Ok(_) => (),
+    }
+
+    stub.add_to_price(Decimal::new(-1000, 0)).await;
+
+    let market_order = NewOrder::Market(
+        Market::builder()
+            .with_security(setup.security.to_owned())
+            .with_side(Side::Short)
+            .with_quantity(1)
+            .with_strategy_id(strategy_id)
+            .build()
+            .unwrap(),
+    );
+
+    let entry_signal = Signal::Entry(
+        Entry::builder()
+            .with_datetime(SystemTime::now().duration_since(UNIX_EPOCH).unwrap())
+            .with_order(market_order)
+            .with_strength(1.0)
+            .build()
+            .unwrap(),
+    );
+
+    match risk_engine.process_signal(&entry_signal).await {
+        Err(e) => panic!("failed to make trade with error: {:?}", e),
+        Ok(_) => (),
+    }
+
+    stub.add_to_price(Decimal::new(-1000, 0)).await;
+    let market_order = NewOrder::Market(
+        Market::builder()
+            .with_security(setup.security.to_owned())
+            .with_side(Side::Short)
+            .with_quantity(1)
+            .with_strategy_id(strategy_id)
+            .build()
+            .unwrap(),
+    );
+
+    let entry_signal = Signal::Entry(
+        Entry::builder()
+            .with_datetime(SystemTime::now().duration_since(UNIX_EPOCH).unwrap())
+            .with_order(market_order)
+            .with_strength(1.0)
+            .build()
+            .unwrap(),
+    );
+
+    match risk_engine.process_signal(&entry_signal).await {
+        Err(RiskError::ExceededAlgoMaxLoss) => (),
+        Err(e) => panic!("failed with incorrect error: {:?}", e),
+        Ok(result) => panic!("trade cannot be succesful: {:?}", result),
+    };
 }
 
 #[tokio::test]
