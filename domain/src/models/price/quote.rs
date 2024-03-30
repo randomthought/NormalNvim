@@ -7,19 +7,14 @@ use crate::models::security::Security;
 use super::common::Price;
 
 #[derive(Builder, Debug, Clone)]
+#[builder(setter(prefix = "with"))]
 #[non_exhaustive]
 pub struct Quote {
-    #[builder(setter(prefix = "with"))]
     pub security: Security,
-    #[builder(setter(prefix = "with"))]
     pub bid: Price,
-    #[builder(setter(prefix = "with"))]
     pub bid_size: u64,
-    #[builder(setter(prefix = "with"))]
     pub ask: Price,
-    #[builder(setter(prefix = "with"))]
     pub ask_size: u64,
-    #[builder(setter(prefix = "with"))]
     pub timestamp: Duration,
 }
 

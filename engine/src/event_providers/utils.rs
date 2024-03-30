@@ -10,7 +10,7 @@ use super::provider::Parser;
 pub fn parse_stream(
     stream: Pin<Box<dyn Stream<Item = eyre::Result<String>> + Send>>,
     parser: Arc<dyn Parser + Sync + Send>,
-) -> Pin<Box<dyn Stream<Item = eyre::Result<DataEvent>> + Send>> {
+) -> Pin<Box<dyn Stream<Item = eyre::Result<Option<DataEvent>>> + Send>> {
     let mapped = stream.then(move |raw_data| transform_data(raw_data, parser.clone()));
     Box::pin(mapped)
 }
@@ -18,7 +18,7 @@ pub fn parse_stream(
 async fn transform_data(
     data_result: eyre::Result<String>,
     parser: Arc<dyn Parser + Sync + Send>,
-) -> eyre::Result<DataEvent> {
+) -> eyre::Result<Option<DataEvent>> {
     let data = data_result?;
 
     sleep(Duration::from_millis(1)).await;

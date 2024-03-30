@@ -27,18 +27,13 @@ impl Limit {
 
 #[derive(Builder)]
 #[builder(public, name = "LimitBuilder", build_fn(private, name = "build_seed",))]
+#[builder(setter(prefix = "with"))]
 struct LimitSeed {
-    #[builder(setter(prefix = "with"))]
     pub price: Price,
-    #[builder(setter(prefix = "with"))]
     pub security: Security,
-    #[builder(setter(prefix = "with"))]
     pub times_in_force: TimeInForce,
-    #[builder(setter(prefix = "with"))]
     pub strategy_id: StrategyId,
-    #[builder(setter(prefix = "with"))]
     pub quantity: Quantity,
-    #[builder(setter(prefix = "with"))]
     pub side: Side,
 }
 

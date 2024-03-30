@@ -18,7 +18,7 @@ pub trait Account {
 #[async_trait]
 pub trait OrderReader {
     async fn get_positions(&self) -> Result<Vec<SecurityPosition>, crate::error::Error>;
-    async fn get_pending_orders(&self) -> Result<Vec<OrderResult>, crate::error::Error>;
+    async fn get_pending_orders(&self) -> Result<Vec<PendingOrder>, crate::error::Error>;
 }
 
 #[async_trait]

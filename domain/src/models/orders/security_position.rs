@@ -1,4 +1,5 @@
 use derive_builder::Builder;
+use getset::Getters;
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 
 use crate::{
@@ -6,7 +7,7 @@ use crate::{
     strategy::algorithm::StrategyId,
 };
 
-use super::common::{Quantity, Side};
+use super::common::{OrderId, Quantity, Side};
 
 #[derive(Builder, Debug, Clone, PartialEq, Eq)]
 pub struct SecurityPosition {
@@ -29,6 +30,11 @@ impl SecurityPosition {
             .fold(0, |acc, next| acc + next.quantity)
     }
 
+    pub fn get_wieghted_average_price(&self) -> Decimal {
+        let quantity = Decimal::from_u64(self.get_quantity()).unwrap();
+        self.get_cost() / quantity
+    }
+
     pub fn get_cost(&self) -> Decimal {
         self.holding_details
             .iter()
@@ -38,12 +44,17 @@ impl SecurityPosition {
     }
 }
 
-#[derive(Builder, Debug, Clone, PartialEq, Eq)]
+#[derive(Builder, Getters, Debug, Clone, PartialEq, Eq)]
+#[getset(get)]
+#[builder(setter(prefix = "with"))]
 pub struct HoldingDetail {
-    #[builder(setter(prefix = "with"))]
     pub strategy_id: StrategyId,
-    #[builder(setter(prefix = "with"))]
     pub quantity: Quantity,
-    #[builder(setter(prefix = "with"))]
     pub price: Price,
+}
+
+impl HoldingDetail {
+    pub fn builder() -> HoldingDetailBuilder {
+        HoldingDetailBuilder::default()
+    }
 }

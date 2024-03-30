@@ -22,12 +22,10 @@ pub enum AssetType {
 }
 
 #[derive(Builder, Debug, Clone, PartialEq, Eq, Hash)]
+#[builder(setter(prefix = "with"))]
 pub struct Security {
-    #[builder(setter(prefix = "with"))]
     pub asset_type: AssetType,
-    #[builder(setter(prefix = "with"))]
     pub exchange: Exchange,
-    #[builder(setter(prefix = "with"))]
     pub ticker: Ticker,
 }
 

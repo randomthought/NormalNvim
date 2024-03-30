@@ -9,7 +9,7 @@ use super::models::{AddSignalSubscribers, AlgoEventMessage, SignalMessage};
 #[derive(Builder, Clone)]
 pub struct AlgoActor {
     #[builder(public, setter(prefix = "with"))]
-    algorithm: Arc<dyn Algorithm>,
+    algorithm: Arc<dyn Algorithm + Send + Send>,
     #[builder(public, default, setter(each = "add_subscriber"))]
     subscribers: Vec<Recipient<SignalMessage>>,
 }

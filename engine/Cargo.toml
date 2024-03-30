@@ -29,3 +29,11 @@ actix = "0.13"
 actix-rt = "2.2"
 derive_builder = "0.10"
 getset = "0.1"
+# Telemetry
+opentelemetry = { version = "0.22", features = ["metrics"] }
+opentelemetry-otlp = { version = "0.15", features = ["grpc-tonic", "metrics"] }
+opentelemetry_sdk = { version = "0.22", features = ["rt-tokio"] }
+opentelemetry-stdout = { version = "0.3", features = ["metrics"] }
+opentelemetry-prometheus = "0.15.0"
+prometheus = " 0.13"
+actix-web = "4"

@@ -2,6 +2,7 @@ use std::time::Duration;
 
 use derive_builder::Builder;
 use getset::Getters;
+use strum_macros::{AsRefStr, VariantNames};
 
 use crate::{
     models::orders::{common::OrderId, new_order::NewOrder, pending_order::PendingOrder},
@@ -9,16 +10,12 @@ use crate::{
 };
 
 #[derive(Builder, Getters, Debug, Clone, PartialEq)]
+#[getset(get)]
+#[builder(public, setter(prefix = "with"))]
 #[non_exhaustive]
 pub struct Entry {
-    #[builder(public, setter(prefix = "with"))]
-    #[getset(get)]
     pub order: NewOrder,
-    #[builder(public, setter(prefix = "with"))]
-    #[getset(get)]
     pub datetime: Duration,
-    #[builder(public, setter(prefix = "with"))]
-    #[getset(get)]
     pub strength: f32,
 }
 
@@ -36,14 +33,24 @@ impl Entry {
     }
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Getters, Builder, Clone, PartialEq, Eq)]
+#[getset(get)]
+#[builder(public, setter(prefix = "with"))]
 #[non_exhaustive]
 pub struct Modify {
     pub pending_order: PendingOrder,
     pub datetime: Duration,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+impl Modify {
+    pub fn builder() -> ModifyBuilder {
+        ModifyBuilder::default()
+    }
+}
+
+#[derive(Debug, Builder, Getters, Clone, PartialEq, Eq)]
+#[getset(get)]
+#[builder(public, setter(prefix = "with"))]
 #[non_exhaustive]
 pub struct Cancel {
     pub order_id: OrderId,
@@ -51,12 +58,20 @@ pub struct Cancel {
     pub datetime: Duration,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+impl Cancel {
+    pub fn builder() -> CancelBuilder {
+        CancelBuilder::default()
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, AsRefStr, VariantNames)]
+#[strum(serialize_all = "snake_case")]
 #[non_exhaustive]
 pub enum Signal {
     Entry(Entry),
-    Modify(Modify),
     Cancel(Cancel),
+    Close(Cancel),
+    Modify(Modify),
     Liquidate(StrategyId),
 }
 
@@ -65,6 +80,7 @@ impl Signal {
         match self {
             Signal::Entry(s) => s.order.startegy_id(),
             Signal::Modify(s) => s.pending_order.startegy_id(),
+            Signal::Close(s) => s.strategy_id,
             Signal::Cancel(s) => s.strategy_id,
             Signal::Liquidate(s) => s,
         }

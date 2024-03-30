@@ -1,5 +1,6 @@
 use derive_builder::Builder;
 use futures_util::future;
+use rust_decimal::prelude::Signed;
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -11,6 +12,7 @@ use crate::models::orders::common::Side;
 use crate::models::orders::market::Market;
 use crate::models::orders::new_order::NewOrder;
 use crate::models::orders::order_result::OrderResult;
+use crate::models::orders::pending_order::PendingOrder;
 use crate::models::orders::security_position::SecurityPosition;
 use crate::models::security::Security;
 use crate::order::OrderManager;
@@ -26,21 +28,21 @@ pub enum TradingState {
 }
 
 #[derive(Builder, Clone)]
+#[builder(setter(prefix = "with"))]
 pub struct RiskEngine {
-    #[builder(default, setter(prefix = "with", strip_option))]
-    max_portfolio_accumulaton: Option<f64>,
-    #[builder(default, setter(prefix = "with", strip_option))]
+    #[builder(default, setter(strip_option))]
+    max_portfolio_risk: Option<f64>,
+    #[builder(default, setter(strip_option))]
+    max_portfolio_risk_per_trade: Option<f64>,
+    #[builder(default, setter(strip_option))]
     max_portfolio_open_trades: Option<u32>,
     // TODO: state has to be mutable.
-    #[builder(setter(prefix = "with"), default = "TradingState::Active")]
+    #[builder(default = "TradingState::Active")]
     trading_state: TradingState,
     #[builder(private)]
     algorithm_risk_configs: HashMap<StrategyId, AlgorithmRiskConfig>,
-    #[builder(setter(prefix = "with"))]
     qoute_provider: Arc<dyn QouteProvider + Send + Sync>,
-    #[builder(setter(prefix = "with"))]
-    strategy_portrfolio: Arc<dyn StrategyPortfolio + Send + Sync>,
-    #[builder(setter(prefix = "with"))]
+    strategy_portfolio: Arc<dyn StrategyPortfolio + Send + Sync>,
     order_manager: Arc<dyn OrderManager + Send + Sync>,
 }
 
@@ -78,6 +80,7 @@ impl RiskEngine {
                     .map_err(|e| RiskError::OtherError(e.into()))?;
                 Some(vec![order_result])
             }
+            Signal::Close(_) => todo!(),
             Signal::Liquidate(_) => {
                 let order_results = self
                     .liquidate(signal.strategy_id())
@@ -95,14 +98,14 @@ impl RiskEngine {
         let strategy_id = algo_risk_config.strategy_id();
 
         let profit = self
-            .strategy_portrfolio
+            .strategy_portfolio
             .get_profit(strategy_id)
             .await
             .map_err(|e| RiskError::OtherError(e.into()))?;
 
         let open_trades = self
-            .strategy_portrfolio
-            .get_holdings(strategy_id)
+            .strategy_portfolio
+            .get_security_positions(strategy_id)
             .await
             .map_err(|e| RiskError::OtherError(e.into()))?;
 
@@ -111,7 +114,7 @@ impl RiskEngine {
 
         if let Some(max) = algo_risk_config.max_portfolio_loss {
             let profit = self
-                .strategy_portrfolio
+                .strategy_portfolio
                 .get_profit(strategy_id)
                 .await
                 .map_err(|e| RiskError::OtherError(e.into()))?;
@@ -131,19 +134,19 @@ impl RiskEngine {
             let max_risk_per_trade = balance * Decimal::from_f64(mrpt).unwrap();
             let trade_risk = self.calaulate_trade_risk(&s).await?;
             if trade_risk > max_risk_per_trade {
-                return Err(RiskError::ExceededAlgoMaxRiskPerTrade(signal.to_owned()));
+                return Err(RiskError::ExceededAlgoRiskPerTrade(signal.to_owned()));
             }
         }
 
         if let Some(max) = algo_risk_config.max_open_trades {
             let open_trades = self
-                .strategy_portrfolio
-                .get_holdings(signal.strategy_id())
+                .strategy_portfolio
+                .get_security_positions(signal.strategy_id())
                 .await
                 .map_err(|e| RiskError::OtherError(e.into()))?;
 
             if open_trades.len() >= max.try_into().unwrap() {
-                return Err(RiskError::ExceededAlgoMaxOpenTrades);
+                return Err(RiskError::ExceededAlgoOpenTrades);
             }
         }
 
@@ -155,12 +158,12 @@ impl RiskEngine {
                 .map_err(|e| RiskError::OtherError(e.into()))?;
 
             if usize::from_u32(max_portfolio_open_trades).unwrap() >= position.len() {
-                return Err(RiskError::ExceededPortfolioMaxOpenTrades);
+                return Err(RiskError::ExceededPortfolioOpenTrades);
             }
         }
 
         let Signal::Entry(entry) = signal else {
-            return Err(RiskError::UnsupportedSignalType);
+            return Err(RiskError::UnsupportedSignalType(signal.clone()));
         };
 
         let trade_cost = self.get_trade_cost(&entry).await?;
@@ -201,8 +204,8 @@ impl RiskEngine {
 
     async fn liquidate(&self, strategy_id: StrategyId) -> Result<Vec<OrderResult>, RiskError> {
         let positions = self
-            .strategy_portrfolio
-            .get_holdings(strategy_id)
+            .strategy_portfolio
+            .get_security_positions(strategy_id)
             .await
             .map_err(|e| RiskError::OtherError(e.into()))?;
 
@@ -228,7 +231,7 @@ impl RiskEngine {
         let f1 = orders.iter().map(|o| self.order_manager.place_order(&o));
 
         let pending_orders = self
-            .strategy_portrfolio
+            .strategy_portfolio
             .get_pending(strategy_id)
             .await
             .map_err(|e| RiskError::OtherError(e.into()))?;
@@ -294,6 +297,44 @@ impl RiskEngine {
             }
             _ => self.get_trade_cost(entry).await,
         }
+    }
+
+    async fn calculate_position_risk(
+        &self,
+        security_position: &SecurityPosition,
+        pending_orders: &[PendingOrder],
+    ) -> Result<Decimal, RiskError> {
+        // let pending_orders = self
+        //     .order_manager
+        //     .get_pending_orders()
+        //     .await
+        //     .map_err(|e| RiskError::OtherError(e.into()))?;
+
+        let pending = pending_orders
+            .iter()
+            .flat_map(|p| match p.order.clone() {
+                NewOrder::Market(_) => vec![],
+                NewOrder::Limit(v) => vec![v],
+                NewOrder::StopLimitMarket(v) => vec![v.get_stop().clone()],
+                NewOrder::OCO(v) => v.orders,
+            })
+            .filter(|p| {
+                &p.security == &security_position.security
+                    && p.order_details.side != security_position.side
+                    && p.order_details.quantity == security_position.get_quantity()
+            })
+            .last();
+
+        let Some(stop_limit) = pending else {
+            let risk = security_position.get_cost();
+            return Ok(risk);
+        };
+
+        let wap = security_position.get_wieghted_average_price();
+        let risk = (stop_limit.price - wap)
+            * Decimal::from_u64(stop_limit.order_details.quantity).unwrap();
+
+        Ok(risk)
     }
 }
 

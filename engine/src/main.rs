@@ -1,6 +1,6 @@
-use engine::app::{self, runApp};
+use engine::app::run_app;
 
 #[actix_rt::main]
 async fn main() {
-    runApp().await.unwrap();
+    run_app().await.unwrap();
 }

@@ -4,3 +4,4 @@ pub mod app;
 pub mod broker;
 pub mod event_providers;
 pub mod secrets;
+pub mod telemetry;
