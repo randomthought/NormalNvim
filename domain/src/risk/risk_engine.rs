@@ -67,7 +67,7 @@ impl RiskEngine {
             Signal::Modify(s) => {
                 let order_result = self
                     .order_manager
-                    .update(&s.pending_order)
+                    .update(s.pending_order())
                     .await
                     .map_err(|e| RiskError::OtherError(e.into()))?;
                 Some(vec![order_result])
@@ -75,7 +75,7 @@ impl RiskEngine {
             Signal::Cancel(s) => {
                 let order_result = self
                     .order_manager
-                    .cancel(&s.order_id)
+                    .cancel(s.order_id())
                     .await
                     .map_err(|e| RiskError::OtherError(e.into()))?;
                 Some(vec![order_result])
@@ -184,7 +184,7 @@ impl RiskEngine {
                     .iter()
                     .all(|hd| hd.strategy_id != strategy_id)
             })
-            .filter(|s| &s.security == entry.order.get_security())
+            .filter(|s| &s.security == entry.order().get_security())
             .flat_map(|s| s.holding_details.clone());
 
         if let Some(s) = security_already_traded.last() {
@@ -193,7 +193,7 @@ impl RiskEngine {
 
         let order_result = self
             .order_manager
-            .place_order(&entry.order)
+            .place_order(&entry.order())
             .await
             .map_err(|e| RiskError::OtherError(e.into()))?;
 
@@ -268,15 +268,15 @@ impl RiskEngine {
     }
 
     async fn get_trade_cost(&self, entry: &Entry) -> Result<Decimal, RiskError> {
-        let order_detailts = entry.order.get_order_details();
+        let order_detailts = entry.order().get_order_details();
         let q = Decimal::from_u64(order_detailts.quantity).unwrap();
 
-        if let NewOrder::Limit(l) = entry.order.to_owned() {
+        if let NewOrder::Limit(l) = entry.order().to_owned() {
             return Ok(q * l.price);
         }
 
         let price = self
-            .get_market_price(entry.order.get_security(), order_detailts.side)
+            .get_market_price(entry.order().get_security(), order_detailts.side)
             .await?;
 
         let trade_cost = q * price;
@@ -285,12 +285,12 @@ impl RiskEngine {
     }
 
     async fn calaulate_trade_risk(&self, entry: &Entry) -> Result<Decimal, RiskError> {
-        match entry.order.to_owned() {
+        match entry.order().to_owned() {
             NewOrder::StopLimitMarket(slm) => {
                 let order_detailts = slm.market.order_details.to_owned();
                 let q = Decimal::from_u64(order_detailts.quantity).unwrap();
                 let price = self
-                    .get_market_price(entry.order.get_security(), order_detailts.side)
+                    .get_market_price(entry.order().get_security(), order_detailts.side)
                     .await?;
                 let risk = (slm.get_stop().price - price).abs() * q;
                 Ok(risk)

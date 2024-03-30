@@ -39,12 +39,18 @@ impl OrderManager for Broker {
             self.place_order(&market_order).await?;
 
             let oco = OneCancelsOthers::builder()
-                .with_quantity(o.market.order_details.quantity)
+                .with_quantity(o.market.order_details.quantity().clone())
                 .with_security(o.market.security.to_owned())
                 .with_time_in_force(o.get_stop().times_in_force)
-                .with_strategy_id(o.market.order_details.strategy_id)
-                .add_limit(o.get_stop().order_details.side, o.get_stop().price)
-                .add_limit(o.get_limit().order_details.side, o.get_limit().price)
+                .with_strategy_id(o.market.order_details.strategy_id())
+                .add_limit(
+                    o.get_stop().order_details.side().clone(),
+                    o.get_stop().price,
+                )
+                .add_limit(
+                    o.get_limit().order_details.side().clone(),
+                    o.get_limit().price,
+                )
                 .build()
                 .map_err(|e| crate::error::Error::Any(e.into()))?;
 
@@ -83,7 +89,7 @@ impl OrderManager for Broker {
             .insert(&order_result)
             .await
             .map_err(|e| crate::error::Error::Message(e))?;
-        let commision = Decimal::from_u64(market_order.order_details.quantity).unwrap()
+        let commision = Decimal::from_u64(market_order.order_details.quantity().clone()).unwrap()
             * self.commissions_per_share;
         let trade_cost = commision + cost;
         *account_balance += trade_cost;

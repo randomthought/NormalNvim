@@ -1,22 +1,18 @@
 use std::collections::BTreeSet;
 
 use derive_builder::Builder;
-use getset::Getters;
+use derive_getters::Getters;
 
 use crate::models::security::Security;
 
 use super::{candle::Candle, common::Resolution};
 
 #[derive(Builder, Getters)]
+#[builder(setter(prefix = "with"))]
 pub struct PriceHistory {
     #[builder(default, private)]
-    #[getset(get)]
     history: BTreeSet<Candle>,
-    #[builder(setter(prefix = "with"))]
-    #[getset(get)]
     security: Security,
-    #[builder(setter(prefix = "with"))]
-    #[getset(get)]
     resolution: Resolution,
 }
 

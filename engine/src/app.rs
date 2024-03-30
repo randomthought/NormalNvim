@@ -58,20 +58,21 @@ pub async fn run_app() -> color_eyre::eyre::Result<()> {
     let m = metrics.clone();
     let strategy_portfolio = StrategyPortfolioTelemtry::builder()
         .with_strategy_portfolio(broker.clone())
-        .with_security_positions_gauge(m.strategy_portfolio_security_positions_gauge)
-        .with_security_positions_counter(m.strategy_portfolio_security_positions_counter)
+        .with_security_positions_gauge(m.strategy_portfolio_security_positions_gauge().clone())
+        .with_security_positions_counter(m.strategy_portfolio_security_positions_counter().clone())
         .with_get_security_positions_histogram(
-            m.strategy_portfolio_get_security_positions_histogram,
+            m.strategy_portfolio_get_security_positions_histogram()
+                .clone(),
         )
         .with_get_security_positions_error_counter(
-            m.strategy_portfolio_get_security_positions_error,
+            m.strategy_portfolio_get_security_positions_error().clone(),
         )
-        .with_profit_gauge(m.strategy_portfolio_profit_gauge)
-        .with_get_profit_histogram(m.strategy_portfolio_get_profit_histogram)
-        .with_get_profit_error_counter(m.strategy_portfolio_get_profit_error_counter)
-        .with_pending_orders_gauge(m.strategy_portfolio_pending_orders_gauge)
-        .with_get_pending_histogram(m.strategy_portfolio_get_pending_histogram)
-        .with_get_pending_error_counter(m.strategy_portfolio_get_pending_error_counter)
+        .with_profit_gauge(m.strategy_portfolio_profit_gauge().clone())
+        .with_get_profit_histogram(m.strategy_portfolio_get_profit_histogram().clone())
+        .with_get_profit_error_counter(m.strategy_portfolio_get_profit_error_counter().clone())
+        .with_pending_orders_gauge(m.strategy_portfolio_pending_orders_gauge().clone())
+        .with_get_pending_histogram(m.strategy_portfolio_get_pending_histogram().clone())
+        .with_get_pending_error_counter(m.strategy_portfolio_get_pending_error_counter().clone())
         .build()?;
 
     let strategy_portfolio = Arc::new(strategy_portfolio);
@@ -85,11 +86,11 @@ pub async fn run_app() -> color_eyre::eyre::Result<()> {
             AlgorithmTelemetry::builder()
                 .with_algorithm(algo.clone())
                 .with_strategy_id(algo.strategy_id())
-                .with_event_counter(m.algorithm_event_counter)
-                .with_signal_counter(m.algorithm_signal_counter)
-                .with_histogram(m.algorithm_histogram)
-                .with_event_guage(m.algorithm_event_guage)
-                .with_on_data_error(m.algorithm_on_data_error_counter)
+                .with_event_counter(m.algorithm_event_counter().clone())
+                .with_signal_counter(m.algorithm_signal_counter().clone())
+                .with_histogram(m.algorithm_histogram().clone())
+                .with_event_guage(m.algorithm_event_guage().clone())
+                .with_on_data_error(m.algorithm_on_data_error_counter().clone())
                 .build()
         })
         .collect();

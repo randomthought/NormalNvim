@@ -1,5 +1,5 @@
 use derive_builder::Builder;
-use getset::Getters;
+use derive_getters::Getters;
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 
 use crate::{
@@ -45,7 +45,6 @@ impl SecurityPosition {
 }
 
 #[derive(Builder, Getters, Debug, Clone, PartialEq, Eq)]
-#[getset(get)]
 #[builder(setter(prefix = "with"))]
 pub struct HoldingDetail {
     pub strategy_id: StrategyId,

@@ -142,13 +142,17 @@ async fn reject_trade_on_halt() {
         Ok(result) => panic!("second trade cannot be succesful: {:?}", result),
     }
 
-    let modify_order = Modify {
-        pending_order: PendingOrder {
-            order_id: "pending_order".into(),
-            order: market_order.clone(),
-        },
-        datetime: SystemTime::now().duration_since(UNIX_EPOCH).unwrap(),
-    };
+    let modify_order = Modify::builder()
+        .with_pending_order(
+            PendingOrder::builder()
+                .with_order_id("pending_order".into())
+                .with_order(market_order.clone())
+                .build()
+                .unwrap(),
+        )
+        .with_datetime(SystemTime::now().duration_since(UNIX_EPOCH).unwrap())
+        .build()
+        .unwrap();
 
     let modify_signal = Signal::Modify(modify_order);
     match risk_engine.process_signal(&modify_signal).await {
@@ -157,11 +161,12 @@ async fn reject_trade_on_halt() {
         Ok(result) => panic!("second trade cannot be succesful: {:?}", result),
     }
 
-    let cancel_order = Cancel {
-        strategy_id,
-        order_id: "cancel_order".into(),
-        datetime: SystemTime::now().duration_since(UNIX_EPOCH).unwrap(),
-    };
+    let cancel_order = Cancel::builder()
+        .with_strategy_id(strategy_id)
+        .with_order_id("cancel_order".into())
+        .with_datetime(SystemTime::now().duration_since(UNIX_EPOCH).unwrap())
+        .build()
+        .unwrap();
 
     let cancel_signal = Signal::Cancel(cancel_order);
     match risk_engine.process_signal(&cancel_signal).await {

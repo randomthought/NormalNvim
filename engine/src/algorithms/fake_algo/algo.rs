@@ -69,8 +69,15 @@ impl Algorithm for FakeAlgo {
                 .duration_since(UNIX_EPOCH)
                 .map_err(|e| domain::error::Error::Any(e.into()))?;
 
-            // let signal = Signal::new(
-            let signal = Signal::Entry(Entry::new(order, datetime, 0.99));
+            let signal = Signal::Entry(
+                Entry::builder()
+                    .with_order(order)
+                    .with_strength(1.0)
+                    .with_datetime(datetime)
+                    .build()
+                    .unwrap(),
+            );
+
             return Ok(Some(signal));
         }
 
