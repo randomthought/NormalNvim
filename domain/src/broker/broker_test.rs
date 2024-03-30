@@ -182,18 +182,19 @@ async fn flip_order() {
             .build()
             .unwrap(),
     );
-    broker.place_order(&market_order_3).await.unwrap();
+    let order_result = broker.place_order(&market_order_3).await.unwrap();
 
     let result = broker.get_positions().await.unwrap();
 
     let expected = vec![SecurityPosition {
         security: setup.security.to_owned(),
         side: Side::Short,
-        holding_details: vec![HoldingDetail {
-            strategy_id,
-            quantity: 20,
-            price: setup.price,
-        }],
+        holding_details: vec![HoldingDetail::builder()
+            .with_price(setup.price)
+            .with_quantity(20)
+            .with_strategy_id(strategy_id)
+            .build()
+            .unwrap()],
     }];
 
     assert_eq!(expected, result)
@@ -309,16 +310,17 @@ async fn get_positions() {
         .build()
         .unwrap();
     let market_order = NewOrder::Market(market);
-    broker.place_order(&market_order).await.unwrap();
+    let order_results = broker.place_order(&market_order).await.unwrap();
 
     let expected = vec![SecurityPosition {
         security: setup.security.to_owned(),
         side,
-        holding_details: vec![HoldingDetail {
-            strategy_id,
-            quantity,
-            price: setup.price,
-        }],
+        holding_details: vec![HoldingDetail::builder()
+            .with_price(setup.price)
+            .with_quantity(quantity)
+            .with_strategy_id(strategy_id)
+            .build()
+            .unwrap()],
     }];
 
     let result = broker.get_positions().await.unwrap();
@@ -384,11 +386,12 @@ async fn insert_market_stop_limit_order() {
     let expected_1 = vec![SecurityPosition {
         security: setup.security.to_owned(),
         side,
-        holding_details: vec![HoldingDetail {
-            strategy_id,
-            quantity,
-            price: setup.price,
-        }],
+        holding_details: vec![HoldingDetail::builder()
+            .with_price(setup.price)
+            .with_quantity(quantity)
+            .with_strategy_id(strategy_id)
+            .build()
+            .unwrap()],
     }];
 
     let results_1 = broker.get_positions().await.unwrap();
@@ -405,10 +408,10 @@ async fn insert_market_stop_limit_order() {
         .build()
         .unwrap();
 
-    let expected_2: Vec<OrderResult> = vec![OrderResult::PendingOrder(PendingOrder {
+    let expected_2 = vec![PendingOrder {
         order_id: pending_order.order_id.to_owned(),
         order: NewOrder::OCO(oco),
-    })];
+    }];
 
     let result_2 = broker.get_pending_orders().await.unwrap();
 
@@ -574,8 +577,7 @@ async fn update_pending_order() {
 
     broker.update(&pending_order).await.unwrap();
 
-    let Some(OrderResult::PendingOrder(result)) = broker.get_pending_orders().await.unwrap().pop()
-    else {
+    let Some(result) = broker.get_pending_orders().await.unwrap().pop() else {
         panic!("failed get updated pending order")
     };
 
@@ -641,16 +643,17 @@ async fn get_algo_holdings() {
             .unwrap(),
     );
 
-    broker.place_order(&market_order_1).await.unwrap();
+    let order_result = broker.place_order(&market_order_1).await.unwrap();
     let results_1 = broker.get_security_positions(strategy_id).await.unwrap();
     let expected = vec![SecurityPosition {
         security: setup.security.to_owned(),
         side: Side::Long,
-        holding_details: vec![HoldingDetail {
-            strategy_id,
-            quantity,
-            price: setup.price,
-        }],
+        holding_details: vec![HoldingDetail::builder()
+            .with_price(setup.price)
+            .with_quantity(quantity)
+            .with_strategy_id(strategy_id)
+            .build()
+            .unwrap()],
     }];
     assert_eq!(results_1, expected);
 

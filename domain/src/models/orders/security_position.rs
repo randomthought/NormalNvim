@@ -48,7 +48,6 @@ impl SecurityPosition {
 #[getset(get)]
 #[builder(setter(prefix = "with"))]
 pub struct HoldingDetail {
-    pub order_id: OrderId,
     pub strategy_id: StrategyId,
     pub quantity: Quantity,
     pub price: Price,

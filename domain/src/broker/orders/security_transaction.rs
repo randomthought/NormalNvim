@@ -1,3 +1,6 @@
+use derive_builder::Builder;
+use getset::Getters;
+
 use crate::models::{
     orders::{
         common::{OrderDetails, OrderId, Side},
@@ -10,18 +13,26 @@ use crate::models::{
 use std::time::Duration;
 
 // TODO: make struct private
-#[derive(Debug, Clone)]
-pub struct Transation {
+#[derive(Debug, Builder, Getters, Clone)]
+#[getset(get)]
+#[builder(setter(prefix = "with"))]
+pub struct Transaction {
     pub order_id: OrderId,
     pub price: Price,
     pub order_details: OrderDetails,
     pub date_time: Duration,
 }
 
+impl Transaction {
+    pub fn builder() -> TransactionBuilder {
+        TransactionBuilder::default()
+    }
+}
+
 #[derive(Debug, Clone)]
 pub struct SecurityTransaction {
     pub security: Security,
-    pub order_history: Vec<Transation>,
+    pub order_history: Vec<Transaction>,
 }
 
 impl SecurityTransaction {
@@ -56,7 +67,7 @@ impl SecurityTransaction {
             return Err("security must match".into());
         }
 
-        let transation = Transation {
+        let transation = Transaction {
             order_id: filled_order.order_id.to_owned(),
             order_details: filled_order.order_details.to_owned(),
             date_time: filled_order.date_time,
@@ -69,8 +80,14 @@ impl SecurityTransaction {
     }
 }
 
-fn add_to_position(security_position: &mut SecurityPosition, transaction: &Transation) {
-    let hd = to_holding_details(transaction);
+fn add_to_position(security_position: &mut SecurityPosition, transaction: &Transaction) {
+    let hd = HoldingDetail::builder()
+        .with_strategy_id(transaction.order_details().strategy_id)
+        .with_quantity(transaction.order_details().quantity)
+        .with_price(transaction.price().clone())
+        .build()
+        .unwrap();
+
     let current_quantity = security_position.get_quantity();
     let Some(holding_detail) = security_position.holding_details.pop() else {
         security_position.side = transaction.order_details.side;
@@ -90,16 +107,18 @@ fn add_to_position(security_position: &mut SecurityPosition, transaction: &Trans
     }
 
     if current_quantity > transaction.order_details.quantity {
-        let hd = HoldingDetail {
-            strategy_id: transaction.order_details.strategy_id,
-            quantity: current_quantity - transaction.order_details.quantity,
-            price: hd.price.to_owned(),
-        };
+        let hd = HoldingDetail::builder()
+            .with_strategy_id(transaction.order_details().strategy_id)
+            .with_quantity(current_quantity - transaction.order_details().quantity)
+            .with_price(hd.price.to_owned())
+            .build()
+            .unwrap();
+
         security_position.holding_details.push(hd);
         return;
     }
 
-    let ts = Transation {
+    let ts = Transaction {
         order_id: transaction.order_id.to_owned(),
         date_time: transaction.date_time,
         price: transaction.price,
@@ -111,12 +130,4 @@ fn add_to_position(security_position: &mut SecurityPosition, transaction: &Trans
     };
 
     add_to_position(security_position, &ts)
-}
-
-fn to_holding_details(transation: &Transation) -> HoldingDetail {
-    HoldingDetail {
-        strategy_id: transation.order_details.strategy_id,
-        quantity: transation.order_details.quantity,
-        price: transation.price,
-    }
 }

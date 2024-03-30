@@ -12,12 +12,14 @@ use crate::models::orders::limit::Limit;
 use crate::models::orders::market::Market;
 use crate::models::orders::new_order::NewOrder;
 use crate::models::orders::pending_order::PendingOrder;
-use crate::order::OrderManager;
+use crate::models::orders::stop_limit_market::StopLimitMarket;
+use crate::order::{OrderManager, OrderReader};
 use crate::risk::algo_risk_config::AlgorithmRiskConfig;
 use crate::risk::error::RiskError;
 use crate::risk::risk_engine::TradingState;
 use crate::strategy::algorithm::StrategyId;
 use crate::strategy::model::signal::{Cancel, Entry, Modify, Signal};
+use crate::strategy::portfolio::StrategyPortfolio;
 use crate::{
     data::QouteProvider,
     models::{
@@ -294,7 +296,7 @@ async fn reject_trade_on_max_open_trades_zero() {
     );
 
     match risk_engine.process_signal(&entry_signal).await {
-        Err(RiskError::ExceededAlgoMaxOpenTrades) => (),
+        Err(RiskError::ExceededAlgoOpenTrades) => (),
         Err(e) => panic!("failed with incorrect error: {:?}", e),
         Ok(result) => panic!("trade cannot be succesful: {:?}", result),
     }
@@ -356,7 +358,7 @@ async fn reject_trade_on_max_open_trades() {
         }
 
         match risk_engine.process_signal(&s).await {
-            Err(RiskError::ExceededAlgoMaxOpenTrades) => (),
+            Err(RiskError::ExceededAlgoOpenTrades) => (),
             Err(e) => panic!("failed with incorrect error: {:?}", e),
             Ok(result) => panic!("trade cannot be succesful: {:?}", result),
         }
@@ -554,7 +556,7 @@ async fn exceeded_algo_max_risk_per_trade() {
     );
 
     match risk_engine.process_signal(&entry_signal).await {
-        Err(RiskError::ExceededAlgoMaxRiskPerTrade(_)) => (),
+        Err(RiskError::ExceededAlgoRiskPerTrade(_)) => (),
         Err(e) => panic!("failed with incorrect error: {:?}", e),
         Ok(result) => panic!("trade cannot be succesful: {:?}", result),
     }
@@ -625,7 +627,7 @@ async fn exceeded_algo_max_risk_per_trade_adding_to_trade() {
     );
 
     match risk_engine.process_signal(&entry_signal).await {
-        Err(RiskError::ExceededAlgoMaxRiskPerTrade(_)) => (),
+        Err(RiskError::ExceededAlgoRiskPerTrade(_)) => (),
         Err(e) => panic!("failed with incorrect error: {:?}", e),
         Ok(result) => panic!("trade cannot be succesful: {:?}", result),
     }
@@ -895,10 +897,10 @@ async fn exceeded_algo_max_loss() {
             .unwrap(),
     );
 
-    match risk_engine.process_signal(&entry_signal).await {
+    let order_result = match risk_engine.process_signal(&entry_signal).await {
         Err(e) => panic!("failed to make trade with error: {:?}", e),
-        Ok(_) => (),
-    }
+        Ok(v) => v.first().unwrap().clone(),
+    };
 
     stub.add_to_price(Decimal::new(-1000, 0)).await;
     let market_order = NewOrder::Market(
@@ -910,6 +912,20 @@ async fn exceeded_algo_max_loss() {
             .build()
             .unwrap(),
     );
+
+    let close_signal = Signal::Close(
+        Cancel::builder()
+            .with_strategy_id(strategy_id)
+            .with_order_id(order_result.order_id().clone())
+            .with_datetime(SystemTime::now().duration_since(UNIX_EPOCH).unwrap())
+            .build()
+            .unwrap(),
+    );
+
+    match risk_engine.process_signal(&close_signal).await {
+        Err(e) => panic!("failed to make trade with error: {:?}", e),
+        Ok(_) => (),
+    }
 
     let entry_signal = Signal::Entry(
         Entry::builder()
@@ -928,11 +944,269 @@ async fn exceeded_algo_max_loss() {
 }
 
 #[tokio::test]
-async fn reject_trade_on_portfolio_risk_market() {
-    todo!()
+async fn exceed_portfolio_risk() {
+    let setup = Setup::new();
+
+    let stub = Arc::new(Stub::new());
+    let balance = Decimal::new(100_000, 0);
+    let broker = Arc::new(Broker::new(balance, stub.to_owned()));
+    let algo_risk_config = AlgorithmRiskConfig::builder()
+        .with_strategy_id(strategy_id)
+        .with_starting_balance(balance)
+        .with_max_portfolio_loss(1.0)
+        .with_max_risk_per_trade(0.10)
+        .build()
+        .unwrap();
+
+    let risk_engine = RiskEngine::builder()
+        .with_max_portfolio_risk(0.05)
+        .add_algorithm_risk_config(algo_risk_config)
+        .with_qoute_provider(stub.clone())
+        .with_strategy_portfolio(broker.clone())
+        .with_order_manager(broker.clone())
+        .build()
+        .unwrap();
+
+    let market_order = NewOrder::Market(
+        Market::builder()
+            .with_security(setup.security.to_owned())
+            .with_side(Side::Long)
+            .with_quantity(5)
+            .with_strategy_id(strategy_id)
+            .build()
+            .unwrap(),
+    );
+
+    let entry_signal = Signal::Entry(
+        Entry::builder()
+            .with_datetime(SystemTime::now().duration_since(UNIX_EPOCH).unwrap())
+            .with_order(market_order)
+            .with_strength(1.0)
+            .build()
+            .unwrap(),
+    );
+
+    if let Err(e) = risk_engine.process_signal(&entry_signal).await {
+        panic!("failed to make trade with error: {:?}", e);
+    }
+
+    let market_order = NewOrder::Market(
+        Market::builder()
+            .with_security(setup.security.to_owned())
+            .with_side(Side::Long)
+            .with_quantity(1)
+            .with_strategy_id(strategy_id)
+            .build()
+            .unwrap(),
+    );
+
+    let entry_signal = Signal::Entry(
+        Entry::builder()
+            .with_datetime(SystemTime::now().duration_since(UNIX_EPOCH).unwrap())
+            .with_order(market_order)
+            .with_strength(1.0)
+            .build()
+            .unwrap(),
+    );
+
+    match risk_engine.process_signal(&entry_signal).await {
+        Err(RiskError::ExceededPortfolioRisk) => (),
+        Err(e) => panic!("failed to make trade with error: {:?}", e),
+        Ok(result) => panic!("trade cannot be succesful: {:?}", result),
+    }
 }
 
 #[tokio::test]
-async fn reject_trade_on_portfolio_risk_limit() {
-    todo!()
+async fn exceed_portfolio_risk_per_trade() {
+    let setup = Setup::new();
+
+    let stub = Arc::new(Stub::new());
+    let balance = Decimal::new(100_000, 0);
+    let broker = Arc::new(Broker::new(balance, stub.to_owned()));
+    let algo_risk_config = AlgorithmRiskConfig::builder()
+        .with_strategy_id(strategy_id)
+        .with_starting_balance(balance)
+        .build()
+        .unwrap();
+
+    let risk_engine = RiskEngine::builder()
+        .add_algorithm_risk_config(algo_risk_config)
+        .with_max_portfolio_risk_per_trade(0.01)
+        .with_qoute_provider(stub.clone())
+        .with_strategy_portfolio(broker.clone())
+        .with_order_manager(broker.clone())
+        .build()
+        .unwrap();
+
+    let market_order = NewOrder::Market(
+        Market::builder()
+            .with_security(setup.security.to_owned())
+            .with_side(Side::Long)
+            .with_quantity(2)
+            .with_strategy_id(strategy_id)
+            .build()
+            .unwrap(),
+    );
+
+    let entry_signal = Signal::Entry(
+        Entry::builder()
+            .with_datetime(SystemTime::now().duration_since(UNIX_EPOCH).unwrap())
+            .with_order(market_order)
+            .with_strength(1.0)
+            .build()
+            .unwrap(),
+    );
+
+    match risk_engine.process_signal(&entry_signal).await {
+        Err(RiskError::ExceededPortfolioRiskPerTrade) => (),
+        Err(e) => panic!("failed to make trade with error: {:?}", e),
+        Ok(result) => panic!("trade cannot be succesful: {:?}", result),
+    }
+}
+
+#[tokio::test]
+async fn exceed_portfolio_open_trades() {
+    let setup = Setup::new();
+
+    let stub = Arc::new(Stub::new());
+    let balance = Decimal::new(100_000, 0);
+    let broker = Arc::new(Broker::new(balance, stub.to_owned()));
+    let algo_risk_config = AlgorithmRiskConfig::builder()
+        .with_strategy_id(strategy_id)
+        .with_starting_balance(balance)
+        .build()
+        .unwrap();
+
+    let risk_engine = RiskEngine::builder()
+        .add_algorithm_risk_config(algo_risk_config)
+        .with_max_portfolio_open_trades(1)
+        .with_qoute_provider(stub.clone())
+        .with_strategy_portfolio(broker.clone())
+        .with_order_manager(broker.clone())
+        .build()
+        .unwrap();
+
+    let market_order = NewOrder::Market(
+        Market::builder()
+            .with_security(setup.security.to_owned())
+            .with_side(Side::Long)
+            .with_quantity(2)
+            .with_strategy_id(strategy_id)
+            .build()
+            .unwrap(),
+    );
+
+    let entry_signal = Signal::Entry(
+        Entry::builder()
+            .with_datetime(SystemTime::now().duration_since(UNIX_EPOCH).unwrap())
+            .with_order(market_order)
+            .with_strength(1.0)
+            .build()
+            .unwrap(),
+    );
+
+    if let Err(e) = risk_engine.process_signal(&entry_signal).await {
+        panic!("failed to make trade with error: {:?}", e);
+    }
+
+    let market_order = NewOrder::Market(
+        Market::builder()
+            .with_security(setup.security.to_owned())
+            .with_side(Side::Long)
+            .with_quantity(2)
+            .with_strategy_id(strategy_id)
+            .build()
+            .unwrap(),
+    );
+
+    let entry_signal = Signal::Entry(
+        Entry::builder()
+            .with_datetime(SystemTime::now().duration_since(UNIX_EPOCH).unwrap())
+            .with_order(market_order)
+            .with_strength(1.0)
+            .build()
+            .unwrap(),
+    );
+
+    match risk_engine.process_signal(&entry_signal).await {
+        Err(RiskError::ExceededPortfolioOpenTrades) => (),
+        Err(e) => panic!("failed to make trade with error: {:?}", e),
+        Ok(result) => panic!("trade cannot be succesful: {:?}", result),
+    }
+}
+
+async fn close_to_singal_also_remove_pending_orders() {
+    let setup = Setup::new();
+
+    let stub = Arc::new(Stub::new());
+    let balance = Decimal::new(100_000, 0);
+    let broker = Arc::new(Broker::new(balance, stub.to_owned()));
+    let algo_risk_config = AlgorithmRiskConfig::builder()
+        .with_strategy_id(strategy_id)
+        .with_starting_balance(balance)
+        .build()
+        .unwrap();
+
+    let risk_engine = RiskEngine::builder()
+        .add_algorithm_risk_config(algo_risk_config)
+        .with_qoute_provider(stub.clone())
+        .with_strategy_portfolio(broker.clone())
+        .with_order_manager(broker.clone())
+        .build()
+        .unwrap();
+
+    let stop_limit_market = NewOrder::StopLimitMarket(
+        StopLimitMarket::builder()
+            .with_security(setup.security.to_owned())
+            .with_limit_side(Side::Long)
+            .with_limit_price(Decimal::new(2000, 0))
+            .with_stop_price(Decimal::default())
+            .with_quantity(1)
+            .with_strategy_id(strategy_id)
+            .build()
+            .unwrap(),
+    );
+
+    let entry_signal = Signal::Entry(
+        Entry::builder()
+            .with_datetime(SystemTime::now().duration_since(UNIX_EPOCH).unwrap())
+            .with_order(stop_limit_market)
+            .with_strength(1.0)
+            .build()
+            .unwrap(),
+    );
+
+    let order_id = match risk_engine.process_signal(&entry_signal).await {
+        Ok(v) => {
+            if v.len() != 1 {
+                panic!("should have return a single order result: {:?}", v);
+            }
+
+            v.first().unwrap().order_id().clone()
+        }
+        Err(e) => panic!("failed to make trade with error: {:?}", e),
+    };
+
+    let close_signal = Signal::Close(
+        Cancel::builder()
+            .with_strategy_id(strategy_id)
+            .with_order_id(order_id)
+            .with_datetime(SystemTime::now().duration_since(UNIX_EPOCH).unwrap())
+            .build()
+            .unwrap(),
+    );
+
+    if let Err(e) = risk_engine.process_signal(&close_signal).await {
+        panic!("failed to make trade with error: {:?}", e);
+    }
+
+    let open = broker.get_positions().await.unwrap();
+    if !open.is_empty() {
+        panic!("found open positions: {:?}", open);
+    }
+
+    let pending = broker.get_pending_orders().await.unwrap();
+    if !pending.is_empty() {
+        panic!("found pending positions: {:?}", pending);
+    }
 }

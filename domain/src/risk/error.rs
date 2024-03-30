@@ -13,7 +13,7 @@ pub enum RiskError {
     #[error("instrument is already traded by strategy_id=`{0}`")]
     InstrumentTradedByAglorithm(StrategyId),
     #[error("exceed max algorithm open trades")]
-    ExceededAlgoMaxOpenTrades,
+    ExceededAlgoOpenTrades,
     #[error("exceed max algorithm loss")]
     ExceededAlgoMaxLoss,
     #[error("insufficient algoirthim account balance")]
@@ -21,11 +21,13 @@ pub enum RiskError {
     #[error("unable to find algorithm risk config {0}")]
     UnableToFindAlgoRiskConfig(StrategyId),
     #[error("exceeded max portfolio open trades")]
-    ExceededAlgoMaxRiskPerTrade(Signal),
+    ExceededAlgoRiskPerTrade(Signal),
     #[error("exceeded max portfolio ")]
-    ExceededPortfolioMaxRiskPerTrade,
-    #[error("exceeded max portfolio open trades")]
-    ExceededPortfolioMaxOpenTrades,
+    ExceededPortfolioRiskPerTrade,
+    #[error("exceeded portfolio open trades")]
+    ExceededPortfolioOpenTrades,
+    #[error("exceeded portfolio risk")]
+    ExceededPortfolioRisk,
     #[error("signal type is not supported")]
-    UnsupportedSignalType,
+    UnsupportedSignalType(Signal),
 }

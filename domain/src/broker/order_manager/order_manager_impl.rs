@@ -25,14 +25,9 @@ impl OrderReader for Broker {
         Ok(orders)
     }
 
-    async fn get_pending_orders(&self) -> Result<Vec<OrderResult>, crate::error::Error> {
+    async fn get_pending_orders(&self) -> Result<Vec<PendingOrder>, crate::error::Error> {
         let orders = self.orders.get_pending_orders().await;
-        let order_results = orders
-            .iter()
-            .map(|p| OrderResult::PendingOrder(p.to_owned()))
-            .collect();
-
-        Ok(order_results)
+        Ok(orders)
     }
 }
 

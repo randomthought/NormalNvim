@@ -4,7 +4,7 @@ use rust_decimal::Decimal;
 use crate::strategy::algorithm::{Strategy, StrategyId};
 
 #[derive(Builder, Clone, Copy)]
-#[builder(setter(prefix = "with"))]
+#[builder(setter(prefix = "with", strip_option))]
 pub struct AlgorithmRiskConfig {
     strategy_id: StrategyId,
     #[builder(default)]
@@ -13,7 +13,7 @@ pub struct AlgorithmRiskConfig {
     pub max_open_trades: Option<u32>,
     #[builder(default)]
     pub max_portfolio_loss: Option<f64>,
-    #[builder(setter(prefix = "with", strip_option), default = "Some(1f64)")]
+    #[builder(default = "Some(1f64)")]
     pub max_portfolio_risk: Option<f64>,
     #[builder(default)]
     pub max_risk_per_trade: Option<f64>,

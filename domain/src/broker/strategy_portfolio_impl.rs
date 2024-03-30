@@ -1,5 +1,5 @@
 use super::{
-    orders::security_transaction::{SecurityTransaction, Transation},
+    orders::security_transaction::{SecurityTransaction, Transaction},
     Broker,
 };
 use crate::{
@@ -73,7 +73,7 @@ impl StrategyPortfolio for Broker {
     }
 }
 
-fn _calucluate_profit(large: &Transation, small: &Transation) -> (Decimal, Option<Transation>) {
+fn _calucluate_profit(large: &Transaction, small: &Transaction) -> (Decimal, Option<Transaction>) {
     let q_remaining = large.order_details.quantity - small.order_details.quantity;
 
     let sq = Decimal::from_u64(small.order_details.quantity).unwrap();
@@ -86,7 +86,7 @@ fn _calucluate_profit(large: &Transation, small: &Transation) -> (Decimal, Optio
         return (profit, None);
     }
 
-    let t = Transation {
+    let t = Transaction {
         order_details: OrderDetails {
             quantity: q_remaining,
             ..large.order_details
@@ -135,7 +135,7 @@ fn calculate_profit(
                     let n_quantity = Decimal::from_u64(n.order_details.quantity).unwrap();
                     let price = ((c_quantity * current.price) + (n_quantity * n.price))
                         / Decimal::from_u64(quantity).unwrap();
-                    let t = Transation {
+                    let t = Transaction {
                         order_details: OrderDetails {
                             quantity,
                             ..n.order_details
