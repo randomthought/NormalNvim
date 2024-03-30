@@ -5,71 +5,36 @@ use getset::Getters;
 use opentelemetry::metrics::{Counter, Gauge, Histogram, Meter, ObservableGauge};
 
 #[derive(Builder, Getters, Clone)]
+#[getset(get)]
+#[builder(setter(prefix = "with"))]
 pub struct Metrics {
     // Algorithm Metrics
     // =======================================
-    #[getset(get)]
-    #[builder(setter(prefix = "with"))]
     pub data_event_counter: Counter<u64>,
-    #[getset(get)]
-    #[builder(setter(prefix = "with"))]
     pub algorithm_signal_counter: Counter<u64>,
-    #[getset(get)]
-    #[builder(setter(prefix = "with"))]
     pub algorithm_event_counter: Counter<u64>,
-    #[getset(get)]
-    #[builder(setter(prefix = "with"))]
     pub algorithm_histogram: Histogram<f64>,
-    #[builder(setter(prefix = "with"))]
     pub algorithm_event_guage: ObservableGauge<u64>,
-    #[builder(setter(prefix = "with"))]
     pub algorithm_on_data_error_counter: Counter<u64>,
     // Risk Engine Metrics
     // =======================================
-    #[builder(setter(prefix = "with"))]
     pub risk_engine_error_counter: Counter<u64>,
-    #[builder(setter(prefix = "with"))]
     pub risk_engine_order_result_counter: Counter<u64>,
-    #[builder(setter(prefix = "with"))]
     pub risk_engine_order_result_gauge: ObservableGauge<u64>,
-    #[builder(setter(prefix = "with"))]
     pub risk_engine_process_signal_histogram: Histogram<f64>,
     // Strategy Portfolio Metrics
     // =======================================
-    #[getset(get)]
-    #[builder(setter(prefix = "with"))]
     pub strategy_portfolio_security_positions_gauge: ObservableGauge<u64>,
-    #[getset(get)]
-    #[builder(setter(prefix = "with"))]
     pub strategy_portfolio_security_positions_counter: Counter<u64>,
-    #[builder(setter(prefix = "with"))]
     pub strategy_portfolio_security_positions_error_counter: Counter<u64>,
-    #[getset(get)]
-    #[builder(setter(prefix = "with"))]
     pub strategy_portfolio_profit_gauge: ObservableGauge<f64>,
-    #[getset(get)]
-    #[builder(setter(prefix = "with"))]
     pub strategy_portfolio_get_profit_histogram: Histogram<f64>,
-    #[getset(get)]
-    #[builder(setter(prefix = "with"))]
     pub strategy_portfolio_get_profit_error_counter: Counter<u64>,
-    #[getset(get)]
-    #[builder(setter(prefix = "with"))]
     pub strategy_portfolio_security_positions_guage: ObservableGauge<u64>,
-    #[getset(get)]
-    #[builder(setter(prefix = "with"))]
     pub strategy_portfolio_get_security_positions_histogram: Histogram<f64>,
-    #[getset(get)]
-    #[builder(setter(prefix = "with"))]
     pub strategy_portfolio_get_security_positions_error: Counter<u64>,
-    #[getset(get)]
-    #[builder(setter(prefix = "with"))]
     pub strategy_portfolio_pending_orders_gauge: ObservableGauge<u64>,
-    #[getset(get)]
-    #[builder(setter(prefix = "with"))]
     pub strategy_portfolio_get_pending_histogram: Histogram<f64>,
-    #[getset(get)]
-    #[builder(setter(prefix = "with"))]
     pub strategy_portfolio_get_pending_error_counter: Counter<u64>,
 }
 

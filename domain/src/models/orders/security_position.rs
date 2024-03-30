@@ -39,11 +39,9 @@ impl SecurityPosition {
 }
 
 #[derive(Builder, Debug, Clone, PartialEq, Eq)]
+#[builder(setter(prefix = "with"))]
 pub struct HoldingDetail {
-    #[builder(setter(prefix = "with"))]
     pub strategy_id: StrategyId,
-    #[builder(setter(prefix = "with"))]
     pub quantity: Quantity,
-    #[builder(setter(prefix = "with"))]
     pub price: Price,
 }

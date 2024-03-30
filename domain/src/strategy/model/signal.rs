@@ -10,16 +10,12 @@ use crate::{
 };
 
 #[derive(Builder, Getters, Debug, Clone, PartialEq)]
+#[getset(get)]
+#[builder(public, setter(prefix = "with"))]
 #[non_exhaustive]
 pub struct Entry {
-    #[builder(public, setter(prefix = "with"))]
-    #[getset(get)]
     pub order: NewOrder,
-    #[builder(public, setter(prefix = "with"))]
-    #[getset(get)]
     pub datetime: Duration,
-    #[builder(public, setter(prefix = "with"))]
-    #[getset(get)]
     pub strength: f32,
 }
 

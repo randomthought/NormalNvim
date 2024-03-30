@@ -42,20 +42,15 @@ impl StopLimitMarket {
     name = "StopLimitMarketBuilder",
     build_fn(private, name = "build_seed",)
 )]
+#[builder(setter(prefix = "with"))]
 struct StopLimitMarketSeed {
-    #[builder(setter(prefix = "with"))]
     security: Security,
-    #[builder(setter(prefix = "with"))]
     quantity: u64,
-    #[builder(setter(prefix = "with"))]
     limit_side: Side,
-    #[builder(setter(prefix = "with"))]
     stop_price: Price,
-    #[builder(setter(prefix = "with"))]
     limit_price: Price,
-    #[builder(setter(prefix = "with"))]
     strategy_id: StrategyId,
-    #[builder(setter(prefix = "with"), default = "TimeInForce::GTC")]
+    #[builder(default = "TimeInForce::GTC")]
     times_in_force: TimeInForce,
 }
 

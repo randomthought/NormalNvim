@@ -26,14 +26,11 @@ impl Market {
     name = "MarketBuilder",
     build_fn(private, name = "build_seed",)
 )]
+#[builder(setter(prefix = "with"))]
 struct MarketSeed {
-    #[builder(setter(prefix = "with"))]
     pub security: Security,
-    #[builder(setter(prefix = "with"))]
     pub strategy_id: StrategyId,
-    #[builder(setter(prefix = "with"))]
     pub quantity: Quantity,
-    #[builder(setter(prefix = "with"))]
     pub side: Side,
 }
 

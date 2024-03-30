@@ -26,12 +26,10 @@ pub enum TimeInForce {
 }
 
 #[derive(Builder, Debug, Clone, PartialEq, Eq)]
+#[builder(setter(prefix = "with"))]
 pub struct OrderDetails {
-    #[builder(setter(prefix = "with"))]
     pub strategy_id: StrategyId,
-    #[builder(setter(prefix = "with"))]
     pub quantity: Quantity,
-    #[builder(setter(prefix = "with"))]
     pub side: Side,
 }
 

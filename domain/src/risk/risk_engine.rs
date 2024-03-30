@@ -26,21 +26,19 @@ pub enum TradingState {
 }
 
 #[derive(Builder, Clone)]
+#[builder(setter(prefix = "with"))]
 pub struct RiskEngine {
-    #[builder(default, setter(prefix = "with", strip_option))]
+    #[builder(default, setter(strip_option))]
     max_portfolio_accumulaton: Option<f64>,
-    #[builder(default, setter(prefix = "with", strip_option))]
+    #[builder(default, setter(strip_option))]
     max_portfolio_open_trades: Option<u32>,
     // TODO: state has to be mutable.
-    #[builder(setter(prefix = "with"), default = "TradingState::Active")]
+    #[builder(default = "TradingState::Active")]
     trading_state: TradingState,
     #[builder(private)]
     algorithm_risk_configs: HashMap<StrategyId, AlgorithmRiskConfig>,
-    #[builder(setter(prefix = "with"))]
     qoute_provider: Arc<dyn QouteProvider + Send + Sync>,
-    #[builder(setter(prefix = "with"))]
     strategy_portfolio: Arc<dyn StrategyPortfolio + Send + Sync>,
-    #[builder(setter(prefix = "with"))]
     order_manager: Arc<dyn OrderManager + Send + Sync>,
 }
 

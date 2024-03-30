@@ -12,20 +12,14 @@ use opentelemetry::{
 };
 
 #[derive(Builder, Clone)]
+#[builder(setter(prefix = "with"))]
 pub struct AlgorithmTelemetry {
-    #[builder(setter(prefix = "with"))]
     strategy_id: StrategyId,
-    #[builder(setter(prefix = "with"))]
     algorithm: Arc<dyn Algorithm + Sync + Send>,
-    #[builder(setter(prefix = "with"))]
     signal_counter: Counter<u64>,
-    #[builder(setter(prefix = "with"))]
     event_counter: Counter<u64>,
-    #[builder(setter(prefix = "with"))]
     histogram: Histogram<f64>,
-    #[builder(setter(prefix = "with"))]
     event_guage: ObservableGauge<u64>,
-    #[builder(setter(prefix = "with"))]
     on_data_error: Counter<u64>,
 }
 

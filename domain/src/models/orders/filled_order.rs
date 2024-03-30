@@ -35,20 +35,14 @@ impl FilledOrder {
     name = "FilledOrderBuilder",
     build_fn(private, name = "build_seed",)
 )]
+#[builder(setter(prefix = "with"))]
 struct FilledOrderSeed {
-    #[builder(setter(prefix = "with"))]
     pub security: Security,
-    #[builder(setter(prefix = "with"))]
     pub order_id: OrderId,
-    #[builder(setter(prefix = "with"))]
     pub price: Price,
-    #[builder(setter(prefix = "with"))]
     pub date_time: Duration,
-    #[builder(setter(prefix = "with"))]
     pub strategy_id: StrategyId,
-    #[builder(setter(prefix = "with"))]
     pub quantity: Quantity,
-    #[builder(setter(prefix = "with"))]
     pub side: Side,
 }
 

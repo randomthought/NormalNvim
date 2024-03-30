@@ -35,16 +35,13 @@ impl OneCancelsOthers {
     name = "OneCancelsOthersBuilder",
     build_fn(private, name = "build_seed",)
 )]
+#[builder(setter(prefix = "with"))]
 struct OneCancelsOthersSeed {
     #[builder(private)]
     prices: Vec<(Side, Price)>,
-    #[builder(setter(prefix = "with"))]
     time_in_force: TimeInForce,
-    #[builder(setter(prefix = "with"))]
     quantity: Quantity,
-    #[builder(setter(prefix = "with"))]
     strategy_id: StrategyId,
-    #[builder(setter(prefix = "with"))]
     security: Security,
 }
 

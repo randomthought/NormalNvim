@@ -4,10 +4,9 @@ use std::{
         atomic::{AtomicBool, Ordering},
         Arc,
     },
-    time::Duration,
 };
 
-use crate::{event_providers::provider::Parser, telemetry::metrics::Metrics};
+use crate::telemetry::metrics::Metrics;
 
 use super::{
     algo_actor::AlgoActor, event_bus::EventBus, models::AddSignalSubscribers,
@@ -18,19 +17,17 @@ use derive_builder::Builder;
 use domain::{
     event::model::DataEvent,
     risk::risk_engine::RiskEngine,
-    strategy::algorithm::{Algorithm, Strategy, StrategyId},
+    strategy::algorithm::{Algorithm, StrategyId},
 };
 use futures_util::{Stream, StreamExt};
 
 #[derive(Builder)]
+#[builder(public, setter(prefix = "with"))]
 pub struct ActorRunner {
     #[builder(private)]
     algorithms: Vec<(StrategyId, Arc<dyn Algorithm + Send + Sync>)>,
-    #[builder(public, setter(prefix = "with"))]
     risk_engine: RiskEngine,
-    #[builder(public, setter(prefix = "with"))]
     shutdown_signal: Arc<AtomicBool>,
-    #[builder(public, setter(prefix = "with"))]
     metrics: Metrics,
 }
 

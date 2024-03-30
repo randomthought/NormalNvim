@@ -19,18 +19,14 @@ use super::{
 };
 
 #[derive(Builder, Clone)]
+#[builder(setter(prefix = "with"))]
 pub struct RiskEngineActor {
-    #[builder(setter(prefix = "with"))]
     pub risk_engine: RiskEngine,
     #[builder(private)]
     pub subscribers: HashMap<StrategyId, Addr<AlgoActor>>,
-    #[builder(setter(prefix = "with"))]
     pub risk_engine_error_counter: Counter<u64>,
-    #[builder(setter(prefix = "with"))]
     pub risk_engine_order_result_counter: Counter<u64>,
-    #[builder(setter(prefix = "with"))]
     pub risk_engine_order_result_gauge: ObservableGauge<u64>,
-    #[builder(setter(prefix = "with"))]
     pub risk_engine_process_signal_histogram: Histogram<f64>,
 }
 

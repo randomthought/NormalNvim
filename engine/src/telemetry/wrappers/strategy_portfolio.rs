@@ -14,28 +14,18 @@ use rust_decimal::prelude::*;
 use rust_decimal::Decimal;
 
 #[derive(Builder, Clone)]
+#[builder(setter(prefix = "with"))]
 pub struct StrategyPortfolioTelemtry {
-    #[builder(setter(prefix = "with"))]
     strategy_portfolio: Arc<dyn StrategyPortfolio + Send + Sync>,
-    #[builder(setter(prefix = "with"))]
     pub security_positions_gauge: ObservableGauge<u64>,
-    #[builder(setter(prefix = "with"))]
     pub security_positions_counter: Counter<u64>,
-    #[builder(setter(prefix = "with"))]
     pub get_security_positions_histogram: Histogram<f64>,
-    #[builder(setter(prefix = "with"))]
     pub get_security_positions_error_counter: Counter<u64>,
-    #[builder(setter(prefix = "with"))]
     pub profit_gauge: ObservableGauge<f64>,
-    #[builder(setter(prefix = "with"))]
     pub get_profit_histogram: Histogram<f64>,
-    #[builder(setter(prefix = "with"))]
     pub get_profit_error_counter: Counter<u64>,
-    #[builder(setter(prefix = "with"))]
     pub pending_orders_gauge: ObservableGauge<u64>,
-    #[builder(setter(prefix = "with"))]
     pub get_pending_histogram: Histogram<f64>,
-    #[builder(setter(prefix = "with"))]
     pub get_pending_error_counter: Counter<u64>,
 }
 
