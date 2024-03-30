@@ -1135,6 +1135,7 @@ async fn exceed_portfolio_open_trades() {
     }
 }
 
+#[tokio::test]
 async fn close_to_singal_also_remove_pending_orders() {
     let setup = Setup::new();
 
