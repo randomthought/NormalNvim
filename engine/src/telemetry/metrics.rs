@@ -1,11 +1,12 @@
 use std::{sync::Arc, u64};
 
 use derive_builder::Builder;
-use derive_getters::Getters;
+use getset::Getters;
 use opentelemetry::metrics::{Counter, Gauge, Histogram, Meter, ObservableGauge};
 
 #[derive(Builder, Getters, Clone)]
 #[builder(setter(prefix = "with"))]
+#[getset(get = "pub")]
 pub struct Metrics {
     // Algorithm Metrics
     // =======================================

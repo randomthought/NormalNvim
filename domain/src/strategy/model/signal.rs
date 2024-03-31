@@ -1,7 +1,7 @@
 use std::time::Duration;
 
 use derive_builder::Builder;
-use derive_getters::Getters;
+use getset::Getters;
 use strum_macros::{AsRefStr, VariantNames};
 
 use crate::{
@@ -13,6 +13,7 @@ use crate::{
 };
 
 #[derive(Builder, Debug, Clone, PartialEq, Getters)]
+#[getset(get = "pub")]
 #[builder(setter(prefix = "with"))]
 pub struct Entry {
     order: NewOrder,
@@ -27,6 +28,7 @@ impl Entry {
 }
 
 #[derive(Debug, Getters, Builder, Clone, PartialEq, Eq)]
+#[getset(get = "pub")]
 #[builder(public, setter(prefix = "with"))]
 #[non_exhaustive]
 pub struct Modify {
@@ -41,6 +43,7 @@ impl Modify {
 }
 
 #[derive(Debug, Builder, Getters, Clone, PartialEq, Eq)]
+#[getset(get = "pub")]
 #[builder(public, setter(prefix = "with"))]
 #[non_exhaustive]
 pub struct Cancel {
@@ -56,6 +59,7 @@ impl Cancel {
 }
 
 #[derive(Debug, Builder, Getters, Clone, PartialEq, Eq)]
+#[getset(get = "pub")]
 #[builder(public, setter(prefix = "with"))]
 #[non_exhaustive]
 pub struct Close {

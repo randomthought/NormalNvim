@@ -1,9 +1,7 @@
 use derive_builder::Builder;
-use futures_util::{future, StreamExt};
-use rust_decimal::prelude::Signed;
+use futures_util::future;
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use std::collections::HashMap;
-use std::i64;
 use std::sync::Arc;
 
 use super::algo_risk_config::AlgorithmRiskConfig;
@@ -18,7 +16,7 @@ use crate::models::orders::security_position::SecurityPosition;
 use crate::models::security::Security;
 use crate::order::{Account, OrderManager};
 use crate::strategy::algorithm::{Strategy, StrategyId};
-use crate::strategy::model::signal::{Cancel, Close, Entry, Signal};
+use crate::strategy::model::signal::{Close, Entry, Signal};
 use crate::strategy::portfolio::StrategyPortfolio;
 
 #[derive(Clone)]

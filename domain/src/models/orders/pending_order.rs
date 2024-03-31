@@ -1,5 +1,5 @@
 use derive_builder::Builder;
-use derive_getters::Getters;
+use getset::Getters;
 
 use crate::strategy::algorithm::StrategyId;
 
@@ -21,6 +21,7 @@ impl Order {
 }
 
 #[derive(Debug, Getters, Builder, Clone, PartialEq, Eq)]
+#[getset(get = "pub")]
 #[builder(public, setter(prefix = "with"))]
 pub struct PendingOrder {
     pub order_id: OrderId,

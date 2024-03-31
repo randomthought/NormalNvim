@@ -1,13 +1,14 @@
 use std::collections::BTreeSet;
 
 use derive_builder::Builder;
-use derive_getters::Getters;
+use getset::Getters;
 
 use crate::models::security::Security;
 
 use super::{candle::Candle, common::Resolution};
 
 #[derive(Builder, Getters)]
+#[getset(get = "pub")]
 #[builder(setter(prefix = "with"))]
 pub struct PriceHistory {
     #[builder(default, private)]

@@ -1,5 +1,5 @@
 use derive_builder::Builder;
-use derive_getters::Getters;
+use getset::Getters;
 
 use crate::strategy::algorithm::StrategyId;
 
@@ -27,6 +27,7 @@ pub enum TimeInForce {
 }
 
 #[derive(Builder, Getters, Debug, Clone, PartialEq, Eq)]
+#[getset(get = "pub")]
 #[builder(setter(prefix = "with"))]
 pub struct OrderDetails {
     pub strategy_id: StrategyId,
