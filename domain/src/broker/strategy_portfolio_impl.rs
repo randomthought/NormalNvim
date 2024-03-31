@@ -41,7 +41,7 @@ impl StrategyPortfolio for Broker {
             .filter(|v| {
                 v.holding_details
                     .iter()
-                    .any(|hd| hd.strategy_id() == &strategy_id)
+                    .any(|hd| hd.strategy_id() == strategy_id)
             })
             .collect();
 

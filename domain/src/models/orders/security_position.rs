@@ -49,12 +49,12 @@ impl SecurityPosition {
 #[derive(Builder, Getters, CopyGetters, Debug, Clone, PartialEq, Eq)]
 #[builder(setter(prefix = "with"))]
 pub struct HoldingDetail {
-    #[getset(get = "pub")]
-    pub strategy_id: StrategyId,
     #[getset(get_copy = "pub")]
-    pub quantity: Quantity,
+    strategy_id: StrategyId,
+    #[getset(get_copy = "pub")]
+    quantity: Quantity,
     #[getset(get = "pub")]
-    pub price: Price,
+    price: Price,
 }
 
 impl HoldingDetail {

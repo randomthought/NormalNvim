@@ -113,7 +113,7 @@ fn add_to_position(security_position: &mut SecurityPosition, transaction: &Trans
         let hd = HoldingDetail::builder()
             .with_strategy_id(transaction.order_details().strategy_id())
             .with_quantity(current_quantity - transaction.order_details().quantity())
-            .with_price(hd.price.to_owned())
+            .with_price(hd.price().to_owned())
             .build()
             .unwrap();
 

@@ -167,7 +167,7 @@ impl RiskEngine {
             return Ok(order_results);
         }
 
-        let strategy_id = algo_risk_config.strategy_id();
+        let strategy_id: StrategyId = algo_risk_config.strategy_id();
 
         let profit = self
             .strategy_portfolio
@@ -181,7 +181,7 @@ impl RiskEngine {
             .filter(|v| {
                 v.holding_details
                     .iter()
-                    .any(|hd| hd.strategy_id == strategy_id)
+                    .any(|hd| hd.strategy_id() == strategy_id)
             })
             .collect();
 
@@ -274,13 +274,13 @@ impl RiskEngine {
             .filter(|s| {
                 s.holding_details
                     .iter()
-                    .all(|hd| hd.strategy_id != strategy_id)
+                    .all(|hd| hd.strategy_id() != strategy_id)
             })
             .filter(|s| &s.security == entry.order().get_security())
             .flat_map(|s| s.holding_details.clone());
 
         if let Some(s) = security_already_traded.last() {
-            return Err(RiskError::InstrumentTradedByAglorithm(s.strategy_id));
+            return Err(RiskError::InstrumentTradedByAglorithm(s.strategy_id()));
         }
 
         let order_result = self
