@@ -1,5 +1,5 @@
 use derive_builder::Builder;
-use futures_util::future;
+use futures_util::{future, StreamExt};
 use rust_decimal::prelude::Signed;
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use std::collections::HashMap;
@@ -17,7 +17,7 @@ use crate::models::orders::security_position::SecurityPosition;
 use crate::models::security::Security;
 use crate::order::OrderManager;
 use crate::strategy::algorithm::{Strategy, StrategyId};
-use crate::strategy::model::signal::{Entry, Signal};
+use crate::strategy::model::signal::{Cancel, Close, Entry, Signal};
 use crate::strategy::portfolio::StrategyPortfolio;
 
 #[derive(Clone)]
@@ -80,7 +80,10 @@ impl RiskEngine {
                     .map_err(|e| RiskError::OtherError(e.into()))?;
                 Some(vec![order_result])
             }
-            Signal::Close(_) => todo!(),
+            Signal::Close(s) => {
+                let results = self.close(s).await?;
+                Some(results)
+            }
             Signal::Liquidate(_) => {
                 let order_results = self
                     .liquidate(signal.strategy_id())
@@ -113,15 +116,9 @@ impl RiskEngine {
             algo_account_balance(profit, algo_risk_config.starting_balance, &open_trades[..]);
 
         if let Some(max) = algo_risk_config.max_portfolio_loss {
-            let profit = self
-                .strategy_portfolio
-                .get_profit(strategy_id)
-                .await
-                .map_err(|e| RiskError::OtherError(e.into()))?;
-
             let max_portfolio_loss =
                 Decimal::from_f64(max).unwrap() * algo_risk_config.starting_balance;
-            if profit <= max_portfolio_loss {
+            if profit <= -max_portfolio_loss {
                 return Err(RiskError::ExceededAlgoMaxLoss);
             }
         }
@@ -239,6 +236,58 @@ impl RiskEngine {
         let f2 = pending_orders
             .iter()
             .map(|p| self.order_manager.cancel(&p.order_id))
+            .chain(f1);
+
+        let order_results = future::try_join_all(f2)
+            .await
+            .map_err(|e| RiskError::OtherError(e.into()))?;
+
+        Ok(order_results)
+    }
+
+    async fn close(&self, close: &Close) -> Result<Vec<OrderResult>, RiskError> {
+        let strategy_id = close.strategy_id();
+
+        let positions = self
+            .strategy_portfolio
+            .get_security_positions(strategy_id)
+            .await
+            .map_err(|e| RiskError::OtherError(e.into()))?;
+
+        let close_orders: Result<Vec<NewOrder>, _> = positions
+            .iter()
+            .filter(|v| &v.security == close.security())
+            .map(|sp| {
+                let side = match sp.side {
+                    Side::Long => Side::Short,
+                    Side::Short => Side::Long,
+                };
+                Market::builder()
+                    .with_security(sp.security.to_owned())
+                    .with_side(side)
+                    .with_quantity(sp.get_quantity())
+                    .with_strategy_id(strategy_id)
+                    .build()
+                    .map(|o| NewOrder::Market(o))
+            })
+            .collect();
+
+        let close_orders = close_orders.map_err(|e| RiskError::OtherError(e.into()))?;
+
+        let pending_orders: Vec<_> = self
+            .strategy_portfolio
+            .get_pending(strategy_id)
+            .await
+            .map_err(|e| RiskError::OtherError(e.into()))?;
+
+        let f1 = pending_orders
+            .iter()
+            .filter(|v| &v.startegy_id() == close.strategy_id())
+            .map(|p| self.order_manager.cancel(&p.order_id));
+
+        let f2 = close_orders
+            .iter()
+            .map(|o| self.order_manager.place_order(&o))
             .chain(f1);
 
         let order_results = future::try_join_all(f2)

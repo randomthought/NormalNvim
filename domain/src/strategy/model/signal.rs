@@ -5,7 +5,10 @@ use derive_getters::Getters;
 use strum_macros::{AsRefStr, VariantNames};
 
 use crate::{
-    models::orders::{common::OrderId, new_order::NewOrder, pending_order::PendingOrder},
+    models::{
+        orders::{common::OrderId, new_order::NewOrder, pending_order::PendingOrder},
+        security::Security,
+    },
     strategy::algorithm::StrategyId,
 };
 
@@ -52,13 +55,28 @@ impl Cancel {
     }
 }
 
+#[derive(Debug, Builder, Getters, Clone, PartialEq, Eq)]
+#[builder(public, setter(prefix = "with"))]
+#[non_exhaustive]
+pub struct Close {
+    security: Security,
+    strategy_id: StrategyId,
+    datetime: Duration,
+}
+
+impl Close {
+    pub fn builder() -> CloseBuilder {
+        CloseBuilder::default()
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, AsRefStr, VariantNames)]
 #[strum(serialize_all = "snake_case")]
 #[non_exhaustive]
 pub enum Signal {
     Entry(Entry),
     Cancel(Cancel),
-    Close(Cancel),
+    Close(Close),
     Modify(Modify),
     Liquidate(StrategyId),
 }
@@ -68,8 +86,8 @@ impl Signal {
         match self {
             Signal::Entry(s) => s.order().startegy_id(),
             Signal::Modify(s) => s.pending_order().startegy_id(),
-            Signal::Close(s) => s.strategy_id,
-            Signal::Cancel(s) => s.strategy_id,
+            Signal::Close(s) => s.strategy_id(),
+            Signal::Cancel(s) => s.strategy_id(),
             Signal::Liquidate(s) => s,
         }
     }

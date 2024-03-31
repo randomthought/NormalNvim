@@ -18,7 +18,7 @@ use crate::risk::algo_risk_config::AlgorithmRiskConfig;
 use crate::risk::error::RiskError;
 use crate::risk::risk_engine::TradingState;
 use crate::strategy::algorithm::StrategyId;
-use crate::strategy::model::signal::{Cancel, Entry, Modify, Signal};
+use crate::strategy::model::signal::{Cancel, Close, Entry, Modify, Signal};
 use crate::strategy::portfolio::StrategyPortfolio;
 use crate::{
     data::QouteProvider,
@@ -876,61 +876,35 @@ async fn exceeded_algo_max_loss() {
             .unwrap(),
     );
 
-    match risk_engine.process_signal(&entry_signal).await {
-        Err(e) => panic!("failed to make trade with error: {:?}", e),
-        Ok(_) => (),
+    if let Err(e) = risk_engine.process_signal(&entry_signal).await {
+        panic!("failed to make trade with error: {:?}", e);
     }
 
     stub.add_to_price(Decimal::new(-1000, 0)).await;
-
-    let market_order = NewOrder::Market(
-        Market::builder()
-            .with_security(setup.security.to_owned())
-            .with_side(Side::Short)
-            .with_quantity(1)
-            .with_strategy_id(strategy_id)
-            .build()
-            .unwrap(),
-    );
-
-    let entry_signal = Signal::Entry(
-        Entry::builder()
-            .with_datetime(SystemTime::now().duration_since(UNIX_EPOCH).unwrap())
-            .with_order(market_order)
-            .with_strength(1.0)
-            .build()
-            .unwrap(),
-    );
-
-    let order_result = match risk_engine.process_signal(&entry_signal).await {
-        Err(e) => panic!("failed to make trade with error: {:?}", e),
-        Ok(v) => v.first().unwrap().clone(),
-    };
-
-    stub.add_to_price(Decimal::new(-1000, 0)).await;
-    let market_order = NewOrder::Market(
-        Market::builder()
-            .with_security(setup.security.to_owned())
-            .with_side(Side::Short)
-            .with_quantity(1)
-            .with_strategy_id(strategy_id)
-            .build()
-            .unwrap(),
-    );
 
     let close_signal = Signal::Close(
-        Cancel::builder()
+        Close::builder()
+            .with_security(setup.security.to_owned())
             .with_strategy_id(strategy_id)
-            .with_order_id(order_result.order_id().clone())
             .with_datetime(SystemTime::now().duration_since(UNIX_EPOCH).unwrap())
             .build()
             .unwrap(),
     );
 
-    match risk_engine.process_signal(&close_signal).await {
-        Err(e) => panic!("failed to make trade with error: {:?}", e),
-        Ok(_) => (),
+    if let Err(e) = risk_engine.process_signal(&close_signal).await {
+        panic!("failed to make trade with error: {:?}", e);
     }
+
+    stub.add_to_price(Decimal::new(990, 0)).await;
+    let market_order = NewOrder::Market(
+        Market::builder()
+            .with_security(setup.security.to_owned())
+            .with_side(Side::Long)
+            .with_quantity(1)
+            .with_strategy_id(strategy_id)
+            .build()
+            .unwrap(),
+    );
 
     let entry_signal = Signal::Entry(
         Entry::builder()
@@ -1182,21 +1156,14 @@ async fn close_to_singal_also_remove_pending_orders() {
             .unwrap(),
     );
 
-    let order_id = match risk_engine.process_signal(&entry_signal).await {
-        Ok(v) => {
-            if v.len() != 1 {
-                panic!("should have return a single order result: {:?}", v);
-            }
-
-            v.first().unwrap().order_id().clone()
-        }
-        Err(e) => panic!("failed to make trade with error: {:?}", e),
-    };
+    if let Err(e) = risk_engine.process_signal(&entry_signal).await {
+        panic!("failed to make trade with error: {:?}", e);
+    }
 
     let close_signal = Signal::Close(
-        Cancel::builder()
+        Close::builder()
+            .with_security(setup.security.to_owned())
             .with_strategy_id(strategy_id)
-            .with_order_id(order_id)
             .with_datetime(SystemTime::now().duration_since(UNIX_EPOCH).unwrap())
             .build()
             .unwrap(),
