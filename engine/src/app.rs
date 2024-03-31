@@ -111,6 +111,7 @@ pub async fn run_app() -> color_eyre::eyre::Result<()> {
                 .build()
                 .map(|conf| b.add_algorithm_risk_config(conf))
         })?
+        .with_account(broker.clone())
         .with_strategy_portfolio(strategy_portfolio.clone())
         .with_order_manager(broker.clone())
         .with_qoute_provider(qoute_provider.clone())

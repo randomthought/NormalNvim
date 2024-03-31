@@ -15,7 +15,7 @@ use crate::models::orders::order_result::OrderResult;
 use crate::models::orders::pending_order::PendingOrder;
 use crate::models::orders::security_position::SecurityPosition;
 use crate::models::security::Security;
-use crate::order::OrderManager;
+use crate::order::{Account, OrderManager};
 use crate::strategy::algorithm::{Strategy, StrategyId};
 use crate::strategy::model::signal::{Cancel, Close, Entry, Signal};
 use crate::strategy::portfolio::StrategyPortfolio;
@@ -33,14 +33,17 @@ pub struct RiskEngine {
     #[builder(default, setter(strip_option))]
     max_portfolio_risk: Option<f64>,
     #[builder(default, setter(strip_option))]
+    max_portfolio_open_trades: Option<u32>,
+    #[builder(default, setter(strip_option))]
     max_portfolio_risk_per_trade: Option<f64>,
     #[builder(default, setter(strip_option))]
-    max_portfolio_open_trades: Option<u32>,
+    max_portfolio_pending_orders: Option<u32>,
     // TODO: state has to be mutable.
     #[builder(default = "TradingState::Active")]
     trading_state: TradingState,
     #[builder(private)]
     algorithm_risk_configs: HashMap<StrategyId, AlgorithmRiskConfig>,
+    account: Arc<dyn Account + Send + Sync>,
     qoute_provider: Arc<dyn QouteProvider + Send + Sync>,
     strategy_portfolio: Arc<dyn StrategyPortfolio + Send + Sync>,
     order_manager: Arc<dyn OrderManager + Send + Sync>,
@@ -181,6 +184,30 @@ impl RiskEngine {
             return Err(RiskError::InsufficientAlgoAccountBalance);
         }
 
+        if let Some(max) = self.max_portfolio_risk {
+            let balance = self
+                .account
+                .get_account_balance()
+                .await
+                .map_err(|e| RiskError::OtherError(e.into()))?;
+            let max_portfolio_risk = balance * Decimal::from_f64(max).unwrap();
+
+            let mut portfolio_risk = Decimal::default();
+            for position in all_open_trades.iter() {
+                let pending_orders = self
+                    .order_manager
+                    .get_pending_orders()
+                    .await
+                    .map_err(|e| RiskError::OtherError(e.into()))?;
+                let risk = self.calculate_position_risk(position, &pending_orders[..]);
+                portfolio_risk += risk;
+            }
+
+            if portfolio_risk >= max_portfolio_risk {
+                return Err(RiskError::SignalExceedsPortfolioRisk);
+            }
+        }
+
         let security_already_traded = all_open_trades
             .iter()
             .filter(|s| {
@@ -276,7 +303,7 @@ impl RiskEngine {
                     .await
                     .map_err(|e| RiskError::OtherError(e.into()))?;
 
-                self.calculate_position_risk(v, &pending_orders[..]).await?
+                self.calculate_position_risk(v, &pending_orders[..])
             }
         };
 
@@ -389,11 +416,11 @@ impl RiskEngine {
         }
     }
 
-    async fn calculate_position_risk(
+    fn calculate_position_risk(
         &self,
         security_position: &SecurityPosition,
         pending_orders: &[PendingOrder],
-    ) -> Result<Decimal, RiskError> {
+    ) -> Decimal {
         let pending = pending_orders
             .iter()
             .flat_map(|p| match p.order.clone() {
@@ -411,14 +438,14 @@ impl RiskEngine {
 
         let Some(stop_limit) = pending else {
             let risk = security_position.get_cost();
-            return Ok(risk);
+            return risk;
         };
 
         let wap = security_position.get_wieghted_average_price();
         let risk = (stop_limit.price - wap)
             * Decimal::from_u64(stop_limit.order_details.quantity).unwrap();
 
-        Ok(risk)
+        risk
     }
 }
 

@@ -26,8 +26,10 @@ pub enum RiskError {
     ExceededPortfolioRiskPerTrade,
     #[error("exceeded portfolio open trades")]
     ExceededPortfolioOpenTrades,
+    #[error("exceeded portfolio open orders")]
+    ExceededPortfolioPendingOrders,
     #[error("exceeded portfolio risk")]
-    ExceededPortfolioRisk,
+    SignalExceedsPortfolioRisk,
     #[error("signal type is not supported")]
     UnsupportedSignalType(Signal),
 }

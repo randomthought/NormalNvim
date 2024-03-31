@@ -102,6 +102,7 @@ async fn reject_trade_on_halt() {
         .build()
         .unwrap();
     let risk_engine = RiskEngine::builder()
+        .with_account(broker.clone())
         .add_algorithm_risk_config(algo_risk_config)
         .with_qoute_provider(stub.clone())
         .with_strategy_portfolio(broker.clone())
@@ -197,6 +198,7 @@ async fn two_algos_cannot_trade_same_instrument() {
         .unwrap();
 
     let risk_engine = RiskEngine::builder()
+        .with_account(broker.clone())
         .add_algorithm_risk_config(algo_risk_config_1)
         .add_algorithm_risk_config(algo_risk_config_2)
         .with_qoute_provider(stub.clone())
@@ -274,6 +276,7 @@ async fn reject_trade_on_max_open_trades_zero() {
         .unwrap();
 
     let risk_engine = RiskEngine::builder()
+        .with_account(broker.clone())
         .add_algorithm_risk_config(algo_risk_config)
         .with_qoute_provider(stub.clone())
         .with_strategy_portfolio(broker.clone())
@@ -320,6 +323,7 @@ async fn reject_trade_on_max_open_trades() {
         .unwrap();
 
     let risk_engine = RiskEngine::builder()
+        .with_account(broker.clone())
         .add_algorithm_risk_config(algo_risk_config)
         .with_qoute_provider(stub.clone())
         .with_strategy_portfolio(broker.clone())
@@ -384,6 +388,7 @@ async fn do_not_trade_on_insufficient_algo_balance_zero() {
         .unwrap();
 
     let risk_engine = RiskEngine::builder()
+        .with_account(broker.clone())
         .add_algorithm_risk_config(algo_risk_config)
         .with_qoute_provider(stub.clone())
         .with_strategy_portfolio(broker.clone())
@@ -431,6 +436,7 @@ async fn do_not_trade_on_insufficient_algo_balance() {
         .unwrap();
 
     let risk_engine = RiskEngine::builder()
+        .with_account(broker.clone())
         .add_algorithm_risk_config(algo_risk_config)
         .with_qoute_provider(stub.clone())
         .with_strategy_portfolio(broker.clone())
@@ -486,6 +492,7 @@ async fn do_not_trade_without_algo_risk_config() {
         .unwrap();
 
     let risk_engine = RiskEngine::builder()
+        .with_account(broker.clone())
         .add_algorithm_risk_config(algo_risk_config)
         .with_qoute_provider(stub.clone())
         .with_strategy_portfolio(broker.clone())
@@ -534,6 +541,7 @@ async fn exceeded_algo_max_risk_per_trade() {
         .unwrap();
 
     let risk_engine = RiskEngine::builder()
+        .with_account(broker.clone())
         .add_algorithm_risk_config(algo_risk_config)
         .with_qoute_provider(stub.clone())
         .with_strategy_portfolio(broker.clone())
@@ -582,6 +590,7 @@ async fn exceeded_algo_max_risk_per_trade_adding_to_trade() {
         .unwrap();
 
     let risk_engine = RiskEngine::builder()
+        .with_account(broker.clone())
         .add_algorithm_risk_config(algo_risk_config)
         .with_qoute_provider(stub.clone())
         .with_strategy_portfolio(broker.clone())
@@ -651,6 +660,7 @@ async fn trading_state_reduce_market_order() {
         .build()
         .unwrap();
     let risk_engine = RiskEngine::builder()
+        .with_account(broker.clone())
         .with_trading_state(TradingState::Reducing)
         .add_algorithm_risk_config(algo_risk_config)
         .with_qoute_provider(stub.clone())
@@ -732,6 +742,7 @@ async fn trading_state_reduce_on_limit_order() {
         .build()
         .unwrap();
     let risk_engine = RiskEngine::builder()
+        .with_account(broker.clone())
         .with_trading_state(TradingState::Reducing)
         .add_algorithm_risk_config(algo_risk_config)
         .with_qoute_provider(stub.clone())
@@ -850,6 +861,7 @@ async fn exceeded_algo_max_loss() {
         .unwrap();
 
     let risk_engine = RiskEngine::builder()
+        .with_account(broker.clone())
         .add_algorithm_risk_config(algo_risk_config)
         .with_qoute_provider(stub.clone())
         .with_strategy_portfolio(broker.clone())
@@ -923,7 +935,7 @@ async fn exceeded_algo_max_loss() {
 }
 
 #[tokio::test]
-async fn exceed_portfolio_risk() {
+async fn singal_exceeds_portfolio_risk() {
     let setup = Setup::new();
 
     let stub = Arc::new(Stub::new());
@@ -938,6 +950,7 @@ async fn exceed_portfolio_risk() {
         .unwrap();
 
     let risk_engine = RiskEngine::builder()
+        .with_account(broker.clone())
         .with_max_portfolio_risk(0.05)
         .add_algorithm_risk_config(algo_risk_config)
         .with_qoute_provider(stub.clone())
@@ -989,7 +1002,7 @@ async fn exceed_portfolio_risk() {
     );
 
     match risk_engine.process_signal(&entry_signal).await {
-        Err(RiskError::ExceededPortfolioRisk) => (),
+        Err(RiskError::SignalExceedsPortfolioRisk) => (),
         Err(e) => panic!("failed to make trade with error: {:?}", e),
         Ok(result) => panic!("trade cannot be succesful: {:?}", result),
     }
@@ -1009,6 +1022,7 @@ async fn exceed_portfolio_risk_per_trade() {
         .unwrap();
 
     let risk_engine = RiskEngine::builder()
+        .with_account(broker.clone())
         .add_algorithm_risk_config(algo_risk_config)
         .with_max_portfolio_risk_per_trade(0.01)
         .with_qoute_provider(stub.clone())
@@ -1057,6 +1071,7 @@ async fn exceed_portfolio_open_trades() {
         .unwrap();
 
     let risk_engine = RiskEngine::builder()
+        .with_account(broker.clone())
         .add_algorithm_risk_config(algo_risk_config)
         .with_max_portfolio_open_trades(1)
         .with_qoute_provider(stub.clone())
@@ -1128,6 +1143,7 @@ async fn close_to_singal_also_remove_pending_orders() {
         .unwrap();
 
     let risk_engine = RiskEngine::builder()
+        .with_account(broker.clone())
         .add_algorithm_risk_config(algo_risk_config)
         .with_qoute_provider(stub.clone())
         .with_strategy_portfolio(broker.clone())
@@ -1182,4 +1198,9 @@ async fn close_to_singal_also_remove_pending_orders() {
     if !pending.is_empty() {
         panic!("found pending positions: {:?}", pending);
     }
+}
+
+#[tokio::test]
+async fn max_portfolio_pending_orders() {
+    todo!()
 }
