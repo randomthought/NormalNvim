@@ -36,21 +36,12 @@ impl StrategyPortfolio for Broker {
         strategy_id: StrategyId,
     ) -> Result<Vec<SecurityPosition>, crate::error::Error> {
         let open_positions = self.get_positions().await?;
-        // TODO: this could cause issues. especially imformation conflict if algos are trading the same instruments
         let algo_positions: Vec<_> = open_positions
-            .iter()
-            .flat_map(|p| {
-                p.holding_details
-                    .to_owned()
-                    .into_iter()
-                    .filter(|h| h.strategy_id == strategy_id)
-                    .fold(SecurityPosition::builder(), |mut spb, hd| {
-                        spb.add_holding_detail(hd).to_owned()
-                    })
-                    .with_security(p.security.to_owned())
-                    .with_side(p.side)
-                    .build()
-                    .ok()
+            .into_iter()
+            .filter(|v| {
+                v.holding_details
+                    .iter()
+                    .any(|hd| hd.strategy_id == strategy_id)
             })
             .collect();
 

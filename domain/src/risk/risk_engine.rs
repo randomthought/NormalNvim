@@ -106,14 +106,27 @@ impl RiskEngine {
             .await
             .map_err(|e| RiskError::OtherError(e.into()))?;
 
-        let open_trades = self
-            .strategy_portfolio
-            .get_security_positions(strategy_id)
+        let all_open_trades = self
+            .order_manager
+            .get_positions()
             .await
             .map_err(|e| RiskError::OtherError(e.into()))?;
 
-        let acc_balance =
-            algo_account_balance(profit, algo_risk_config.starting_balance, &open_trades[..]);
+        let algo_open_trades: Vec<_> = all_open_trades
+            .clone()
+            .into_iter()
+            .filter(|v| {
+                v.holding_details
+                    .iter()
+                    .any(|hd| hd.strategy_id == strategy_id)
+            })
+            .collect();
+
+        let acc_balance = algo_account_balance(
+            profit,
+            algo_risk_config.starting_balance,
+            &algo_open_trades[..],
+        );
 
         if let Some(max) = algo_risk_config.max_portfolio_loss {
             let max_portfolio_loss =
@@ -123,27 +136,14 @@ impl RiskEngine {
             }
         }
 
-        let open_trades = match (
-            algo_risk_config.max_open_trades,
-            algo_risk_config.max_risk_per_trade,
-            self.max_portfolio_open_trades,
-        ) {
-            (None, None, None) => vec![],
-            _ => self
-                .strategy_portfolio
-                .get_security_positions(signal.strategy_id())
-                .await
-                .map_err(|e| RiskError::OtherError(e.into()))?,
-        };
-
         if let Some(max) = self.max_portfolio_open_trades {
-            if open_trades.len() >= max as usize {
+            if all_open_trades.len() >= max as usize {
                 return Err(RiskError::ExceededPortfolioOpenTrades);
             }
         }
 
         if let Some(max) = algo_risk_config.max_open_trades {
-            if open_trades.len() >= max as usize {
+            if algo_open_trades.len() >= max as usize {
                 return Err(RiskError::ExceededAlgoOpenTrades);
             }
         }
@@ -157,7 +157,7 @@ impl RiskEngine {
             algo_risk_config.max_risk_per_trade,
         ) {
             (None, None) => Decimal::default(),
-            _ => self.get_trade_risk(&entry, &open_trades[..]).await?,
+            _ => self.get_trade_risk(&entry, &algo_open_trades[..]).await?,
         };
 
         if let Some(max) = algo_risk_config.max_risk_per_trade {
@@ -180,12 +180,6 @@ impl RiskEngine {
         if trade_cost > acc_balance {
             return Err(RiskError::InsufficientAlgoAccountBalance);
         }
-
-        let all_open_trades = self
-            .order_manager
-            .get_positions()
-            .await
-            .map_err(|e| RiskError::OtherError(e.into()))?;
 
         let security_already_traded = all_open_trades
             .iter()
