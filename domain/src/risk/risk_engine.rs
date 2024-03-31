@@ -123,25 +123,53 @@ impl RiskEngine {
             }
         }
 
+        let open_trades = match (
+            algo_risk_config.max_open_trades,
+            algo_risk_config.max_risk_per_trade,
+        ) {
+            (None, None) => vec![],
+            _ => self
+                .strategy_portfolio
+                .get_security_positions(signal.strategy_id())
+                .await
+                .map_err(|e| RiskError::OtherError(e.into()))?,
+        };
+
         // TODO: we should consider the same for pending orders to ensure we are not taking too much risk on an update
         if let (Some(mrpt), Signal::Entry(s)) =
             (algo_risk_config.max_risk_per_trade, signal.to_owned())
         {
             let balance = profit + algo_risk_config.starting_balance;
             let max_risk_per_trade = balance * Decimal::from_f64(mrpt).unwrap();
-            let trade_risk = self.calaulate_trade_risk(&s).await?;
+            let current = open_trades
+                .iter()
+                .filter(|v| {
+                    &v.security == s.order().get_security()
+                        && s.order().get_order_details().strategy_id().to_owned() == strategy_id
+                })
+                .last();
+
+            let current_position_risk = match current {
+                None => Decimal::default(),
+                Some(v) => {
+                    let pending_orders = self
+                        .order_manager
+                        .get_pending_orders()
+                        .await
+                        .map_err(|e| RiskError::OtherError(e.into()))?;
+
+                    self.calculate_position_risk(v, &pending_orders[..]).await?
+                }
+            };
+
+            let signal_risk = self.calaulate_trade_risk(&s).await?;
+            let trade_risk = current_position_risk + signal_risk;
             if trade_risk > max_risk_per_trade {
                 return Err(RiskError::ExceededAlgoRiskPerTrade(signal.to_owned()));
             }
         }
 
         if let Some(max) = algo_risk_config.max_open_trades {
-            let open_trades = self
-                .strategy_portfolio
-                .get_security_positions(signal.strategy_id())
-                .await
-                .map_err(|e| RiskError::OtherError(e.into()))?;
-
             if open_trades.len() >= max.try_into().unwrap() {
                 return Err(RiskError::ExceededAlgoOpenTrades);
             }
@@ -353,12 +381,6 @@ impl RiskEngine {
         security_position: &SecurityPosition,
         pending_orders: &[PendingOrder],
     ) -> Result<Decimal, RiskError> {
-        // let pending_orders = self
-        //     .order_manager
-        //     .get_pending_orders()
-        //     .await
-        //     .map_err(|e| RiskError::OtherError(e.into()))?;
-
         let pending = pending_orders
             .iter()
             .flat_map(|p| match p.order.clone() {
