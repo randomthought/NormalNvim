@@ -99,7 +99,7 @@ impl RiskEngine {
                     };
 
                     if current.side == o.order_details.side
-                        || *o.order_details.quantity() > current.get_quantity()
+                        || o.order_details.quantity() > current.get_quantity()
                     {
                         return Err(RiskError::TradingReducing);
                     }

@@ -1,5 +1,5 @@
 use derive_builder::Builder;
-use getset::Getters;
+use getset::{CopyGetters, Getters};
 
 use crate::models::{
     orders::{
@@ -13,14 +13,17 @@ use crate::models::{
 use std::time::Duration;
 
 // TODO: make struct private
-#[derive(Debug, Builder, Getters, Clone)]
-#[getset(get = "pub")]
+#[derive(Debug, Builder, Getters, CopyGetters, Clone)]
 #[builder(setter(prefix = "with"))]
 pub struct Transaction {
-    pub order_id: OrderId,
-    pub price: Price,
-    pub order_details: OrderDetails,
-    pub date_time: Duration,
+    #[getset(get = "pub")]
+    order_id: OrderId,
+    #[getset(get_copy = "pub")]
+    price: Price,
+    #[getset(get = "pub")]
+    order_details: OrderDetails,
+    #[getset(get = "pub")]
+    date_time: Duration,
 }
 
 impl Transaction {

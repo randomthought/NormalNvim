@@ -1,5 +1,5 @@
 use derive_builder::Builder;
-use getset::Getters;
+use getset::{CopyGetters, Getters};
 
 use crate::strategy::algorithm::StrategyId;
 
@@ -26,8 +26,8 @@ pub enum TimeInForce {
     // Fill/Trigger Outside RTH
 }
 
-#[derive(Builder, Getters, Debug, Clone, PartialEq, Eq)]
-#[getset(get = "pub")]
+#[derive(Builder, CopyGetters, Debug, Clone, PartialEq, Eq)]
+#[getset(get_copy = "pub")]
 #[builder(setter(prefix = "with"))]
 pub struct OrderDetails {
     pub strategy_id: StrategyId,
