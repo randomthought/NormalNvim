@@ -5,8 +5,8 @@ use getset::Getters;
 use opentelemetry::metrics::{Counter, Gauge, Histogram, Meter, ObservableGauge};
 
 #[derive(Builder, Getters, Clone)]
-#[builder(setter(prefix = "with"))]
 #[getset(get = "pub")]
+#[builder(setter(prefix = "with"))]
 pub struct Metrics {
     // Algorithm Metrics
     // =======================================

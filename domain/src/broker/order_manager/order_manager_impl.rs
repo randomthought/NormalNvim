@@ -108,10 +108,13 @@ impl OrderManager for Broker {
             .await
             .map_err(|e| crate::error::Error::Message(e))?;
 
-        Ok(OrderResult::Updated(OrderMeta {
-            order_id: pending_order.order_id().to_owned(),
-            strategy_id: pending_order.startegy_id(),
-        }))
+        Ok(OrderResult::Updated(
+            OrderMeta::builder()
+                .with_order_id(pending_order.order_id().to_owned())
+                .with_strategy_id(pending_order.startegy_id())
+                .build()
+                .unwrap(),
+        ))
     }
 
     async fn cancel(&self, order_id: &OrderId) -> Result<OrderResult, crate::error::Error> {
@@ -134,9 +137,12 @@ impl OrderManager for Broker {
             .await
             .map_err(|e| crate::error::Error::Message(e))?;
 
-        Ok(OrderResult::Updated(OrderMeta {
-            order_id: order_id.to_owned(),
-            strategy_id: pending_order.startegy_id(),
-        }))
+        Ok(OrderResult::Updated(
+            OrderMeta::builder()
+                .with_order_id(order_id.clone())
+                .with_strategy_id(pending_order.startegy_id())
+                .build()
+                .unwrap(),
+        ))
     }
 }
