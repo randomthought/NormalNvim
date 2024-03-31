@@ -98,7 +98,7 @@ impl RiskEngine {
                         return Err(RiskError::TradingReducing);
                     };
 
-                    if current.side == o.order_details.side
+                    if current.side() == o.order_details.side()
                         || o.order_details.quantity() > current.get_quantity()
                     {
                         return Err(RiskError::TradingReducing);
@@ -304,7 +304,7 @@ impl RiskEngine {
         let orders_: Result<Vec<NewOrder>, _> = positions
             .iter()
             .map(|sp| {
-                let side = match sp.side {
+                let side = match sp.side() {
                     Side::Long => Side::Short,
                     Side::Short => Side::Long,
                 };
@@ -387,7 +387,7 @@ impl RiskEngine {
             .iter()
             .filter(|v| &v.security == close.security())
             .map(|sp| {
-                let side = match sp.side {
+                let side = match sp.side() {
                     Side::Long => Side::Short,
                     Side::Short => Side::Long,
                 };
@@ -447,14 +447,14 @@ impl RiskEngine {
 
     async fn get_trade_cost(&self, entry: &Entry) -> Result<Decimal, RiskError> {
         let order_detailts = entry.order().get_order_details();
-        let q = Decimal::from_u64(order_detailts.quantity).unwrap();
+        let q = Decimal::from_u64(order_detailts.quantity()).unwrap();
 
         if let NewOrder::Limit(l) = entry.order().to_owned() {
             return Ok(q * l.price);
         }
 
         let price = self
-            .get_market_price(entry.order().get_security(), order_detailts.side)
+            .get_market_price(entry.order().get_security(), order_detailts.side())
             .await?;
 
         let trade_cost = q * price;
@@ -466,9 +466,9 @@ impl RiskEngine {
         match entry.order().to_owned() {
             NewOrder::StopLimitMarket(slm) => {
                 let order_detailts = slm.market().order_details.to_owned();
-                let q = Decimal::from_u64(order_detailts.quantity).unwrap();
+                let q = Decimal::from_u64(order_detailts.quantity()).unwrap();
                 let price = self
-                    .get_market_price(entry.order().get_security(), order_detailts.side)
+                    .get_market_price(entry.order().get_security(), order_detailts.side())
                     .await?;
                 let risk = (slm.get_stop().price - price).abs() * q;
                 Ok(risk)
@@ -492,8 +492,8 @@ impl RiskEngine {
             })
             .filter(|p| {
                 &p.security == &security_position.security
-                    && p.order_details.side != security_position.side
-                    && p.order_details.quantity == security_position.get_quantity()
+                    && p.order_details.side() != security_position.side
+                    && p.order_details.quantity() == security_position.get_quantity()
             })
             .last();
 
@@ -504,7 +504,7 @@ impl RiskEngine {
 
         let wap = security_position.get_wieghted_average_price();
         let risk = (stop_limit.price - wap)
-            * Decimal::from_u64(stop_limit.order_details.quantity).unwrap();
+            * Decimal::from_u64(stop_limit.order_details.quantity()).unwrap();
 
         risk
     }

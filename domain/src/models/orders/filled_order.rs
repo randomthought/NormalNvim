@@ -25,7 +25,7 @@ impl FilledOrder {
     }
 
     pub fn startegy_id(&self) -> StrategyId {
-        self.order_details.strategy_id
+        self.order_details.strategy_id()
     }
 }
 

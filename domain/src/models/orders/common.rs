@@ -30,9 +30,9 @@ pub enum TimeInForce {
 #[getset(get_copy = "pub")]
 #[builder(setter(prefix = "with"))]
 pub struct OrderDetails {
-    pub strategy_id: StrategyId,
-    pub quantity: Quantity,
-    pub side: Side,
+    strategy_id: StrategyId,
+    quantity: Quantity,
+    side: Side,
 }
 
 impl OrderDetails {

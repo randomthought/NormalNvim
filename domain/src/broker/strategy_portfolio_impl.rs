@@ -41,7 +41,7 @@ impl StrategyPortfolio for Broker {
             .filter(|v| {
                 v.holding_details
                     .iter()
-                    .any(|hd| hd.strategy_id == strategy_id)
+                    .any(|hd| hd.strategy_id() == &strategy_id)
             })
             .collect();
 
@@ -65,10 +65,10 @@ impl StrategyPortfolio for Broker {
 }
 
 fn _calucluate_profit(large: &Transaction, small: &Transaction) -> (Decimal, Option<Transaction>) {
-    let q_remaining = large.order_details().quantity - small.order_details().quantity;
+    let q_remaining = large.order_details().quantity() - small.order_details().quantity();
 
-    let sq = Decimal::from_u64(small.order_details().quantity).unwrap();
-    let profit = match small.order_details().side {
+    let sq = Decimal::from_u64(small.order_details().quantity()).unwrap();
+    let profit = match small.order_details().side() {
         Side::Long => sq * (large.price() - small.price()),
         Side::Short => sq * (small.price() - large.price()),
     };
@@ -80,9 +80,9 @@ fn _calucluate_profit(large: &Transaction, small: &Transaction) -> (Decimal, Opt
     let t = Transaction::builder()
         .with_order_details(
             OrderDetails::builder()
-                .with_side(large.order_details().side)
+                .with_side(large.order_details().side())
                 .with_quantity(q_remaining)
-                .with_strategy_id(large.order_details().strategy_id)
+                .with_strategy_id(large.order_details().strategy_id())
                 .build()
                 .unwrap(),
         )
@@ -102,7 +102,7 @@ fn calculate_profit(
     let algo_transaction: Vec<_> = security_transaction
         .order_history
         .iter()
-        .filter(|t| t.order_details().strategy_id == strategy_id)
+        .filter(|t| t.order_details().strategy_id() == strategy_id)
         .collect();
 
     let (profit, ots) = algo_transaction.iter().map(|t| t.to_owned()).fold(
@@ -112,25 +112,26 @@ fn calculate_profit(
                 return (pf, Some(n.to_owned()));
             };
 
-            match (current.order_details().side, n.order_details().side) {
+            match (current.order_details().side(), n.order_details().side()) {
                 (Side::Long, Side::Short) => {
-                    if n.order_details().quantity > current.order_details().quantity {
+                    if n.order_details().quantity() > current.order_details().quantity() {
                         _calucluate_profit(n, &current)
                     } else {
                         _calucluate_profit(&current, n)
                     }
                 }
                 (Side::Short, Side::Long) => {
-                    if n.order_details().quantity > current.order_details().quantity {
+                    if n.order_details().quantity() > current.order_details().quantity() {
                         _calucluate_profit(n, &current)
                     } else {
                         _calucluate_profit(&current, n)
                     }
                 }
                 _ => {
-                    let quantity = current.order_details().quantity + n.order_details().quantity;
-                    let c_quantity = Decimal::from_u64(current.order_details().quantity).unwrap();
-                    let n_quantity = Decimal::from_u64(n.order_details().quantity).unwrap();
+                    let quantity =
+                        current.order_details().quantity() + n.order_details().quantity();
+                    let c_quantity = Decimal::from_u64(current.order_details().quantity()).unwrap();
+                    let n_quantity = Decimal::from_u64(n.order_details().quantity()).unwrap();
                     let price = ((c_quantity * current.price()) + (n_quantity * n.price()))
                         / Decimal::from_u64(quantity).unwrap();
 
@@ -138,8 +139,8 @@ fn calculate_profit(
                         .with_order_details(
                             OrderDetails::builder()
                                 .with_quantity(quantity)
-                                .with_side(n.order_details().side)
-                                .with_strategy_id(n.order_details().strategy_id)
+                                .with_side(n.order_details().side())
+                                .with_strategy_id(n.order_details().strategy_id())
                                 .build()
                                 .unwrap(),
                         )

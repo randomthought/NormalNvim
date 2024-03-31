@@ -48,10 +48,10 @@ fn create_filled_order(
 }
 
 fn calculate_cost(security_position: &SecurityPosition, filled_order: &FilledOrder) -> Price {
-    let quantity = if security_position.side == filled_order.order_details.side {
-        -Decimal::from_u64(filled_order.order_details.quantity).unwrap()
+    let quantity = if security_position.side() == filled_order.order_details.side() {
+        -Decimal::from_u64(filled_order.order_details.quantity()).unwrap()
     } else {
-        Decimal::from_u64(filled_order.order_details.quantity).unwrap()
+        Decimal::from_u64(filled_order.order_details.quantity()).unwrap()
     };
 
     quantity * filled_order.price
@@ -66,27 +66,27 @@ pub async fn create_trade(
         .get_quote(&market_order.security)
         .await?;
 
-    let price = match market_order.order_details.side {
+    let price = match market_order.order_details.side() {
         Side::Long => quote.bid,
         Side::Short => quote.ask,
     };
     let Some(active) = broker.orders.get_position(&market_order.security).await else {
-        let cost = Decimal::from_u64(market_order.order_details.quantity).unwrap() * -price;
+        let cost = Decimal::from_u64(market_order.order_details.quantity()).unwrap() * -price;
         let filled_order = create_filled_order(
-            market_order.order_details.quantity,
+            market_order.order_details.quantity(),
             &market_order.security,
-            market_order.order_details.side,
+            market_order.order_details.side(),
             &quote,
             market_order.startegy_id(),
         )?;
         return Ok((cost, filled_order));
     };
 
-    if active.side == market_order.order_details.side {
+    if active.side() == market_order.order_details.side() {
         let filled_order = create_filled_order(
-            market_order.order_details.quantity,
+            market_order.order_details.quantity(),
             &market_order.security,
-            market_order.order_details.side,
+            market_order.order_details.side(),
             &quote,
             market_order.startegy_id(),
         )?;
@@ -95,11 +95,11 @@ pub async fn create_trade(
     }
 
     let active_position_quantity = active.get_quantity();
-    if active_position_quantity == market_order.order_details.quantity {
+    if active_position_quantity == market_order.order_details.quantity() {
         let filled_order = create_filled_order(
-            market_order.order_details.quantity,
+            market_order.order_details.quantity(),
             &market_order.security,
-            market_order.order_details.side,
+            market_order.order_details.side(),
             &quote,
             market_order.startegy_id(),
         )?;
@@ -108,14 +108,14 @@ pub async fn create_trade(
         return Ok((cost, filled_order));
     }
 
-    let side = if active_position_quantity > market_order.order_details.quantity {
-        active.side
+    let side = if active_position_quantity > market_order.order_details.quantity() {
+        active.side()
     } else {
-        market_order.order_details.side
+        market_order.order_details.side()
     };
 
     let filled_order = create_filled_order(
-        market_order.order_details.quantity,
+        market_order.order_details.quantity(),
         &market_order.security,
         side,
         &quote,
