@@ -465,7 +465,7 @@ impl RiskEngine {
     async fn calaulate_trade_risk(&self, entry: &Entry) -> Result<Decimal, RiskError> {
         match entry.order().to_owned() {
             NewOrder::StopLimitMarket(slm) => {
-                let order_detailts = slm.market.order_details.to_owned();
+                let order_detailts = slm.market().order_details.to_owned();
                 let q = Decimal::from_u64(order_detailts.quantity).unwrap();
                 let price = self
                     .get_market_price(entry.order().get_security(), order_detailts.side)

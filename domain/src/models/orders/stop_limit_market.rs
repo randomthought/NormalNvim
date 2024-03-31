@@ -7,7 +7,7 @@ use crate::{
 };
 
 use super::{
-    common::{OrderDetails, Side, TimeInForce},
+    common::{Side, TimeInForce},
     limit::Limit,
     market::Market,
     one_cancels_others::OneCancelsOthers,
@@ -16,8 +16,8 @@ use super::{
 #[derive(Debug, Getters, Clone, PartialEq, Eq)]
 #[getset(get = "pub")]
 pub struct StopLimitMarket {
-    pub one_cancels_others: OneCancelsOthers,
-    pub market: Market,
+    one_cancels_others: OneCancelsOthers,
+    market: Market,
 }
 
 impl StopLimitMarket {

@@ -28,7 +28,7 @@ impl NewOrder {
         match self {
             NewOrder::Market(o) => &o.order_details,
             NewOrder::Limit(o) => &o.order_details,
-            NewOrder::StopLimitMarket(o) => &o.market.order_details,
+            NewOrder::StopLimitMarket(o) => &o.market().order_details,
             NewOrder::OCO(o) => todo!("I need to think more about this one"),
         }
     }
@@ -37,7 +37,7 @@ impl NewOrder {
         match self {
             NewOrder::Market(o) => &o.security,
             NewOrder::Limit(o) => &o.security,
-            NewOrder::StopLimitMarket(o) => &o.market.security,
+            NewOrder::StopLimitMarket(o) => &o.market().security,
             NewOrder::OCO(o) => &o.get_security(),
         }
     }

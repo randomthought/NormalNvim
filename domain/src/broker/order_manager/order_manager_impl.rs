@@ -35,14 +35,14 @@ impl OrderReader for Broker {
 impl OrderManager for Broker {
     async fn place_order(&self, order: &NewOrder) -> Result<OrderResult, crate::error::Error> {
         if let NewOrder::StopLimitMarket(o) = order {
-            let market_order = NewOrder::Market(o.market.to_owned());
+            let market_order = NewOrder::Market(o.market().to_owned());
             self.place_order(&market_order).await?;
 
             let oco = OneCancelsOthers::builder()
-                .with_quantity(o.market.order_details.quantity())
-                .with_security(o.market.security.to_owned())
+                .with_quantity(o.market().order_details.quantity())
+                .with_security(o.market().security.to_owned())
                 .with_time_in_force(o.get_stop().times_in_force)
-                .with_strategy_id(o.market.order_details.strategy_id())
+                .with_strategy_id(o.market().order_details.strategy_id())
                 .add_limit(
                     o.get_stop().order_details.side().clone(),
                     o.get_stop().price,
