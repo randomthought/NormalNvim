@@ -19,7 +19,6 @@ use crate::risk::error::RiskError;
 use crate::risk::risk_engine::TradingState;
 use crate::strategy::algorithm::StrategyId;
 use crate::strategy::model::signal::{Cancel, Close, Entry, Modify, Signal};
-use crate::strategy::portfolio::StrategyPortfolio;
 use crate::{
     data::QouteProvider,
     models::{
@@ -41,10 +40,7 @@ impl Setup {
     pub fn new() -> Self {
         let security = Security::new(AssetType::Equity, Exchange::NYSE, "GE".into());
         let price = Decimal::new(1000, 0);
-        Self {
-            security,
-            price: Decimal::new(1000, 0),
-        }
+        Self { security, price }
     }
 }
 
