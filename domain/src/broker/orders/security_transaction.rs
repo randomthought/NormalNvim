@@ -1,5 +1,5 @@
 use derive_builder::Builder;
-use getset::Getters;
+use getset::{CopyGetters, Getters};
 
 use crate::models::{
     orders::{
@@ -13,14 +13,17 @@ use crate::models::{
 use std::time::Duration;
 
 // TODO: make struct private
-#[derive(Debug, Builder, Getters, Clone)]
-#[getset(get)]
+#[derive(Debug, Builder, Getters, CopyGetters, Clone)]
 #[builder(setter(prefix = "with"))]
 pub struct Transaction {
-    pub order_id: OrderId,
-    pub price: Price,
-    pub order_details: OrderDetails,
-    pub date_time: Duration,
+    #[getset(get = "pub")]
+    order_id: OrderId,
+    #[getset(get_copy = "pub")]
+    price: Price,
+    #[getset(get = "pub")]
+    order_details: OrderDetails,
+    #[getset(get = "pub")]
+    date_time: Duration,
 }
 
 impl Transaction {
@@ -82,35 +85,35 @@ impl SecurityTransaction {
 
 fn add_to_position(security_position: &mut SecurityPosition, transaction: &Transaction) {
     let hd = HoldingDetail::builder()
-        .with_strategy_id(transaction.order_details().strategy_id)
-        .with_quantity(transaction.order_details().quantity)
+        .with_strategy_id(transaction.order_details().strategy_id())
+        .with_quantity(transaction.order_details().quantity())
         .with_price(transaction.price().clone())
         .build()
         .unwrap();
 
     let current_quantity = security_position.get_quantity();
     let Some(holding_detail) = security_position.holding_details.pop() else {
-        security_position.side = transaction.order_details.side;
+        security_position.side = transaction.order_details.side();
         security_position.holding_details.push(hd);
         return;
     };
 
-    if security_position.side == transaction.order_details.side {
+    if security_position.side() == transaction.order_details.side() {
         security_position.holding_details.push(holding_detail);
         security_position.holding_details.push(hd.to_owned());
         return;
     }
 
-    if current_quantity == hd.quantity {
+    if current_quantity == hd.quantity() {
         security_position.holding_details.clear();
         return;
     }
 
-    if current_quantity > transaction.order_details.quantity {
+    if current_quantity > transaction.order_details.quantity() {
         let hd = HoldingDetail::builder()
-            .with_strategy_id(transaction.order_details().strategy_id)
-            .with_quantity(current_quantity - transaction.order_details().quantity)
-            .with_price(hd.price.to_owned())
+            .with_strategy_id(transaction.order_details().strategy_id())
+            .with_quantity(current_quantity - transaction.order_details().quantity())
+            .with_price(hd.price().to_owned())
             .build()
             .unwrap();
 
@@ -118,16 +121,20 @@ fn add_to_position(security_position: &mut SecurityPosition, transaction: &Trans
         return;
     }
 
-    let ts = Transaction {
-        order_id: transaction.order_id.to_owned(),
-        date_time: transaction.date_time,
-        price: transaction.price,
-        order_details: OrderDetails {
-            strategy_id: transaction.order_details.strategy_id,
-            quantity: transaction.order_details.quantity - holding_detail.quantity,
-            side: transaction.order_details.side,
-        },
-    };
+    let ts = Transaction::builder()
+        .with_order_id(transaction.order_id().clone())
+        .with_date_time(transaction.date_time().clone())
+        .with_price(transaction.price())
+        .with_order_details(
+            OrderDetails::builder()
+                .with_strategy_id(transaction.order_details().strategy_id())
+                .with_quantity(transaction.order_details.quantity() - holding_detail.quantity())
+                .with_side(transaction.order_details.side())
+                .build()
+                .unwrap(),
+        )
+        .build()
+        .unwrap();
 
     add_to_position(security_position, &ts)
 }

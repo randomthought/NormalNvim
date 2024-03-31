@@ -71,7 +71,7 @@ impl Orders {
     }
 
     pub async fn remove(&self, pending_order: &PendingOrder) -> Result<(), String> {
-        let key = PendingKey::OrderIdKey(pending_order.order_id.to_owned());
+        let key = PendingKey::OrderIdKey(pending_order.order_id().to_owned());
         let mut pending = self.pending.write().await;
         pending.remove(key);
         Ok(())
@@ -91,7 +91,7 @@ impl Orders {
     }
 
     async fn handle_pending(&self, pending_order: &PendingOrder) -> Result<(), String> {
-        if let NewOrder::Market(_) = pending_order.order.to_owned() {
+        if let NewOrder::Market(_) = pending_order.order().to_owned() {
             return Err("market orders should immidiatly be executed".into());
         }
 

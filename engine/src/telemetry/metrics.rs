@@ -5,37 +5,37 @@ use getset::Getters;
 use opentelemetry::metrics::{Counter, Gauge, Histogram, Meter, ObservableGauge};
 
 #[derive(Builder, Getters, Clone)]
-#[getset(get)]
+#[getset(get = "pub")]
 #[builder(setter(prefix = "with"))]
 pub struct Metrics {
     // Algorithm Metrics
     // =======================================
-    pub data_event_counter: Counter<u64>,
-    pub algorithm_signal_counter: Counter<u64>,
-    pub algorithm_event_counter: Counter<u64>,
-    pub algorithm_histogram: Histogram<f64>,
-    pub algorithm_event_guage: ObservableGauge<u64>,
-    pub algorithm_on_data_error_counter: Counter<u64>,
+    data_event_counter: Counter<u64>,
+    algorithm_signal_counter: Counter<u64>,
+    algorithm_event_counter: Counter<u64>,
+    algorithm_histogram: Histogram<f64>,
+    algorithm_event_guage: ObservableGauge<u64>,
+    algorithm_on_data_error_counter: Counter<u64>,
     // Risk Engine Metrics
     // =======================================
-    pub risk_engine_error_counter: Counter<u64>,
-    pub risk_engine_order_result_counter: Counter<u64>,
-    pub risk_engine_order_result_gauge: ObservableGauge<u64>,
-    pub risk_engine_process_signal_histogram: Histogram<f64>,
+    risk_engine_error_counter: Counter<u64>,
+    risk_engine_order_result_counter: Counter<u64>,
+    risk_engine_order_result_gauge: ObservableGauge<u64>,
+    risk_engine_process_signal_histogram: Histogram<f64>,
     // Strategy Portfolio Metrics
     // =======================================
-    pub strategy_portfolio_security_positions_gauge: ObservableGauge<u64>,
-    pub strategy_portfolio_security_positions_counter: Counter<u64>,
-    pub strategy_portfolio_security_positions_error_counter: Counter<u64>,
-    pub strategy_portfolio_profit_gauge: ObservableGauge<f64>,
-    pub strategy_portfolio_get_profit_histogram: Histogram<f64>,
-    pub strategy_portfolio_get_profit_error_counter: Counter<u64>,
-    pub strategy_portfolio_security_positions_guage: ObservableGauge<u64>,
-    pub strategy_portfolio_get_security_positions_histogram: Histogram<f64>,
-    pub strategy_portfolio_get_security_positions_error: Counter<u64>,
-    pub strategy_portfolio_pending_orders_gauge: ObservableGauge<u64>,
-    pub strategy_portfolio_get_pending_histogram: Histogram<f64>,
-    pub strategy_portfolio_get_pending_error_counter: Counter<u64>,
+    strategy_portfolio_security_positions_gauge: ObservableGauge<u64>,
+    strategy_portfolio_security_positions_counter: Counter<u64>,
+    strategy_portfolio_security_positions_error_counter: Counter<u64>,
+    strategy_portfolio_profit_gauge: ObservableGauge<f64>,
+    strategy_portfolio_get_profit_histogram: Histogram<f64>,
+    strategy_portfolio_get_profit_error_counter: Counter<u64>,
+    strategy_portfolio_security_positions_guage: ObservableGauge<u64>,
+    strategy_portfolio_get_security_positions_histogram: Histogram<f64>,
+    strategy_portfolio_get_security_positions_error: Counter<u64>,
+    strategy_portfolio_pending_orders_gauge: ObservableGauge<u64>,
+    strategy_portfolio_get_pending_histogram: Histogram<f64>,
+    strategy_portfolio_get_pending_error_counter: Counter<u64>,
 }
 
 impl Metrics {

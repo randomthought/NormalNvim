@@ -36,21 +36,12 @@ impl StrategyPortfolio for Broker {
         strategy_id: StrategyId,
     ) -> Result<Vec<SecurityPosition>, crate::error::Error> {
         let open_positions = self.get_positions().await?;
-        // TODO: this could cause issues. especially imformation conflict if algos are trading the same instruments
         let algo_positions: Vec<_> = open_positions
-            .iter()
-            .flat_map(|p| {
-                p.holding_details
-                    .to_owned()
-                    .into_iter()
-                    .filter(|h| h.strategy_id == strategy_id)
-                    .fold(SecurityPosition::builder(), |mut spb, hd| {
-                        spb.add_holding_detail(hd).to_owned()
-                    })
-                    .with_security(p.security.to_owned())
-                    .with_side(p.side)
-                    .build()
-                    .ok()
+            .into_iter()
+            .filter(|v| {
+                v.holding_details
+                    .iter()
+                    .any(|hd| hd.strategy_id() == strategy_id)
             })
             .collect();
 
@@ -74,25 +65,32 @@ impl StrategyPortfolio for Broker {
 }
 
 fn _calucluate_profit(large: &Transaction, small: &Transaction) -> (Decimal, Option<Transaction>) {
-    let q_remaining = large.order_details.quantity - small.order_details.quantity;
+    let q_remaining = large.order_details().quantity() - small.order_details().quantity();
 
-    let sq = Decimal::from_u64(small.order_details.quantity).unwrap();
-    let profit = match small.order_details.side {
-        Side::Long => sq * (large.price - small.price),
-        Side::Short => sq * (small.price - large.price),
+    let sq = Decimal::from_u64(small.order_details().quantity()).unwrap();
+    let profit = match small.order_details().side() {
+        Side::Long => sq * (large.price() - small.price()),
+        Side::Short => sq * (small.price() - large.price()),
     };
 
     if q_remaining == 0 {
         return (profit, None);
     }
 
-    let t = Transaction {
-        order_details: OrderDetails {
-            quantity: q_remaining,
-            ..large.order_details
-        },
-        ..large.to_owned()
-    };
+    let t = Transaction::builder()
+        .with_order_details(
+            OrderDetails::builder()
+                .with_side(large.order_details().side())
+                .with_quantity(q_remaining)
+                .with_strategy_id(large.order_details().strategy_id())
+                .build()
+                .unwrap(),
+        )
+        .with_price(large.price())
+        .with_order_id(large.order_id().clone())
+        .with_date_time(large.date_time().clone())
+        .build()
+        .unwrap();
 
     (profit, Some(t))
 }
@@ -104,7 +102,7 @@ fn calculate_profit(
     let algo_transaction: Vec<_> = security_transaction
         .order_history
         .iter()
-        .filter(|t| t.order_details.strategy_id == strategy_id)
+        .filter(|t| t.order_details().strategy_id() == strategy_id)
         .collect();
 
     let (profit, ots) = algo_transaction.iter().map(|t| t.to_owned()).fold(
@@ -114,36 +112,43 @@ fn calculate_profit(
                 return (pf, Some(n.to_owned()));
             };
 
-            match (current.order_details.side, n.order_details.side) {
+            match (current.order_details().side(), n.order_details().side()) {
                 (Side::Long, Side::Short) => {
-                    if n.order_details.quantity > current.order_details.quantity {
+                    if n.order_details().quantity() > current.order_details().quantity() {
                         _calucluate_profit(n, &current)
                     } else {
                         _calucluate_profit(&current, n)
                     }
                 }
                 (Side::Short, Side::Long) => {
-                    if n.order_details.quantity > current.order_details.quantity {
+                    if n.order_details().quantity() > current.order_details().quantity() {
                         _calucluate_profit(n, &current)
                     } else {
                         _calucluate_profit(&current, n)
                     }
                 }
                 _ => {
-                    let quantity = current.order_details.quantity + n.order_details.quantity;
-                    let c_quantity = Decimal::from_u64(current.order_details.quantity).unwrap();
-                    let n_quantity = Decimal::from_u64(n.order_details.quantity).unwrap();
-                    let price = ((c_quantity * current.price) + (n_quantity * n.price))
+                    let quantity =
+                        current.order_details().quantity() + n.order_details().quantity();
+                    let c_quantity = Decimal::from_u64(current.order_details().quantity()).unwrap();
+                    let n_quantity = Decimal::from_u64(n.order_details().quantity()).unwrap();
+                    let price = ((c_quantity * current.price()) + (n_quantity * n.price()))
                         / Decimal::from_u64(quantity).unwrap();
-                    let t = Transaction {
-                        order_details: OrderDetails {
-                            quantity,
-                            ..n.order_details
-                        },
-                        price,
-                        order_id: n.order_id.to_owned(),
-                        date_time: n.date_time.to_owned(),
-                    };
+
+                    let t = Transaction::builder()
+                        .with_order_details(
+                            OrderDetails::builder()
+                                .with_quantity(quantity)
+                                .with_side(n.order_details().side())
+                                .with_strategy_id(n.order_details().strategy_id())
+                                .build()
+                                .unwrap(),
+                        )
+                        .with_price(price)
+                        .with_order_id(n.order_id().clone())
+                        .with_date_time(n.date_time().clone())
+                        .build()
+                        .unwrap();
 
                     (pf, Some(t))
                 }

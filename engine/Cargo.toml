@@ -28,7 +28,7 @@ tokio-stream = "0.1"
 actix = "0.13"
 actix-rt = "2.2"
 derive_builder = "0.10"
-getset = "0.1"
+getset = "0.1.2"
 # Telemetry
 opentelemetry = { version = "0.22", features = ["metrics"] }
 opentelemetry-otlp = { version = "0.15", features = ["grpc-tonic", "metrics"] }

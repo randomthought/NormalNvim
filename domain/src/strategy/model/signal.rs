@@ -5,41 +5,35 @@ use getset::Getters;
 use strum_macros::{AsRefStr, VariantNames};
 
 use crate::{
-    models::orders::{common::OrderId, new_order::NewOrder, pending_order::PendingOrder},
+    models::{
+        orders::{common::OrderId, new_order::NewOrder, pending_order::PendingOrder},
+        security::Security,
+    },
     strategy::algorithm::StrategyId,
 };
 
-#[derive(Builder, Getters, Debug, Clone, PartialEq)]
-#[getset(get)]
-#[builder(public, setter(prefix = "with"))]
-#[non_exhaustive]
+#[derive(Builder, Debug, Clone, PartialEq, Getters)]
+#[getset(get = "pub")]
+#[builder(setter(prefix = "with"))]
 pub struct Entry {
-    pub order: NewOrder,
-    pub datetime: Duration,
-    pub strength: f32,
+    order: NewOrder,
+    datetime: Duration,
+    strength: f32,
 }
 
 impl Entry {
     pub fn builder() -> EntryBuilder {
         EntryBuilder::default()
     }
-
-    pub fn new(order: NewOrder, datetime: Duration, strength: f32) -> Self {
-        Self {
-            order,
-            datetime,
-            strength,
-        }
-    }
 }
 
 #[derive(Debug, Getters, Builder, Clone, PartialEq, Eq)]
-#[getset(get)]
+#[getset(get = "pub")]
 #[builder(public, setter(prefix = "with"))]
 #[non_exhaustive]
 pub struct Modify {
-    pub pending_order: PendingOrder,
-    pub datetime: Duration,
+    pending_order: PendingOrder,
+    datetime: Duration,
 }
 
 impl Modify {
@@ -49,18 +43,34 @@ impl Modify {
 }
 
 #[derive(Debug, Builder, Getters, Clone, PartialEq, Eq)]
-#[getset(get)]
+#[getset(get = "pub")]
 #[builder(public, setter(prefix = "with"))]
 #[non_exhaustive]
 pub struct Cancel {
-    pub order_id: OrderId,
-    pub strategy_id: StrategyId,
-    pub datetime: Duration,
+    order_id: OrderId,
+    strategy_id: StrategyId,
+    datetime: Duration,
 }
 
 impl Cancel {
     pub fn builder() -> CancelBuilder {
         CancelBuilder::default()
+    }
+}
+
+#[derive(Debug, Builder, Getters, Clone, PartialEq, Eq)]
+#[getset(get = "pub")]
+#[builder(public, setter(prefix = "with"))]
+#[non_exhaustive]
+pub struct Close {
+    security: Security,
+    strategy_id: StrategyId,
+    datetime: Duration,
+}
+
+impl Close {
+    pub fn builder() -> CloseBuilder {
+        CloseBuilder::default()
     }
 }
 
@@ -70,7 +80,7 @@ impl Cancel {
 pub enum Signal {
     Entry(Entry),
     Cancel(Cancel),
-    Close(Cancel),
+    Close(Close),
     Modify(Modify),
     Liquidate(StrategyId),
 }
@@ -78,10 +88,10 @@ pub enum Signal {
 impl Signal {
     pub fn strategy_id(&self) -> StrategyId {
         match self {
-            Signal::Entry(s) => s.order.startegy_id(),
-            Signal::Modify(s) => s.pending_order.startegy_id(),
-            Signal::Close(s) => s.strategy_id,
-            Signal::Cancel(s) => s.strategy_id,
+            Signal::Entry(s) => s.order().startegy_id(),
+            Signal::Modify(s) => s.pending_order().startegy_id(),
+            Signal::Close(s) => s.strategy_id(),
+            Signal::Cancel(s) => s.strategy_id(),
             Signal::Liquidate(s) => s,
         }
     }

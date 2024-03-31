@@ -1,5 +1,5 @@
 use derive_builder::Builder;
-use getset::Getters;
+use getset::{CopyGetters, Getters};
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 
 use crate::{
@@ -7,12 +7,14 @@ use crate::{
     strategy::algorithm::StrategyId,
 };
 
-use super::common::{OrderId, Quantity, Side};
+use super::common::{Quantity, Side};
 
-#[derive(Builder, Debug, Clone, PartialEq, Eq)]
+#[derive(Builder, Getters, CopyGetters, Debug, Clone, PartialEq, Eq)]
 pub struct SecurityPosition {
+    #[getset(get = "pub")]
     #[builder(setter(prefix = "with"))]
     pub security: Security,
+    #[getset(get_copy = "pub")]
     #[builder(setter(prefix = "with"))]
     pub side: Side,
     #[builder(setter(each = "add_holding_detail"))]
@@ -44,13 +46,15 @@ impl SecurityPosition {
     }
 }
 
-#[derive(Builder, Getters, Debug, Clone, PartialEq, Eq)]
-#[getset(get)]
+#[derive(Builder, Getters, CopyGetters, Debug, Clone, PartialEq, Eq)]
 #[builder(setter(prefix = "with"))]
 pub struct HoldingDetail {
-    pub strategy_id: StrategyId,
-    pub quantity: Quantity,
-    pub price: Price,
+    #[getset(get_copy = "pub")]
+    strategy_id: StrategyId,
+    #[getset(get_copy = "pub")]
+    quantity: Quantity,
+    #[getset(get = "pub")]
+    price: Price,
 }
 
 impl HoldingDetail {

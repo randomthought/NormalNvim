@@ -62,10 +62,14 @@ impl ActorRunner {
                 b.add_subscriber(id, algo_add)
             })
             .with_risk_engine(self.risk_engine.clone())
-            .with_risk_engine_error_counter(metrics.risk_engine_error_counter)
-            .with_risk_engine_order_result_gauge(metrics.risk_engine_order_result_gauge)
-            .with_risk_engine_order_result_counter(metrics.risk_engine_order_result_counter)
-            .with_risk_engine_process_signal_histogram(metrics.risk_engine_process_signal_histogram)
+            .with_risk_engine_error_counter(metrics.risk_engine_error_counter().clone())
+            .with_risk_engine_order_result_gauge(metrics.risk_engine_order_result_gauge().clone())
+            .with_risk_engine_order_result_counter(
+                metrics.risk_engine_order_result_counter().clone(),
+            )
+            .with_risk_engine_process_signal_histogram(
+                metrics.risk_engine_process_signal_histogram().clone(),
+            )
             .build()?;
 
         let risk_engine_address = risk_engine.start();

@@ -1,4 +1,5 @@
 use derive_builder::Builder;
+use getset::Getters;
 
 use crate::{
     models::{price::common::Price, security::Security},
@@ -6,16 +7,17 @@ use crate::{
 };
 
 use super::{
-    common::{OrderDetails, Side, TimeInForce},
+    common::{Side, TimeInForce},
     limit::Limit,
     market::Market,
     one_cancels_others::OneCancelsOthers,
 };
 
-#[derive(Debug, Clone, PartialEq, Eq)]
+#[derive(Debug, Getters, Clone, PartialEq, Eq)]
+#[getset(get = "pub")]
 pub struct StopLimitMarket {
-    pub one_cancels_others: OneCancelsOthers,
-    pub market: Market,
+    one_cancels_others: OneCancelsOthers,
+    market: Market,
 }
 
 impl StopLimitMarket {

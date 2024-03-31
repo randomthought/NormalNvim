@@ -35,16 +35,22 @@ impl OrderReader for Broker {
 impl OrderManager for Broker {
     async fn place_order(&self, order: &NewOrder) -> Result<OrderResult, crate::error::Error> {
         if let NewOrder::StopLimitMarket(o) = order {
-            let market_order = NewOrder::Market(o.market.to_owned());
+            let market_order = NewOrder::Market(o.market().to_owned());
             self.place_order(&market_order).await?;
 
             let oco = OneCancelsOthers::builder()
-                .with_quantity(o.market.order_details.quantity)
-                .with_security(o.market.security.to_owned())
+                .with_quantity(o.market().order_details.quantity())
+                .with_security(o.market().security.to_owned())
                 .with_time_in_force(o.get_stop().times_in_force)
-                .with_strategy_id(o.market.order_details.strategy_id)
-                .add_limit(o.get_stop().order_details.side, o.get_stop().price)
-                .add_limit(o.get_limit().order_details.side, o.get_limit().price)
+                .with_strategy_id(o.market().order_details.strategy_id())
+                .add_limit(
+                    o.get_stop().order_details.side().clone(),
+                    o.get_stop().price,
+                )
+                .add_limit(
+                    o.get_limit().order_details.side().clone(),
+                    o.get_limit().price,
+                )
                 .build()
                 .map_err(|e| crate::error::Error::Any(e.into()))?;
 
@@ -53,10 +59,11 @@ impl OrderManager for Broker {
         }
 
         let NewOrder::Market(market_order) = order else {
-            let po = PendingOrder {
-                order_id: Uuid::new_v4().to_string(),
-                order: order.clone(),
-            };
+            let po = PendingOrder::builder()
+                .with_order_id(Uuid::new_v4().to_string())
+                .with_order(order.clone())
+                .build()
+                .unwrap();
 
             let or = OrderResult::PendingOrder(po.clone());
 
@@ -83,7 +90,7 @@ impl OrderManager for Broker {
             .insert(&order_result)
             .await
             .map_err(|e| crate::error::Error::Message(e))?;
-        let commision = Decimal::from_u64(market_order.order_details.quantity).unwrap()
+        let commision = Decimal::from_u64(market_order.order_details.quantity().clone()).unwrap()
             * self.commissions_per_share;
         let trade_cost = commision + cost;
         *account_balance += trade_cost;
@@ -101,10 +108,13 @@ impl OrderManager for Broker {
             .await
             .map_err(|e| crate::error::Error::Message(e))?;
 
-        Ok(OrderResult::Updated(OrderMeta {
-            order_id: pending_order.order_id.to_owned(),
-            strategy_id: pending_order.startegy_id(),
-        }))
+        Ok(OrderResult::Updated(
+            OrderMeta::builder()
+                .with_order_id(pending_order.order_id().to_owned())
+                .with_strategy_id(pending_order.startegy_id())
+                .build()
+                .unwrap(),
+        ))
     }
 
     async fn cancel(&self, order_id: &OrderId) -> Result<OrderResult, crate::error::Error> {
@@ -127,9 +137,12 @@ impl OrderManager for Broker {
             .await
             .map_err(|e| crate::error::Error::Message(e))?;
 
-        Ok(OrderResult::Updated(OrderMeta {
-            order_id: order_id.to_owned(),
-            strategy_id: pending_order.startegy_id(),
-        }))
+        Ok(OrderResult::Updated(
+            OrderMeta::builder()
+                .with_order_id(order_id.clone())
+                .with_strategy_id(pending_order.startegy_id())
+                .build()
+                .unwrap(),
+        ))
     }
 }

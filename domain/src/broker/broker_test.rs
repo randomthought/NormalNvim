@@ -408,10 +408,11 @@ async fn insert_market_stop_limit_order() {
         .build()
         .unwrap();
 
-    let expected_2 = vec![PendingOrder {
-        order_id: pending_order.order_id.to_owned(),
-        order: NewOrder::OCO(oco),
-    }];
+    let expected_2 = vec![PendingOrder::builder()
+        .with_order_id(pending_order.order_id().to_owned())
+        .with_order(NewOrder::OCO(oco))
+        .build()
+        .unwrap()];
 
     let result_2 = broker.get_pending_orders().await.unwrap();
 
@@ -447,7 +448,7 @@ async fn cancel_oco_order() {
         panic!("pending order should be returned when placing limit order")
     };
 
-    broker.cancel(&pending_order.order_id).await.unwrap();
+    broker.cancel(pending_order.order_id()).await.unwrap();
 
     let pending_orders = broker.get_pending_orders().await.unwrap();
 
@@ -485,7 +486,7 @@ async fn cancel_market_stop_limit_order() {
         panic!("pending order should be returned when placing limit order")
     };
 
-    broker.cancel(&pending_order.order_id).await.unwrap();
+    broker.cancel(pending_order.order_id()).await.unwrap();
 
     let pending_orders = broker.get_pending_orders().await.unwrap();
 
@@ -520,11 +521,13 @@ async fn cancel_pending_order() {
         panic!("must get a filled result")
     };
 
-    let pending_order = PendingOrder {
-        order_id: po.order_id.to_owned(),
-        order: limit_order.to_owned(),
-    };
-    broker.cancel(&pending_order.order_id).await.unwrap();
+    let pending_order = PendingOrder::builder()
+        .with_order_id(po.order_id().to_owned())
+        .with_order(limit_order.to_owned())
+        .build()
+        .unwrap();
+
+    broker.cancel(&pending_order.order_id()).await.unwrap();
 
     let pending_orders = broker.get_pending_orders().await.unwrap();
 
@@ -560,9 +563,9 @@ async fn update_pending_order() {
         panic!("failed to get a pending order when placing a limit order")
     };
 
-    let pending_order = PendingOrder {
-        order_id: p.order_id.to_owned(),
-        order: NewOrder::Limit(
+    let pending_order = PendingOrder::builder()
+        .with_order_id(p.order_id().clone())
+        .with_order(NewOrder::Limit(
             Limit::builder()
                 .with_side(side)
                 .with_strategy_id(strategy_id)
@@ -572,8 +575,9 @@ async fn update_pending_order() {
                 .with_price(setup.price)
                 .build()
                 .unwrap(),
-        ),
-    };
+        ))
+        .build()
+        .unwrap();
 
     broker.update(&pending_order).await.unwrap();
 
