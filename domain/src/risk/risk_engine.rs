@@ -108,7 +108,7 @@ impl RiskEngine {
                     let current = all_pending_orders
                         .iter()
                         .filter(|v| {
-                            v.order().get_security() == s.pending_order().order.get_security()
+                            v.order().get_security() == s.pending_order().order().get_security()
                         })
                         .last();
 
@@ -330,7 +330,7 @@ impl RiskEngine {
 
         let f2 = pending_orders
             .iter()
-            .map(|p| self.order_manager.cancel(&p.order_id))
+            .map(|p| self.order_manager.cancel(&p.order_id()))
             .chain(f1);
 
         let order_results = future::try_join_all(f2)
@@ -412,7 +412,7 @@ impl RiskEngine {
         let f1 = pending_orders
             .iter()
             .filter(|v| &v.startegy_id() == close.strategy_id())
-            .map(|p| self.order_manager.cancel(&p.order_id));
+            .map(|p| self.order_manager.cancel(&p.order_id()));
 
         let f2 = close_orders
             .iter()
@@ -484,7 +484,7 @@ impl RiskEngine {
     ) -> Decimal {
         let pending = pending_orders
             .iter()
-            .flat_map(|p| match p.order.clone() {
+            .flat_map(|p| match p.order().clone() {
                 NewOrder::Market(_) => vec![],
                 NewOrder::Limit(v) => vec![v],
                 NewOrder::StopLimitMarket(v) => vec![v.get_stop().clone()],

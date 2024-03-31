@@ -25,7 +25,7 @@ impl OrderResult {
             OrderResult::Updated(o) => &o.order_id,
             OrderResult::Cancelled(o) => &o.order_id,
             OrderResult::FilledOrder(o) => &o.order_id,
-            OrderResult::PendingOrder(o) => &o.order_id,
+            OrderResult::PendingOrder(o) => &o.order_id(),
         }
     }
 

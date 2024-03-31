@@ -24,8 +24,8 @@ impl Order {
 #[getset(get = "pub")]
 #[builder(public, setter(prefix = "with"))]
 pub struct PendingOrder {
-    pub order_id: OrderId,
-    pub order: NewOrder,
+    order_id: OrderId,
+    order: NewOrder,
 }
 
 impl PendingOrder {

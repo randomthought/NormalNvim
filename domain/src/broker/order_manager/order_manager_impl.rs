@@ -59,10 +59,11 @@ impl OrderManager for Broker {
         }
 
         let NewOrder::Market(market_order) = order else {
-            let po = PendingOrder {
-                order_id: Uuid::new_v4().to_string(),
-                order: order.clone(),
-            };
+            let po = PendingOrder::builder()
+                .with_order_id(Uuid::new_v4().to_string())
+                .with_order(order.clone())
+                .build()
+                .unwrap();
 
             let or = OrderResult::PendingOrder(po.clone());
 
@@ -108,7 +109,7 @@ impl OrderManager for Broker {
             .map_err(|e| crate::error::Error::Message(e))?;
 
         Ok(OrderResult::Updated(OrderMeta {
-            order_id: pending_order.order_id.to_owned(),
+            order_id: pending_order.order_id().to_owned(),
             strategy_id: pending_order.startegy_id(),
         }))
     }
