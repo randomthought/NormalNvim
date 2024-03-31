@@ -184,6 +184,22 @@ impl RiskEngine {
             return Err(RiskError::InsufficientAlgoAccountBalance);
         }
 
+        let all_pending_orders = match (self.max_portfolio_pending_orders, self.max_portfolio_risk)
+        {
+            (None, None) => vec![],
+            _ => self
+                .order_manager
+                .get_pending_orders()
+                .await
+                .map_err(|e| RiskError::OtherError(e.into()))?,
+        };
+
+        if let Some(max) = self.max_portfolio_pending_orders {
+            if all_pending_orders.len() >= max as usize {
+                return Err(RiskError::ExceededPortfolioPendingOrders);
+            }
+        }
+
         if let Some(max) = self.max_portfolio_risk {
             let balance = self
                 .account
@@ -194,12 +210,7 @@ impl RiskEngine {
 
             let mut portfolio_risk = Decimal::default();
             for position in all_open_trades.iter() {
-                let pending_orders = self
-                    .order_manager
-                    .get_pending_orders()
-                    .await
-                    .map_err(|e| RiskError::OtherError(e.into()))?;
-                let risk = self.calculate_position_risk(position, &pending_orders[..]);
+                let risk = self.calculate_position_risk(position, &all_pending_orders[..]);
                 portfolio_risk += risk;
             }
 

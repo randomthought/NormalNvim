@@ -1202,5 +1202,79 @@ async fn close_to_singal_also_remove_pending_orders() {
 
 #[tokio::test]
 async fn max_portfolio_pending_orders() {
-    todo!()
+    let setup = Setup::new();
+
+    let stub = Arc::new(Stub::new());
+    let balance = Decimal::new(100_000, 0);
+    let broker = Arc::new(Broker::new(balance, stub.to_owned()));
+    let algo_risk_config = AlgorithmRiskConfig::builder()
+        .with_strategy_id(strategy_id)
+        .with_starting_balance(balance)
+        .build()
+        .unwrap();
+
+    let risk_engine = RiskEngine::builder()
+        .with_max_portfolio_pending_orders(0)
+        .with_account(broker.clone())
+        .add_algorithm_risk_config(algo_risk_config)
+        .with_qoute_provider(stub.clone())
+        .with_strategy_portfolio(broker.clone())
+        .with_order_manager(broker.clone())
+        .build()
+        .unwrap();
+
+    let stop_limit_market = NewOrder::StopLimitMarket(
+        StopLimitMarket::builder()
+            .with_security(setup.security.to_owned())
+            .with_limit_side(Side::Long)
+            .with_limit_price(Decimal::new(2000, 0))
+            .with_stop_price(Decimal::default())
+            .with_quantity(1)
+            .with_strategy_id(strategy_id)
+            .build()
+            .unwrap(),
+    );
+
+    let entry_signal = Signal::Entry(
+        Entry::builder()
+            .with_datetime(SystemTime::now().duration_since(UNIX_EPOCH).unwrap())
+            .with_order(stop_limit_market)
+            .with_strength(1.0)
+            .build()
+            .unwrap(),
+    );
+
+    match risk_engine.process_signal(&entry_signal).await {
+        Err(RiskError::ExceededPortfolioPendingOrders) => (),
+        Err(e) => panic!("failed to make trade with error: {:?}", e),
+        Ok(result) => panic!("trade cannot be succesful: {:?}", result),
+    }
+
+    let limit = NewOrder::Limit(
+        Limit::builder()
+            .with_security(setup.security.to_owned())
+            .with_security(setup.security.to_owned())
+            .with_side(Side::Long)
+            .with_quantity(1)
+            .with_strategy_id(strategy_id)
+            .with_times_in_force(TimeInForce::GTC)
+            .with_price(Decimal::new(100, 0))
+            .build()
+            .unwrap(),
+    );
+
+    let entry_signal = Signal::Entry(
+        Entry::builder()
+            .with_datetime(SystemTime::now().duration_since(UNIX_EPOCH).unwrap())
+            .with_order(limit)
+            .with_strength(1.0)
+            .build()
+            .unwrap(),
+    );
+
+    match risk_engine.process_signal(&entry_signal).await {
+        Err(RiskError::ExceededPortfolioPendingOrders) => (),
+        Err(e) => panic!("failed to make trade with error: {:?}", e),
+        Ok(result) => panic!("trade cannot be succesful: {:?}", result),
+    }
 }
