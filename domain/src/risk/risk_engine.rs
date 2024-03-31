@@ -126,14 +126,27 @@ impl RiskEngine {
         let open_trades = match (
             algo_risk_config.max_open_trades,
             algo_risk_config.max_risk_per_trade,
+            self.max_portfolio_open_trades,
         ) {
-            (None, None) => vec![],
+            (None, None, None) => vec![],
             _ => self
                 .strategy_portfolio
                 .get_security_positions(signal.strategy_id())
                 .await
                 .map_err(|e| RiskError::OtherError(e.into()))?,
         };
+
+        if let Some(max) = self.max_portfolio_open_trades {
+            if open_trades.len() >= max as usize {
+                return Err(RiskError::ExceededPortfolioOpenTrades);
+            }
+        }
+
+        if let Some(max) = algo_risk_config.max_open_trades {
+            if open_trades.len() >= max as usize {
+                return Err(RiskError::ExceededAlgoOpenTrades);
+            }
+        }
 
         // TODO: we should consider the same for pending orders to ensure we are not taking too much risk on an update
         if let (Some(mrpt), Signal::Entry(s)) =
@@ -166,24 +179,6 @@ impl RiskEngine {
             let trade_risk = current_position_risk + signal_risk;
             if trade_risk > max_risk_per_trade {
                 return Err(RiskError::ExceededAlgoRiskPerTrade(signal.to_owned()));
-            }
-        }
-
-        if let Some(max) = algo_risk_config.max_open_trades {
-            if open_trades.len() >= max.try_into().unwrap() {
-                return Err(RiskError::ExceededAlgoOpenTrades);
-            }
-        }
-
-        if let Some(max_portfolio_open_trades) = self.max_portfolio_open_trades {
-            let position = self
-                .order_manager
-                .get_positions()
-                .await
-                .map_err(|e| RiskError::OtherError(e.into()))?;
-
-            if usize::from_u32(max_portfolio_open_trades).unwrap() >= position.len() {
-                return Err(RiskError::ExceededPortfolioOpenTrades);
             }
         }
 
