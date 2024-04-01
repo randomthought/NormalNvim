@@ -106,24 +106,7 @@ impl Broker {
             .build()
             .unwrap();
 
-        let (cost, filled_order) = utils::create_trade(self, &market_order, &quote).await?;
-
-        let mut account_balance = self.account_balance.write().await;
-        if (cost + *account_balance) < Decimal::default() {
-            return Err(crate::error::Error::Message(
-                "do not have enough funds to peform trade".to_string(),
-            ));
-        }
-
-        let order_result = OrderResult::FilledOrder(filled_order.clone());
-        self.orders
-            .insert(&order_result)
-            .await
-            .map_err(|e| crate::error::Error::Message(e))?;
-        let commision = Decimal::from_u64(market_order.order_details.quantity().clone()).unwrap()
-            * self.commissions_per_share;
-        let trade_cost = commision + cost;
-        *account_balance += trade_cost;
+        let order_result = utils::execute_market_order(self, &quote, &market_order).await?;
 
         Ok(Some(order_result))
     }
