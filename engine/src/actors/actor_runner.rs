@@ -15,6 +15,7 @@ use super::{
 use actix::Actor;
 use derive_builder::Builder;
 use domain::{
+    broker::Broker,
     event::model::DataEvent,
     risk::risk_engine::RiskEngine,
     strategy::algorithm::{Algorithm, StrategyId},
@@ -22,11 +23,12 @@ use domain::{
 use futures_util::{Stream, StreamExt};
 
 #[derive(Builder)]
-#[builder(public, setter(prefix = "with"))]
+#[builder(public, setter(prefix = "with", strip_option))]
 pub struct ActorRunner {
     #[builder(private)]
     algorithms: Vec<(StrategyId, Arc<dyn Algorithm + Send + Sync>)>,
     risk_engine: RiskEngine,
+    in_memory_broker: Option<Arc<Broker>>,
     shutdown_signal: Arc<AtomicBool>,
     metrics: Metrics,
 }

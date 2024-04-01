@@ -3,20 +3,15 @@ use crate::{
     data::QouteProvider,
     models::{
         orders::{
-            common::Side, filled_order::FilledOrder, limit::Limit, market::Market,
-            new_order::NewOrder, order_result::OrderResult, pending_order::PendingOrder,
-            security_position::SecurityPosition,
+            common::Side, limit::Limit, market::Market, new_order::NewOrder,
+            order_result::OrderResult,
         },
-        price::{candle::Candle, common::Price, quote::Quote},
-        security::Security,
+        price::{candle::Candle, quote::Quote},
     },
-    strategy::algorithm::StrategyId,
 };
 use rust_decimal::{prelude::FromPrimitive, Decimal};
-use std::time::{SystemTime, UNIX_EPOCH};
-use std::{sync::Arc, u64};
+use std::sync::Arc;
 use tokio::sync::RwLock;
-use uuid::Uuid;
 
 use super::orders::orders::Orders;
 
