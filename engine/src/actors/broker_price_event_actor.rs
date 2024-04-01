@@ -14,12 +14,32 @@ use super::{algo_actor::AlgoActor, models::AlgoEventMessage};
 #[builder(public, setter(prefix = "with"))]
 pub struct BrokerPriceEventActor {
     in_memory_broker: Arc<Broker>,
+    #[builder(private)]
     subscribers: HashMap<StrategyId, Addr<AlgoActor>>,
 }
 
 impl BrokerPriceEventActor {
     pub fn builder() -> BrokerPriceEventActorBuilder {
         BrokerPriceEventActorBuilder::default()
+    }
+}
+
+impl BrokerPriceEventActorBuilder {
+    pub fn add_subscriber(
+        &mut self,
+        strategy_id: StrategyId,
+        address: Addr<AlgoActor>,
+    ) -> &mut Self {
+        if let Some(subscribers) = self.subscribers.as_mut() {
+            subscribers.insert(strategy_id, address);
+            return self;
+        }
+
+        let mut subscribers = HashMap::new();
+        subscribers.insert(strategy_id, address);
+
+        self.subscribers = Some(subscribers);
+        self
     }
 }
 
