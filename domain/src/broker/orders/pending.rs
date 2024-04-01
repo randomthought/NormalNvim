@@ -70,11 +70,15 @@ impl Pending {
     pub fn update(&mut self, pending_order: PendingOrder) {
         let security = pending_order.order().get_security().to_owned();
         let order_id = pending_order.order_id().to_owned();
+
         match self.pending_by_security.get_mut(&security) {
-            Some(id_map) => id_map.insert(order_id.to_owned(), pending_order.to_owned()),
+            Some(id_map) => {
+                id_map.insert(order_id.to_owned(), pending_order.to_owned());
+            }
             None => {
                 let mut map = HashMap::new();
-                map.insert(order_id.to_owned(), pending_order.to_owned())
+                map.insert(order_id.to_owned(), pending_order.to_owned());
+                self.pending_by_security.insert(security, map);
             }
         };
 

@@ -1,21 +1,18 @@
 use crate::{
-    broker::orders::pending::PendingKey,
+    broker::{orders::pending::PendingKey, utils},
     data::QouteProvider,
     models::{
         orders::{
-            common::Side, filled_order::FilledOrder, market::Market,
-            security_position::SecurityPosition,
+            common::Side, limit::Limit, market::Market, new_order::NewOrder,
+            order_result::OrderResult,
         },
-        price::{candle::Candle, common::Price, quote::Quote},
-        security::Security,
+        price::{candle::Candle, quote::Quote},
     },
-    strategy::algorithm::StrategyId,
+    order::OrderManager,
 };
 use rust_decimal::{prelude::FromPrimitive, Decimal};
-use std::time::{SystemTime, UNIX_EPOCH};
-use std::{sync::Arc, u64};
+use std::sync::Arc;
 use tokio::sync::RwLock;
-use uuid::Uuid;
 
 use super::orders::orders::Orders;
 
@@ -40,35 +37,71 @@ impl Broker {
         }
     }
 
-    pub async fn handle(&self, candle: &Candle) {
+    pub async fn handle(&self, candle: &Candle) -> Result<Vec<OrderResult>, crate::error::Error> {
         let pending_key = PendingKey::SecurityKey(candle.security.clone());
         let pending_orders = self.orders.get_pending_order(pending_key).await;
 
+        let mut order_results = vec![];
         for p in pending_orders.iter() {
-            // match p.order {
-            //     NewOrder::Limit(o) => {
-            //         let met = match o.order_details.side {
-            //             Side::Long => o.price >= candle.close,
-            //             Side::Short => o.price <= candle.close,
-            //         };
-            //         if !met {
-            //             continue;
-            //         }
-            //
-            //         // TODO: with this implementation, you would not get the exact limit price
-            //         let m = Market::new(
-            //             o.order_details.quantity,
-            //             o.order_details.side,
-            //             o.security.to_owned(),
-            //             o.strategy_id(),
-            //         );
-            //         let order = NewOrder::Market(m);
-            //         self.place_order(&order).await?;
-            //     }
-            //     NewOrder::StopLimitMarket(o) => todo!(),
-            //     _ => continue,
-            // };
+            match p.order() {
+                NewOrder::Limit(o) => {
+                    let results = self.handle_limit(&o, candle).await?;
+                    if let Some(v) = results {
+                        self.cancel(p.order_id()).await?;
+                        order_results.push(v);
+                    }
+                }
+                NewOrder::OCO(o) => {
+                    for limit in o.orders.iter() {
+                        let results = self.handle_limit(limit, candle).await?;
+                        if let Some(v) = results {
+                            self.cancel(p.order_id()).await?;
+                            order_results.push(v);
+                            break;
+                        }
+                    }
+                }
+                _ => continue,
+            };
         }
-        todo!()
+
+        Ok(order_results)
+    }
+
+    async fn handle_limit(
+        &self,
+        limit: &Limit,
+        candle: &Candle,
+    ) -> Result<Option<OrderResult>, crate::error::Error> {
+        let met = match limit.order_details.side() {
+            Side::Long => limit.price >= candle.close,
+            Side::Short => limit.price <= candle.close,
+        };
+
+        if !met {
+            return Ok(None);
+        }
+
+        let quote = Quote::builder()
+            .with_security(candle.security.clone())
+            .with_timestamp(candle.start_time)
+            .with_bid_size(1)
+            .with_ask_size(1)
+            .with_bid(limit.price)
+            .with_ask(limit.price)
+            .build()
+            .map_err(|e| crate::error::Error::Any(e.into()))?;
+
+        let market_order = Market::builder()
+            .with_security(limit.security.clone())
+            .with_side(limit.order_details.side())
+            .with_quantity(limit.order_details.quantity())
+            .with_strategy_id(limit.order_details.strategy_id())
+            .build()
+            .unwrap();
+
+        let order_result = utils::execute_market_order(self, &quote, &market_order).await?;
+
+        Ok(Some(order_result))
     }
 }

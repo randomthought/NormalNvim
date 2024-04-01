@@ -8,6 +8,7 @@ use crate::{
 use super::common::{OrderDetails, Quantity, Side, TimeInForce};
 
 #[derive(Debug, Clone, PartialEq, Eq)]
+// TODO: probably a good idea to implment your own ordering so OCO can always look at the lowers price first
 pub struct Limit {
     pub price: Price,
     pub security: Security,

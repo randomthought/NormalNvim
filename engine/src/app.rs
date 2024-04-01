@@ -134,6 +134,7 @@ pub async fn run_app() -> color_eyre::eyre::Result<()> {
         .fold(&mut ActorRunner::builder(), |b, x| {
             b.add_algorithm(x.strategy_id(), Arc::new(x))
         })
+        .with_in_memory_broker(broker.clone())
         .with_risk_engine(risk_engine)
         .with_shutdown_signal(shutdown_signal.clone())
         .with_metrics(metrics.clone())

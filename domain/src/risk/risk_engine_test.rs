@@ -1150,7 +1150,7 @@ async fn close_to_singal_also_remove_pending_orders() {
     let stop_limit_market = NewOrder::StopLimitMarket(
         StopLimitMarket::builder()
             .with_security(setup.security.to_owned())
-            .with_limit_side(Side::Long)
+            .with_side(Side::Long)
             .with_limit_price(Decimal::new(2000, 0))
             .with_stop_price(Decimal::default())
             .with_quantity(1)
@@ -1222,7 +1222,7 @@ async fn max_portfolio_pending_orders() {
     let stop_limit_market = NewOrder::StopLimitMarket(
         StopLimitMarket::builder()
             .with_security(setup.security.to_owned())
-            .with_limit_side(Side::Long)
+            .with_side(Side::Long)
             .with_limit_price(Decimal::new(2000, 0))
             .with_stop_price(Decimal::default())
             .with_quantity(1)

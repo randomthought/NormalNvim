@@ -3,6 +3,7 @@ mod broker;
 mod order_manager;
 mod orders;
 mod strategy_portfolio_impl;
+mod utils;
 
 pub use broker::Broker;
 

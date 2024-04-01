@@ -39,6 +39,7 @@ impl OneCancelsOthers {
 struct OneCancelsOthersSeed {
     #[builder(private)]
     prices: Vec<(Side, Price)>,
+    #[builder(default = "TimeInForce::GTC")]
     time_in_force: TimeInForce,
     quantity: Quantity,
     strategy_id: StrategyId,

@@ -5,7 +5,7 @@ use crate::{
     broker::Broker,
     models::{
         orders::{
-            common::Side, filled_order::FilledOrder, market::Market,
+            common::Side, filled_order::FilledOrder, market::Market, order_result::OrderResult,
             security_position::SecurityPosition,
         },
         price::{common::Price, quote::Quote},
@@ -57,15 +57,11 @@ fn calculate_cost(security_position: &SecurityPosition, filled_order: &FilledOrd
     quantity * filled_order.price
 }
 
-pub async fn create_trade(
+async fn create_trade(
     broker: &Broker,
     market_order: &Market,
+    quote: &Quote,
 ) -> Result<(Price, FilledOrder), crate::error::Error> {
-    let quote = broker
-        .qoute_provider
-        .get_quote(&market_order.security)
-        .await?;
-
     let price = match market_order.order_details.side() {
         Side::Long => quote.bid,
         Side::Short => quote.ask,
@@ -124,4 +120,33 @@ pub async fn create_trade(
 
     let cost = calculate_cost(&active, &filled_order);
     return Ok((cost, filled_order));
+}
+
+pub async fn execute_market_order(
+    broker: &Broker,
+    quote: &Quote,
+    market_order: &Market,
+) -> Result<OrderResult, crate::error::Error> {
+    let (cost, filled_order) = create_trade(broker, &market_order, &quote).await?;
+
+    let mut account_balance = broker.account_balance.write().await;
+    if (cost + *account_balance) < Decimal::default() {
+        return Err(crate::error::Error::Message(
+            "do not have enough funds to peform trade".to_string(),
+        ));
+    }
+
+    let order_result = OrderResult::FilledOrder(filled_order.clone());
+    broker
+        .orders
+        .insert(&order_result)
+        .await
+        .map_err(|e| crate::error::Error::Message(e))?;
+
+    let commision = Decimal::from_u64(market_order.order_details.quantity().clone()).unwrap()
+        * broker.commissions_per_share;
+    let trade_cost = commision + cost;
+    *account_balance += trade_cost;
+
+    Ok(order_result)
 }

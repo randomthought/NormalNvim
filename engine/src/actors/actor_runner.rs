@@ -9,12 +9,13 @@ use std::{
 use crate::telemetry::metrics::Metrics;
 
 use super::{
-    algo_actor::AlgoActor, event_bus::EventBus, models::AddSignalSubscribers,
-    risk_engine_actor::RiskEngineActor,
+    algo_actor::AlgoActor, broker_price_event_actor::BrokerPriceEventActor, event_bus::EventBus,
+    models::AddSignalSubscribers, risk_engine_actor::RiskEngineActor,
 };
 use actix::Actor;
 use derive_builder::Builder;
 use domain::{
+    broker::Broker,
     event::model::DataEvent,
     risk::risk_engine::RiskEngine,
     strategy::algorithm::{Algorithm, StrategyId},
@@ -22,11 +23,13 @@ use domain::{
 use futures_util::{Stream, StreamExt};
 
 #[derive(Builder)]
-#[builder(public, setter(prefix = "with"))]
+#[builder(public, setter(prefix = "with", strip_option))]
 pub struct ActorRunner {
     #[builder(private)]
     algorithms: Vec<(StrategyId, Arc<dyn Algorithm + Send + Sync>)>,
     risk_engine: RiskEngine,
+    #[builder(default)]
+    in_memory_broker: Option<Arc<Broker>>,
     shutdown_signal: Arc<AtomicBool>,
     metrics: Metrics,
 }
@@ -40,7 +43,7 @@ impl ActorRunner {
         &self,
         mut data_stream: Pin<Box<dyn Stream<Item = eyre::Result<Option<DataEvent>>> + Send>>,
     ) -> eyre::Result<()> {
-        let algos_addresses_: Result<Vec<_>, _> = self
+        let algos_addresses: Result<Vec<_>, _> = self
             .algorithms
             .clone()
             .into_iter()
@@ -52,7 +55,7 @@ impl ActorRunner {
                 }
             })
             .collect();
-        let algos_addresses = algos_addresses_?;
+        let algos_addresses = algos_addresses?;
 
         let metrics = self.metrics.clone();
         let risk_engine = algos_addresses
@@ -80,10 +83,26 @@ impl ActorRunner {
             ad.send(cmd).await?;
         }
 
-        let event_subsribers: Vec<_> = algos_addresses
+        let mut event_subsribers: Vec<_> = algos_addresses
             .iter()
             .map(|(_, addr)| addr.clone().recipient())
             .collect();
+
+        if let Some(broker) = self.in_memory_broker.clone() {
+            let broker_price_event_actor = algos_addresses
+                .iter()
+                .fold(
+                    &mut BrokerPriceEventActor::builder(),
+                    |b, (id, algo_add)| b.add_subscriber(id, algo_add.clone()),
+                )
+                .with_in_memory_broker(broker)
+                .build()?;
+
+            let addr = broker_price_event_actor.start();
+            let rec = addr.recipient();
+
+            event_subsribers.push(rec);
+        }
 
         let event_bus = event_subsribers
             .into_iter()

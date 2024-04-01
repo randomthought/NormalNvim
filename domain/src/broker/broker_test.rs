@@ -19,7 +19,11 @@ use crate::{
             security_position::{HoldingDetail, SecurityPosition},
             stop_limit_market::StopLimitMarket,
         },
-        price::{common::Price, quote::Quote},
+        price::{
+            candle::Candle,
+            common::{Price, Resolution},
+            quote::Quote,
+        },
         security::{AssetType, Exchange, Security},
     },
     strategy::{algorithm::StrategyId, portfolio::StrategyPortfolio},
@@ -40,10 +44,7 @@ impl Setup {
     pub fn new() -> Self {
         let security = Security::new(AssetType::Equity, Exchange::NYSE, "GE".into());
         let price = Decimal::new(1000, 0);
-        Self {
-            security,
-            price: Decimal::new(1000, 0),
-        }
+        Self { security, price }
     }
 }
 
@@ -60,6 +61,11 @@ impl Stub {
     pub async fn add_to_price(&self, price: Price) {
         let mut p = self.price.write().await;
         *p = *p + price
+    }
+
+    pub async fn price(&self) -> Price {
+        let p = self.price.read().await;
+        *p
     }
 }
 
@@ -372,7 +378,7 @@ async fn insert_market_stop_limit_order() {
     let stop_limit_market = StopLimitMarket::builder()
         .with_security(setup.security.to_owned())
         .with_quantity(quantity)
-        .with_limit_side(side)
+        .with_side(side)
         .with_stop_price(stop_price)
         .with_limit_price(limit_price)
         .with_strategy_id(strategy_id)
@@ -434,7 +440,7 @@ async fn cancel_oco_order() {
     let stop_limit_market = StopLimitMarket::builder()
         .with_security(setup.security.to_owned())
         .with_quantity(quantity)
-        .with_limit_side(side)
+        .with_side(side)
         .with_stop_price(stop_price)
         .with_limit_price(limit_price)
         .with_strategy_id(strategy_id)
@@ -473,7 +479,7 @@ async fn cancel_market_stop_limit_order() {
     let stop_limit_market = StopLimitMarket::builder()
         .with_security(setup.security.to_owned())
         .with_quantity(quantity)
-        .with_limit_side(side)
+        .with_side(side)
         .with_stop_price(stop_price)
         .with_limit_price(limit_price)
         .with_strategy_id(strategy_id)
@@ -718,4 +724,201 @@ async fn get_algo_profits() {
     let expected = Decimal::new(1000, 0);
 
     assert_eq!(result, expected);
+}
+
+#[tokio::test]
+async fn trigger_limit_order() {
+    let setup = Setup::new();
+
+    let stub = Arc::new(Stub::new());
+    let balance = Decimal::new(100_000, 0);
+    let broker = Broker::new(balance, stub.to_owned());
+
+    let quantity = 10;
+    let limit_price = setup.price - Decimal::new(-100, 0);
+    let pending_order = NewOrder::Limit(
+        Limit::builder()
+            .with_side(Side::Long)
+            .with_strategy_id(strategy_id)
+            .with_quantity(quantity)
+            .with_security(setup.security.to_owned())
+            .with_times_in_force(TimeInForce::GTC)
+            .with_price(limit_price)
+            .build()
+            .unwrap(),
+    );
+
+    if let Err(e) = broker.place_order(&pending_order).await {
+        panic!("error inserting pending order: {:?}", e);
+    }
+
+    stub.add_to_price(Decimal::new(-200, 0)).await;
+
+    let candle = Candle::builder()
+        .with_security(setup.security.clone())
+        .with_low(setup.price)
+        .with_high(setup.price)
+        .with_open(setup.price)
+        .with_close(setup.price)
+        .with_volume(10)
+        .with_resolution(Resolution::Second)
+        .with_start_time(Duration::new(5, 0))
+        .with_end_time(Duration::new(6, 0))
+        .build()
+        .unwrap();
+
+    match broker.handle(&candle).await {
+        Ok(v) => {
+            if v.is_empty() {
+                panic!("limit order not executed");
+            }
+        }
+        Err(e) => panic!("fail to trigger limit order with error: {}", e),
+    }
+
+    let pending_orders = broker.get_pending_orders().await.unwrap();
+    if !pending_orders.is_empty() {
+        panic!("the should not be any pending orders after limit has been executed");
+    }
+
+    let positions = broker.get_positions().await.unwrap();
+    if positions.is_empty() {
+        panic!("the should be an open position");
+    }
+}
+
+#[tokio::test]
+async fn trigger_stop_limit_market_order() {
+    let setup = Setup::new();
+
+    let stub = Arc::new(Stub::new());
+    let balance = Decimal::new(100_000, 0);
+    let broker = Broker::new(balance, stub.to_owned());
+
+    let quantity = 10;
+    let limit_price = setup.price + Decimal::new(100, 0);
+    let stop_price = setup.price - Decimal::new(100, 0);
+    let stop_limit_market = NewOrder::StopLimitMarket(
+        StopLimitMarket::builder()
+            .with_limit_price(limit_price)
+            .with_stop_price(stop_price)
+            .with_side(Side::Long)
+            .with_strategy_id(strategy_id)
+            .with_quantity(quantity)
+            .with_security(setup.security.to_owned())
+            .build()
+            .unwrap(),
+    );
+
+    if let Err(e) = broker.place_order(&stop_limit_market).await {
+        panic!("error placing order: {:?}", e);
+    }
+
+    stub.add_to_price(Decimal::new(100, 0)).await;
+
+    let candle = Candle::builder()
+        .with_security(setup.security.clone())
+        .with_low(stub.price().await)
+        .with_high(stub.price().await)
+        .with_open(stub.price().await)
+        .with_close(stub.price().await)
+        .with_volume(10)
+        .with_resolution(Resolution::Second)
+        .with_start_time(Duration::new(5, 0))
+        .with_end_time(Duration::new(6, 0))
+        .build()
+        .unwrap();
+
+    match broker.handle(&candle).await {
+        Ok(v) => {
+            if v.is_empty() {
+                panic!("limit order not executed");
+            }
+        }
+        Err(e) => panic!("fail to trigger limit order with error: {}", e),
+    }
+
+    let pending_orders = broker.get_pending_orders().await.unwrap();
+
+    if !pending_orders.is_empty() {
+        panic!("the should not be any pending orders after limit has been executed");
+    }
+
+    let active = broker.get_positions().await.unwrap();
+    if !active.is_empty() {
+        panic!("no active positions should be here: {:?}", active);
+    }
+}
+
+#[tokio::test]
+async fn trigger_one_cancel_other_order() {
+    let setup = Setup::new();
+
+    let stub = Arc::new(Stub::new());
+    let balance = Decimal::new(100_000, 0);
+    let broker = Broker::new(balance, stub.to_owned());
+
+    let quantity = 10;
+
+    let market_order = NewOrder::Market(
+        Market::builder()
+            .with_security(setup.security.to_owned())
+            .with_side(Side::Long)
+            .with_quantity(quantity)
+            .with_strategy_id(strategy_id)
+            .build()
+            .unwrap(),
+    );
+
+    broker.place_order(&market_order).await.unwrap();
+
+    let limit_price = setup.price + Decimal::new(100, 0);
+    let stop_price = setup.price - Decimal::new(100, 0);
+    let oco_order = NewOrder::OCO(
+        OneCancelsOthers::builder()
+            .with_strategy_id(strategy_id)
+            .with_security(setup.security.to_owned())
+            .with_quantity(quantity)
+            .add_limit(Side::Short, limit_price)
+            .add_limit(Side::Short, stop_price)
+            .build()
+            .unwrap(),
+    );
+
+    broker.place_order(&oco_order).await.unwrap();
+
+    stub.add_to_price(Decimal::new(-100, 0)).await;
+
+    let candle = Candle::builder()
+        .with_security(setup.security.clone())
+        .with_low(stub.price().await)
+        .with_high(stub.price().await)
+        .with_open(stub.price().await)
+        .with_close(stub.price().await)
+        .with_volume(10)
+        .with_resolution(Resolution::Second)
+        .with_start_time(Duration::new(5, 0))
+        .with_end_time(Duration::new(6, 0))
+        .build()
+        .unwrap();
+
+    match broker.handle(&candle).await {
+        Ok(v) => {
+            if v.is_empty() {
+                panic!("limit order not executed");
+            }
+        }
+        Err(e) => panic!("fail to trigger limit order with error: {}", e),
+    }
+
+    let pending_orders = broker.get_pending_orders().await.unwrap();
+
+    if !pending_orders.is_empty() {
+        panic!("the should not be any pending orders after limit has been executed");
+    }
+
+    let active = broker.get_positions().await.unwrap();
+    if !active.is_empty() {
+        panic!("no active positions should be here: {:?}", active);
+    }
 }
