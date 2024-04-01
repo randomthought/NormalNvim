@@ -3,6 +3,7 @@ use rust_decimal::{prelude::FromPrimitive, Decimal};
 use uuid::Uuid;
 
 use crate::broker::orders::pending::PendingKey;
+use crate::broker::utils;
 use crate::{broker::Broker, models::orders::security_position::SecurityPosition};
 
 use crate::{
@@ -15,8 +16,6 @@ use crate::{
     },
     order::{OrderManager, OrderReader},
 };
-
-use super::utils;
 
 #[async_trait]
 impl OrderReader for Broker {
@@ -77,7 +76,12 @@ impl OrderManager for Broker {
 
         let mut account_balance = self.account_balance.write().await;
 
-        let (cost, filled_order) = utils::create_trade(self, market_order).await?;
+        let quote = self
+            .qoute_provider
+            .get_quote(&market_order.security)
+            .await?;
+
+        let (cost, filled_order) = utils::create_trade(self, market_order, &quote).await?;
 
         if (cost + *account_balance) < Decimal::default() {
             return Err(crate::error::Error::Message(

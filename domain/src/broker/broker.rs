@@ -1,9 +1,10 @@
 use crate::{
-    broker::orders::pending::PendingKey,
+    broker::{orders::pending::PendingKey, utils},
     data::QouteProvider,
     models::{
         orders::{
-            common::Side, filled_order::FilledOrder, market::Market,
+            common::Side, filled_order::FilledOrder, limit::Limit, market::Market,
+            new_order::NewOrder, order_result::OrderResult, pending_order::PendingOrder,
             security_position::SecurityPosition,
         },
         price::{candle::Candle, common::Price, quote::Quote},
@@ -40,35 +41,90 @@ impl Broker {
         }
     }
 
-    pub async fn handle(&self, candle: &Candle) {
+    pub async fn handle(&self, candle: &Candle) -> Result<Vec<OrderResult>, crate::error::Error> {
         let pending_key = PendingKey::SecurityKey(candle.security.clone());
         let pending_orders = self.orders.get_pending_order(pending_key).await;
 
+        let mut order_results = vec![];
         for p in pending_orders.iter() {
-            // match p.order {
-            //     NewOrder::Limit(o) => {
-            //         let met = match o.order_details.side {
-            //             Side::Long => o.price >= candle.close,
-            //             Side::Short => o.price <= candle.close,
-            //         };
-            //         if !met {
-            //             continue;
-            //         }
-            //
-            //         // TODO: with this implementation, you would not get the exact limit price
-            //         let m = Market::new(
-            //             o.order_details.quantity,
-            //             o.order_details.side,
-            //             o.security.to_owned(),
-            //             o.strategy_id(),
-            //         );
-            //         let order = NewOrder::Market(m);
-            //         self.place_order(&order).await?;
-            //     }
-            //     NewOrder::StopLimitMarket(o) => todo!(),
-            //     _ => continue,
-            // };
+            match p.order() {
+                NewOrder::Limit(o) => {
+                    let results = self.handle_limit(&o, candle).await?;
+                    if let Some(v) = results {
+                        order_results.push(v);
+                    }
+                }
+                NewOrder::OCO(o) => {
+                    for limit in o.orders.iter() {
+                        let results = self.handle_limit(limit, candle).await?;
+                        if let Some(v) = results {
+                            self.orders
+                                .remove(p)
+                                .await
+                                .map_err(|e| crate::error::Error::Any(e.into()))?;
+                            order_results.push(v);
+                            break;
+                        }
+                    }
+                }
+                _ => continue,
+            };
         }
-        todo!()
+
+        Ok(order_results)
+    }
+
+    async fn handle_limit(
+        &self,
+        limit: &Limit,
+        candle: &Candle,
+    ) -> Result<Option<OrderResult>, crate::error::Error> {
+        let met = match limit.order_details.side() {
+            Side::Long => limit.price >= candle.close,
+            Side::Short => limit.price <= candle.close,
+        };
+
+        if !met {
+            return Ok(None);
+        }
+
+        let quote = Quote::builder()
+            .with_security(candle.security.clone())
+            .with_timestamp(candle.start_time)
+            .with_bid_size(1)
+            .with_ask_size(1)
+            .with_bid(limit.price)
+            .with_ask(limit.price)
+            .build()
+            .map_err(|e| crate::error::Error::Any(e.into()))?;
+
+        let market_order = Market::builder()
+            .with_security(limit.security.clone())
+            .with_side(limit.order_details.side())
+            .with_quantity(limit.order_details.quantity())
+            .with_strategy_id(limit.order_details.strategy_id())
+            .build()
+            .unwrap();
+
+        let (cost, filled_order) = utils::create_trade(self, &market_order, &quote).await?;
+
+        let mut account_balance = self.account_balance.write().await;
+        if (cost + *account_balance) < Decimal::default() {
+            return Err(crate::error::Error::Message(
+                "do not have enough funds to peform trade".to_string(),
+            ));
+        }
+
+        let order_result = OrderResult::FilledOrder(filled_order.clone());
+        self.orders
+            .insert(&order_result)
+            .await
+            .map_err(|e| crate::error::Error::Message(e))?;
+        let commision = Decimal::from_u64(market_order.order_details.quantity().clone()).unwrap()
+            * self.commissions_per_share;
+        let trade_cost = commision + cost;
+        *account_balance += trade_cost;
+
+        Ok(Some(order_result))
     }
 }
