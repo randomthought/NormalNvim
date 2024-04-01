@@ -48,7 +48,7 @@ impl StopLimitMarket {
 struct StopLimitMarketSeed {
     security: Security,
     quantity: u64,
-    limit_side: Side,
+    side: Side,
     stop_price: Price,
     limit_price: Price,
     strategy_id: StrategyId,
@@ -62,11 +62,11 @@ impl StopLimitMarketSeed {
             .with_security(self.security.to_owned())
             .with_strategy_id(self.strategy_id)
             .with_quantity(self.quantity)
-            .with_side(self.limit_side)
+            .with_side(self.side)
             .build()
             .map_err(|e| e.to_string())?;
 
-        let stop_side = match self.limit_side {
+        let stop_side = match self.side {
             Side::Long => Side::Short,
             Side::Short => Side::Long,
         };
@@ -77,7 +77,7 @@ impl StopLimitMarketSeed {
             .with_strategy_id(self.strategy_id)
             .with_time_in_force(self.times_in_force)
             .add_limit(stop_side, self.stop_price)
-            .add_limit(self.limit_side, self.limit_price)
+            .add_limit(self.side, self.limit_price)
             .build()
             .map_err(|e| e.to_string())?;
 
@@ -95,7 +95,7 @@ impl StopLimitMarketBuilder {
     }
 
     fn validate(&self) -> Result<(), String> {
-        let Some(limit_side) = self.limit_side else {
+        let Some(limit_side) = self.side else {
             return Ok(());
         };
 
