@@ -46,6 +46,10 @@ impl Broker {
                 NewOrder::Limit(o) => {
                     let results = self.handle_limit(&o, candle).await?;
                     if let Some(v) = results {
+                        self.orders
+                            .remove(p)
+                            .await
+                            .map_err(|e| crate::error::Error::Any(e.into()))?;
                         order_results.push(v);
                     }
                 }
