@@ -8,6 +8,7 @@ use crate::{
         },
         price::{candle::Candle, quote::Quote},
     },
+    order::OrderManager,
 };
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use std::sync::Arc;
@@ -46,10 +47,7 @@ impl Broker {
                 NewOrder::Limit(o) => {
                     let results = self.handle_limit(&o, candle).await?;
                     if let Some(v) = results {
-                        self.orders
-                            .remove(p)
-                            .await
-                            .map_err(|e| crate::error::Error::Any(e.into()))?;
+                        self.cancel(p.order_id()).await?;
                         order_results.push(v);
                     }
                 }
@@ -57,10 +55,7 @@ impl Broker {
                     for limit in o.orders.iter() {
                         let results = self.handle_limit(limit, candle).await?;
                         if let Some(v) = results {
-                            self.orders
-                                .remove(p)
-                                .await
-                                .map_err(|e| crate::error::Error::Any(e.into()))?;
+                            self.cancel(p.order_id()).await?;
                             order_results.push(v);
                             break;
                         }

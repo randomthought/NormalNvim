@@ -142,6 +142,7 @@ pub async fn execute_market_order(
         .insert(&order_result)
         .await
         .map_err(|e| crate::error::Error::Message(e))?;
+
     let commision = Decimal::from_u64(market_order.order_details.quantity().clone()).unwrap()
         * broker.commissions_per_share;
     let trade_cost = commision + cost;
