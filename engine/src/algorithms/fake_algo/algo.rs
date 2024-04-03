@@ -52,7 +52,7 @@ impl Algorithm for FakeAlgo {
         if rm <= 0.02 {
             let rm2 = rand::thread_rng().gen_range(0.0..1.0);
             if rm2 < 0.05 {
-                println!("fake_algo liquidate signal");
+                // println!("fake_algo liquidate signal");
                 return Ok(Some(Signal::Liquidate(self.strategy_id())));
             }
             // println!("fake_algo sending signal");

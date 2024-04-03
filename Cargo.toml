@@ -1,6 +1,6 @@
 [workspace]
 members = [
     "engine",
-    "domain",
+    "domain", "data_forwarder", "data_provider",
 ]
 

@@ -1,0 +1,22 @@
+[package]
+name = "data_provider"
+version = "0.1.0"
+edition = "2021"
+
+# See more keys and their definitions at https://doc.rust-lang.org/cargo/reference/manifest.html
+
+[dependencies]
+domain = { path = "../domain" }
+tokio = { version = "1", features = ["full"] }
+tungstenite = { version = "0.16.0", features = ["native-tls"] }
+reqwest = { version = "0.11", features = ["json"] }
+tokio-stream = "0.1"
+async-stream = "0.3.5"
+futures-util = "0.3.28"
+async-trait = "0.1.72"
+eyre = "0.6"
+color-eyre = "0.5"
+thiserror = "1.0"
+serde = { version = "1.0", features = ["derive"] }
+serde_derive = "1.0"
+serde_json = "1.0"

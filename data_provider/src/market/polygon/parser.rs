@@ -1,15 +1,12 @@
 use std::collections::VecDeque;
-use std::time::Duration;
 
 use async_trait::async_trait;
 use domain::event::model::DataEvent;
 use tokio::sync::Mutex;
-use tokio::time::sleep;
 
-use crate::event_providers::provider::Parser;
-use crate::event_providers::provider::ParserError;
+use crate::parser::{Parser, ParserError};
 
-use super::{models::Aggregates, utils};
+use super::models::Aggregates;
 
 pub struct PolygonParser {
     event_queue: Mutex<VecDeque<DataEvent>>,
