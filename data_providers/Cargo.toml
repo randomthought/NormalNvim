@@ -1,5 +1,5 @@
 [package]
-name = "data_provider"
+name = "data_providers"
 version = "0.1.0"
 edition = "2021"
 

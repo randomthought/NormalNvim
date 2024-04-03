@@ -3,6 +3,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
+use data_providers::parser::{Parser, ParserError};
 use domain::event::model::DataEvent;
 use domain::models::price::candle::Candle;
 use domain::models::price::quote::Quote;
@@ -10,10 +11,6 @@ use domain::{data::QouteProvider, models::security::Security};
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 use tokio::sync::RwLock;
-
-use super::market::polygon::models::PolygonQuote;
-use super::provider::Parser;
-use super::provider::ParserError;
 
 pub struct BackTester {
     spread: Decimal,

@@ -1,12 +1,7 @@
 use crate::{
     actors::actor_runner::ActorRunner,
     algorithms::fake_algo::algo::FakeAlgo,
-    event_providers::{
-        back_test::BackTester,
-        file_provider,
-        market::polygon::{self, parser::PolygonParser},
-        utils,
-    },
+    event_providers::back_test::BackTester,
     telemetry::{
         metrics::Metrics,
         wrappers::{algorithm::AlgorithmTelemetry, strategy_portfolio::StrategyPortfolioTelemtry},
@@ -14,6 +9,10 @@ use crate::{
 };
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use color_eyre::eyre::Result;
+use data_providers::{
+    market::polygon::{self, parser::PolygonParser},
+    utils,
+};
 use domain::{
     broker::Broker,
     risk::{algo_risk_config::AlgorithmRiskConfig, risk_engine::RiskEngine},

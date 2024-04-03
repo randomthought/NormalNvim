@@ -7,6 +7,7 @@ edition = "2021"
 
 [dependencies]
 domain = { path = "../domain" }
+data_providers = { path = "../data_providers" }
 tokio = { version = "1", features = ["full"] }
 async-trait = "0.1.72"
 rand = "0.8"
