@@ -4,7 +4,7 @@ use std::{net::TcpStream, pin::Pin};
 use tungstenite::{connect, stream::MaybeTlsStream, Message, WebSocket};
 use url::Url;
 
-use crate::event_providers::market::polygon::models::ResponseMessage;
+use crate::market::polygon::models::ResponseMessage;
 
 static POLYGON_STOCKS_WS_API: &str = "wss://delayed.polygon.io/stocks";
 

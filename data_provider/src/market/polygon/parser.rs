@@ -6,7 +6,7 @@ use tokio::sync::Mutex;
 
 use crate::parser::{Parser, ParserError};
 
-use super::models::Aggregates;
+use super::{models::Aggregates, utils};
 
 pub struct PolygonParser {
     event_queue: Mutex<VecDeque<DataEvent>>,

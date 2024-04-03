@@ -5,7 +5,7 @@ use eyre::Ok;
 use futures_util::{Stream, StreamExt};
 use tokio::time::sleep;
 
-use super::provider::Parser;
+use crate::parser::Parser;
 
 pub fn parse_stream(
     stream: Pin<Box<dyn Stream<Item = eyre::Result<String>> + Send>>,
