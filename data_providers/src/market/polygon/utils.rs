@@ -2,7 +2,7 @@ use std::time::Duration;
 
 use super::models::{Aggregates, QuoteResponse};
 use domain::models::{
-    price::{candle::PriceBar, common::Resolution, quote::Quote},
+    price::{common::Resolution, price_bar::PriceBar, quote::Quote},
     security::{AssetType, Exchange, Security},
 };
 use eyre::{OptionExt, Result};

@@ -1,5 +1,5 @@
 use crate::models::{
-    price::{candle_history::PriceHistory, common::Resolution, quote::Quote},
+    price::{common::Resolution, price_history::PriceHistory, quote::Quote},
     security::Security,
 };
 use async_trait::async_trait;

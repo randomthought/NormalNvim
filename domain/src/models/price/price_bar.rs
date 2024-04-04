@@ -1,9 +1,12 @@
 use std::{cmp::Ordering, time::Duration};
 
 use derive_builder::Builder;
-use serde::{Deserialize, Serialize};
+use serde::{Deserialize, Deserializer, Serialize};
 
-use crate::models::security::Security;
+use crate::models::{
+    security::Security,
+    utils::{deserialize_duration_from_unix_timestamp, serialize_duration_in_millis},
+};
 
 use super::common::{Price, Resolution};
 
@@ -17,7 +20,11 @@ pub struct PriceBar {
     pub open: Price,
     pub low: Price,
     pub close: Price,
+    #[serde(deserialize_with = "deserialize_duration_from_unix_timestamp")]
+    #[serde(serialize_with = "serialize_duration_in_millis")]
     pub start_time: Duration,
+    #[serde(deserialize_with = "deserialize_duration_from_unix_timestamp")]
+    #[serde(serialize_with = "serialize_duration_in_millis")]
     pub end_time: Duration,
     // The trading volume of the symbol in the given time period.
     pub volume: u64,

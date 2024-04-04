@@ -5,7 +5,7 @@ use getset::Getters;
 
 use crate::models::security::Security;
 
-use super::{candle::PriceBar, common::Resolution};
+use super::{common::Resolution, price_bar::PriceBar};
 
 #[derive(Builder, Getters)]
 #[getset(get = "pub")]

@@ -1,4 +1,4 @@
-pub mod candle;
-pub mod candle_history;
 pub mod common;
+pub mod price_bar;
+pub mod price_history;
 pub mod quote;

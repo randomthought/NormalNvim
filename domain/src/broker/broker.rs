@@ -6,7 +6,7 @@ use crate::{
             common::Side, limit::Limit, market::Market, new_order::NewOrder,
             order_result::OrderResult,
         },
-        price::{candle::PriceBar, quote::Quote},
+        price::{price_bar::PriceBar, quote::Quote},
     },
     order::OrderManager,
 };

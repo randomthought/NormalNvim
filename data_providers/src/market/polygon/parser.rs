@@ -1,8 +1,8 @@
-use std::collections::VecDeque;
+use std::{collections::VecDeque, time::Duration};
 
 use async_trait::async_trait;
 use domain::event::model::DataEvent;
-use tokio::sync::Mutex;
+use tokio::{sync::Mutex, time::sleep};
 
 use crate::parser::{Parser, ParserError};
 
@@ -43,7 +43,7 @@ impl Parser for PolygonParser {
         }
 
         if let Some(event) = event_queue.pop_front() {
-            // sleep(Duration::from_millis(1)).await;
+            sleep(Duration::from_millis(1000)).await;
 
             return Ok(Some(event));
         }

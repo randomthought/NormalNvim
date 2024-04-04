@@ -20,8 +20,8 @@ use crate::{
             stop_limit_market::StopLimitMarket,
         },
         price::{
-            candle::PriceBar,
             common::{Price, Resolution},
+            price_bar::PriceBar,
             quote::Quote,
         },
         security::{AssetType, Exchange, Security},
