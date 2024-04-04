@@ -12,7 +12,11 @@ use actix_web::{
     App, HttpResponse, HttpServer, Responder,
 };
 use color_eyre::eyre::Result;
-use data_providers::{file, market::polygon::parser::PolygonParser, utils};
+use data_providers::{
+    file,
+    market::polygon::{self, parser::PolygonParser},
+    utils,
+};
 use domain::event::model::DataEvent;
 use futures_util::StreamExt;
 use tokio::sync::broadcast;
@@ -62,6 +66,30 @@ async fn stream_market_data(
     Ok(())
 }
 
+async fn run_polygon_stream(
+    sender: broadcast::Sender<DataEvent>,
+    shutdown_signal: Arc<AtomicBool>,
+) -> eyre::Result<()> {
+    let api_key = env::var("API_KEY")?;
+    let subscription = "A.*";
+
+    let raw_data_stream = polygon::stream_client::create_stream(&api_key, &subscription)?;
+    let parser = Arc::new(PolygonParser::new());
+    let mut data_stream = utils::parse_stream(raw_data_stream, parser.clone());
+
+    while let Some(dr) = data_stream.next().await {
+        if shutdown_signal.load(Ordering::SeqCst) {
+            break;
+        }
+
+        if let Some(data_event) = dr? {
+            let _ = sender.send(data_event);
+        }
+    }
+
+    Ok(())
+}
+
 pub async fn run_app() -> Result<()> {
     color_eyre::install()?;
 
@@ -73,6 +101,7 @@ pub async fn run_app() -> Result<()> {
     let shutdown_signal = Arc::new(AtomicBool::new(false));
 
     let runner = stream_market_data(sender, shutdown_signal.clone());
+    // let runner = run_polygon_stream(sender, shutdown_signal.clone());
 
     let sever = HttpServer::new(move || {
         App::new()
