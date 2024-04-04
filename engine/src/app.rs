@@ -11,7 +11,10 @@ use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use color_eyre::eyre::Result;
 use data_providers::{
     file,
-    market::polygon::{self, parser::PolygonParser},
+    market::{
+        forwarder::forwarder::ForwarderClient,
+        polygon::{self, parser::PolygonParser},
+    },
     utils,
 };
 use domain::{
@@ -120,6 +123,15 @@ pub async fn run_app() -> color_eyre::eyre::Result<()> {
         .with_qoute_provider(qoute_provider.clone())
         .build()?;
 
+    let client = reqwest::Client::new();
+
+    let forwarder_client = ForwarderClient::builder()
+        .with_client(client.clone())
+        .with_end_point("http://127.0.0.1:8081/market".into())
+        .build()?;
+
+    let data_stream = forwarder_client.get_stream().await?;
+
     let api_key = env::var("API_KEY")?;
     let subscription = "A.*";
     // let raw_data_stream = polygon::stream_client::create_stream(&api_key, &subscription)?;
@@ -130,7 +142,7 @@ pub async fn run_app() -> color_eyre::eyre::Result<()> {
     let raw_data_stream = file::utils::create_stream(path, buff_size)?;
     let parser = back_tester_.clone();
 
-    let data_stream = utils::parse_stream(raw_data_stream, parser.clone());
+    // let data_stream = utils::parse_stream(raw_data_stream, parser.clone());
     let shutdown_signal = Arc::new(AtomicBool::new(false));
     let actor_runner = algorithms
         .into_iter()

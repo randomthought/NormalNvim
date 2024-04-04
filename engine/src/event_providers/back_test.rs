@@ -59,7 +59,7 @@ impl Parser for BackTester {
     async fn parse(&self, data: &str) -> Result<Option<DataEvent>, ParserError> {
         let event = self.parser.parse(data).await?;
         let Some(event) = event else { return Ok(None) };
-        let DataEvent::Candle(ph) = event.clone();
+        let DataEvent::PriceBar(ph) = event.clone();
         self.add(&ph)
             .await
             .map_err(|e| ParserError::OtherError(e.into()))?;

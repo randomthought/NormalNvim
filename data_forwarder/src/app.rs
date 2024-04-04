@@ -24,7 +24,7 @@ struct AppState {
 async fn market_aggregate_stream(state: web::Data<AppState>) -> impl Responder {
     let receiver = state.sender.subscribe();
     let stream = futures_util::stream::unfold(receiver, |mut receiver| async move {
-        receiver.recv().await.ok().map(|DataEvent::Candle(v)| {
+        receiver.recv().await.ok().map(|DataEvent::PriceBar(v)| {
             let results = serde_json::to_vec(&v);
 
             (results.map(Bytes::from), receiver)
@@ -34,7 +34,6 @@ async fn market_aggregate_stream(state: web::Data<AppState>) -> impl Responder {
 
     HttpResponse::Ok()
         .content_type("text/event-stream")
-        // .no_chunking(0) //TODO: look into no no_chunking?
         .streaming(stream)
 }
 
@@ -80,7 +79,7 @@ pub async fn run_app() -> Result<()> {
             .app_data(state.clone()) // Add the shared state to the app
             .route("/market", web::get().to(market_aggregate_stream))
     })
-    .bind("127.0.0.1:8080")?
+    .bind("127.0.0.1:8081")?
     .run();
 
     tokio::spawn(sever);

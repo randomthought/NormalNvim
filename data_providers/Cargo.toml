@@ -9,7 +9,9 @@ edition = "2021"
 domain = { path = "../domain" }
 tokio = { version = "1", features = ["full"] }
 tungstenite = { version = "0.16.0", features = ["native-tls"] }
-reqwest = { version = "0.11", features = ["json"] }
+reqwest = { version = "0.11", features = ["json", "stream"] }
+bytes = { version = "1", features = ["serde"] }
+derive_builder = "0"
 tokio-stream = "0.1"
 async-stream = "0.3.5"
 futures-util = "0.3.28"

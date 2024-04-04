@@ -32,7 +32,7 @@ impl Parser for PolygonParser {
 
         let results: Result<Vec<_>, _> = deserialized
             .into_iter()
-            .map(|ag| utils::to_price_history(&ag).map(|cnd| DataEvent::Candle(cnd)))
+            .map(|ag| utils::to_price_history(&ag).map(|cnd| DataEvent::PriceBar(cnd)))
             .collect();
 
         let events = results.map_err(|e| ParserError::OtherError(e.into()))?;
@@ -43,7 +43,7 @@ impl Parser for PolygonParser {
         }
 
         if let Some(event) = event_queue.pop_front() {
-            // sleep(Duration::from_millis(1000)).await;
+            // sleep(Duration::from_millis(200)).await;
 
             return Ok(Some(event));
         }

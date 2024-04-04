@@ -50,7 +50,7 @@ impl Actor for BrokerPriceEventActor {
 impl Handler<AlgoEventMessage> for BrokerPriceEventActor {
     type Result = ();
     fn handle(&mut self, msg: AlgoEventMessage, ctx: &mut Self::Context) -> Self::Result {
-        let AlgoEvent::DataEvent(DataEvent::Candle(candle)) = msg.0 else {
+        let AlgoEvent::DataEvent(DataEvent::PriceBar(candle)) = msg.0 else {
             return;
         };
         let broker = self.in_memory_broker.clone();
