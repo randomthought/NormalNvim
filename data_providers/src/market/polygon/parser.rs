@@ -43,7 +43,7 @@ impl Parser for PolygonParser {
         }
 
         if let Some(event) = event_queue.pop_front() {
-            sleep(Duration::from_millis(1000)).await;
+            // sleep(Duration::from_millis(1000)).await;
 
             return Ok(Some(event));
         }
