@@ -1,6 +1,6 @@
-use crate::models::price::candle::Candle;
+use crate::models::price::candle::PriceBar;
 
 #[derive(Debug, Clone)]
 pub enum DataEvent {
-    Candle(Candle),
+    Candle(PriceBar),
 }

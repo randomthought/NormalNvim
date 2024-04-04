@@ -20,7 +20,7 @@ use crate::{
             stop_limit_market::StopLimitMarket,
         },
         price::{
-            candle::Candle,
+            candle::PriceBar,
             common::{Price, Resolution},
             quote::Quote,
         },
@@ -754,7 +754,7 @@ async fn trigger_limit_order() {
 
     stub.add_to_price(Decimal::new(-200, 0)).await;
 
-    let candle = Candle::builder()
+    let candle = PriceBar::builder()
         .with_security(setup.security.clone())
         .with_low(setup.price)
         .with_high(setup.price)
@@ -816,7 +816,7 @@ async fn trigger_stop_limit_market_order() {
 
     stub.add_to_price(Decimal::new(100, 0)).await;
 
-    let candle = Candle::builder()
+    let candle = PriceBar::builder()
         .with_security(setup.security.clone())
         .with_low(stub.price().await)
         .with_high(stub.price().await)
@@ -889,7 +889,7 @@ async fn trigger_one_cancel_other_order() {
 
     stub.add_to_price(Decimal::new(-100, 0)).await;
 
-    let candle = Candle::builder()
+    let candle = PriceBar::builder()
         .with_security(setup.security.clone())
         .with_low(stub.price().await)
         .with_high(stub.price().await)

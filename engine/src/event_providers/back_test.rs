@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use data_providers::parser::{Parser, ParserError};
 use domain::event::model::DataEvent;
-use domain::models::price::candle::Candle;
+use domain::models::price::candle::PriceBar;
 use domain::models::price::quote::Quote;
 use domain::{data::QouteProvider, models::security::Security};
 use rust_decimal::prelude::FromPrimitive;
@@ -30,7 +30,7 @@ impl BackTester {
         }
     }
 
-    async fn add(&self, candle: &Candle) -> Result<()> {
+    async fn add(&self, candle: &PriceBar) -> Result<()> {
         let spread_half = (candle.close * self.spread) / Decimal::from(2);
         let bid = candle.close - spread_half;
         let ask = candle.close + spread_half;

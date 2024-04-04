@@ -5,14 +5,14 @@ use getset::Getters;
 
 use crate::models::security::Security;
 
-use super::{candle::Candle, common::Resolution};
+use super::{candle::PriceBar, common::Resolution};
 
 #[derive(Builder, Getters)]
 #[getset(get = "pub")]
 #[builder(setter(prefix = "with"))]
 pub struct PriceHistory {
     #[builder(default, private)]
-    history: BTreeSet<Candle>,
+    history: BTreeSet<PriceBar>,
     security: Security,
     resolution: Resolution,
 }
@@ -24,7 +24,7 @@ impl PriceHistory {
 }
 
 impl PriceHistoryBuilder {
-    pub fn add_candle(&mut self, value: Candle) -> &mut Self {
+    pub fn add_candle(&mut self, value: PriceBar) -> &mut Self {
         self.security = Some(value.clone().security);
         self.resolution = Some(value.clone().resolution);
         if let Some(history) = self.history.as_mut() {

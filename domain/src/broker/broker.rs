@@ -6,7 +6,7 @@ use crate::{
             common::Side, limit::Limit, market::Market, new_order::NewOrder,
             order_result::OrderResult,
         },
-        price::{candle::Candle, quote::Quote},
+        price::{candle::PriceBar, quote::Quote},
     },
     order::OrderManager,
 };
@@ -37,7 +37,7 @@ impl Broker {
         }
     }
 
-    pub async fn handle(&self, candle: &Candle) -> Result<Vec<OrderResult>, crate::error::Error> {
+    pub async fn handle(&self, candle: &PriceBar) -> Result<Vec<OrderResult>, crate::error::Error> {
         let pending_key = PendingKey::SecurityKey(candle.security.clone());
         let pending_orders = self.orders.get_pending_order(pending_key).await;
 
@@ -71,7 +71,7 @@ impl Broker {
     async fn handle_limit(
         &self,
         limit: &Limit,
-        candle: &Candle,
+        candle: &PriceBar,
     ) -> Result<Option<OrderResult>, crate::error::Error> {
         let met = match limit.order_details.side() {
             Side::Long => limit.price >= candle.close,

@@ -2,13 +2,13 @@ use std::time::Duration;
 
 use super::models::{Aggregates, QuoteResponse};
 use domain::models::{
-    price::{candle::Candle, common::Resolution, quote::Quote},
+    price::{candle::PriceBar, common::Resolution, quote::Quote},
     security::{AssetType, Exchange, Security},
 };
 use eyre::{OptionExt, Result};
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 
-pub fn to_price_history(aggregates: &Aggregates) -> Result<Candle> {
+pub fn to_price_history(aggregates: &Aggregates) -> Result<PriceBar> {
     let exchange = if aggregates.otc {
         Exchange::OTC
     } else {
@@ -21,7 +21,7 @@ pub fn to_price_history(aggregates: &Aggregates) -> Result<Candle> {
         ticker: aggregates.sym.to_owned(),
     };
 
-    let candle = Candle::builder()
+    let candle = PriceBar::builder()
         .with_security(security)
         .with_resolution(Resolution::Second)
         .with_open(Decimal::from_f64(aggregates.o).ok_or_eyre("unable to convert open to decimal")?)

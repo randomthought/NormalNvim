@@ -10,7 +10,7 @@ use super::common::{Price, Resolution};
 #[derive(Builder, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[builder(setter(prefix = "with"))]
 #[non_exhaustive]
-pub struct Candle {
+pub struct PriceBar {
     pub security: Security,
     pub resolution: Resolution,
     pub high: Price,
@@ -23,25 +23,25 @@ pub struct Candle {
     pub volume: u64,
 }
 
-impl Candle {
-    pub fn builder() -> CandleBuilder {
-        CandleBuilder::default()
+impl PriceBar {
+    pub fn builder() -> PriceBarBuilder {
+        PriceBarBuilder::default()
     }
 }
 
-impl PartialOrd for Candle {
+impl PartialOrd for PriceBar {
     fn partial_cmp(&self, other: &Self) -> Option<Ordering> {
         Some(self.cmp(other)) // Delegate to the implementation of `cmp`.
     }
 }
 
-impl Ord for Candle {
+impl Ord for PriceBar {
     fn cmp(&self, other: &Self) -> Ordering {
         self.start_time.cmp(&other.start_time)
     }
 }
 
-impl CandleBuilder {
+impl PriceBarBuilder {
     fn validate(&self) -> Result<(), String> {
         let Some(high) = self.high else {
             return Err("high must be set".into());
