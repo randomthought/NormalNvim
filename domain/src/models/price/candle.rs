@@ -1,12 +1,13 @@
 use std::{cmp::Ordering, time::Duration};
 
 use derive_builder::Builder;
+use serde::{Deserialize, Serialize};
 
 use crate::models::security::Security;
 
 use super::common::{Price, Resolution};
 
-#[derive(Builder, Debug, Clone, Eq, PartialEq)]
+#[derive(Builder, Debug, Clone, Eq, PartialEq, Serialize, Deserialize)]
 #[builder(setter(prefix = "with"))]
 #[non_exhaustive]
 pub struct Candle {

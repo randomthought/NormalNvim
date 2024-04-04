@@ -1,8 +1,9 @@
 use derive_builder::Builder;
+use serde::{Deserialize, Serialize};
 
 pub type Ticker = String;
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum Exchange {
     // TODO: add list of exchanges
     NASDAQ,
@@ -12,7 +13,7 @@ pub enum Exchange {
     Unknown,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, Serialize, Deserialize)]
 pub enum AssetType {
     Equity,
     Forex,
@@ -21,7 +22,7 @@ pub enum AssetType {
     Crypto,
 }
 
-#[derive(Builder, Debug, Clone, PartialEq, Eq, Hash)]
+#[derive(Builder, Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
 #[builder(setter(prefix = "with"))]
 pub struct Security {
     pub asset_type: AssetType,

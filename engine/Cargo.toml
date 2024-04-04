@@ -27,7 +27,6 @@ sec = "1.0.0"
 thiserror = "1.0"
 tokio-stream = "0.1"
 actix = "0.13"
-actix-rt = "2.2"
 derive_builder = "0.10"
 getset = "0.1.2"
 # Telemetry

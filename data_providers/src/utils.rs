@@ -7,14 +7,6 @@ use tokio::time::sleep;
 
 use crate::parser::Parser;
 
-pub fn parse_stream(
-    stream: Pin<Box<dyn Stream<Item = eyre::Result<String>> + Send>>,
-    parser: Arc<dyn Parser + Sync + Send>,
-) -> Pin<Box<dyn Stream<Item = eyre::Result<Option<DataEvent>>> + Send>> {
-    let mapped = stream.then(move |raw_data| transform_data(raw_data, parser.clone()));
-    Box::pin(mapped)
-}
-
 async fn transform_data(
     data_result: eyre::Result<String>,
     parser: Arc<dyn Parser + Sync + Send>,
@@ -24,4 +16,12 @@ async fn transform_data(
     sleep(Duration::from_millis(1)).await;
     let data_event = parser.parse(&data).await?;
     Ok(data_event)
+}
+
+pub fn parse_stream(
+    stream: Pin<Box<dyn Stream<Item = eyre::Result<String>> + Send>>,
+    parser: Arc<dyn Parser + Sync + Send>,
+) -> Pin<Box<dyn Stream<Item = eyre::Result<Option<DataEvent>>> + Send>> {
+    let mapped = stream.then(move |raw_data| transform_data(raw_data, parser.clone()));
+    Box::pin(mapped)
 }
