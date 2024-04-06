@@ -26,11 +26,12 @@
         version = "0.1.0";
 
         appName = "trade_engine";
-        engineAppRustBuild = rustPlatform.buildRustPackage {
+        appRustBuild = rustPlatform.buildRustPackage {
           pname = "${appName}";
           version = version;
           src = ./.;
           cargoLock.lockFile = ./Cargo.lock;
+          buildInputs = nonRustDeps;
         };
 
         engineApp = "engine";
