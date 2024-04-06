@@ -17,15 +17,48 @@
           darwin.apple_sdk.frameworks.Foundation
           libiconv
         ];
+
+        rustPlatform = pkgs.makeRustPlatform {
+          cargo = devToolchain.cargo;
+          rustc = devToolchain.rustc;
+        };
+
+        version = "0.1.0";
+
+        appName = "trade_engine";
+        engineAppRustBuild = rustPlatform.buildRustPackage {
+          pname = "${appName}";
+          version = version;
+          src = ./.;
+          cargoLock.lockFile = ./Cargo.lock;
+        };
+
+        engineApp = "engine";
+        engineDockerImage = pkgs.dockerTools.buildImage {
+          name = "${engineApp}";
+          config = { Entrypoint = [ "${appName}/bin/${engineApp}" ]; };
+        };
+
+        dataForwarderApp = "data_forwarder";
+        dataForwarderDockerImage = pkgs.dockerTools.buildImage {
+          name = "${dataForwarderApp}";
+          config = { Entrypoint = [ "${appName}/bin/${dataForwarderApp}" ]; };
+        };
+
       in rec {
+        packages = {
+          rustPackage = appRustBuild;
+          engineDocker = engineDockerImage;
+          dataForwarderDocker = dataForwarderDockerImage;
+        };
         devShell = pkgs.mkShell {
           buildInputs = nonRustDeps;
           nativeBuildInputs = [
             (devToolchain.withComponents [
               "cargo"
-              "rustc" 
-              "rust-src" 
-              "rustfmt" 
+              "rustc"
+              "rust-src"
+              "rustfmt"
               "clippy"
             ])
           ];
