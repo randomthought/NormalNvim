@@ -13,10 +13,8 @@
         pkgs = nixpkgs.legacyPackages.${system};
         devToolchain = fenix.packages."${system}".stable;
         nonRustDeps = with pkgs; [
-          # darwin.apple_sdk.frameworks.Security # Only needed for macos
-          darwin.apple_sdk.frameworks.Foundation
           libiconv
-        ];
+        ] ++ (if stdenv.hostPlatform.system == "x86_64-darwin" then [ darwin.apple_sdk.frameworks.Foundation ] else []);
 
         rustPlatform = pkgs.makeRustPlatform {
           cargo = devToolchain.cargo;
