@@ -2,10 +2,10 @@ use std::{collections::HashMap, sync::Arc};
 
 use actix::{dev::ContextFutureSpawner, Actor, Addr, Context, Handler, WrapFuture};
 use derive_builder::Builder;
-use domain::{
-    broker::Broker,
-    event::model::DataEvent,
-    strategy::{algorithm::StrategyId, model::algo_event::AlgoEvent},
+use domain::broker::Broker;
+use models::{
+    event::DataEvent,
+    strategy::{algo_event::AlgoEvent, common::StrategyId},
 };
 
 use super::{algo_actor::AlgoActor, models::AlgoEventMessage};

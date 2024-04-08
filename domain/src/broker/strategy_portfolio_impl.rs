@@ -2,26 +2,26 @@ use super::{
     orders::security_transaction::{SecurityTransaction, Transaction},
     Broker,
 };
-use crate::{
-    models::orders::{
+use async_trait::async_trait;
+use models::{
+    orders::{
         common::{OrderDetails, Side},
         pending_order::PendingOrder,
         security_position::SecurityPosition,
     },
-    order::OrderReader,
-    strategy::{algorithm::StrategyId, portfolio::StrategyPortfolio},
+    strategy::common::StrategyId,
 };
-use async_trait::async_trait;
 use rust_decimal::{prelude::FromPrimitive, Decimal};
+use traits::{order::OrderReader, strategy::portfolio::StrategyPortfolio};
 
 #[async_trait]
 impl StrategyPortfolio for Broker {
-    async fn get_profit(&self, strategy_id: StrategyId) -> Result<Decimal, crate::error::Error> {
+    async fn get_profit(&self, strategy_id: StrategyId) -> Result<Decimal, models::error::Error> {
         let security_transactions = self
             .orders
             .get_transactions()
             .await
-            .map_err(|e| crate::error::Error::Message(e))?;
+            .map_err(|e| models::error::Error::Message(e))?;
 
         let result = security_transactions
             .iter()
@@ -34,7 +34,7 @@ impl StrategyPortfolio for Broker {
     async fn get_security_positions(
         &self,
         strategy_id: StrategyId,
-    ) -> Result<Vec<SecurityPosition>, crate::error::Error> {
+    ) -> Result<Vec<SecurityPosition>, models::error::Error> {
         let open_positions = self.get_positions().await?;
         let algo_positions: Vec<_> = open_positions
             .into_iter()
@@ -51,7 +51,7 @@ impl StrategyPortfolio for Broker {
     async fn get_pending(
         &self,
         strategy_id: StrategyId,
-    ) -> Result<Vec<PendingOrder>, crate::error::Error> {
+    ) -> Result<Vec<PendingOrder>, models::error::Error> {
         let pending = self.orders.get_pending_orders().await;
 
         let algo_pending: Vec<_> = pending

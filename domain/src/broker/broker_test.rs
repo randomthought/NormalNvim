@@ -5,32 +5,31 @@ use async_trait::async_trait;
 use rust_decimal::Decimal;
 use tokio::sync::RwLock;
 
-use crate::{
-    broker::broker::Broker,
-    data::QouteProvider,
-    models::{
-        orders::{
-            common::{Side, TimeInForce},
-            market::Market,
-            new_order::NewOrder,
-            one_cancels_others::OneCancelsOthers,
-            order_result::OrderResult,
-            pending_order::PendingOrder,
-            security_position::{HoldingDetail, SecurityPosition},
-            stop_limit_market::StopLimitMarket,
-        },
-        price::{
-            common::{Price, Resolution},
-            price_bar::PriceBar,
-            quote::Quote,
-        },
-        security::{AssetType, Exchange, Security},
+use crate::broker::broker::Broker;
+use models::{
+    orders::{
+        common::{Side, TimeInForce},
+        limit::Limit,
+        market::Market,
+        new_order::NewOrder,
+        one_cancels_others::OneCancelsOthers,
+        order_result::OrderResult,
+        pending_order::PendingOrder,
+        security_position::{HoldingDetail, SecurityPosition},
+        stop_limit_market::StopLimitMarket,
     },
-    strategy::{algorithm::StrategyId, portfolio::StrategyPortfolio},
+    price::{
+        common::{Price, Resolution},
+        price_bar::PriceBar,
+        quote::Quote,
+    },
+    security::{AssetType, Exchange, Security},
+    strategy::common::StrategyId,
 };
-use crate::{
-    models::orders::limit::Limit,
+use traits::{
+    data::QouteProvider,
     order::{Account, OrderManager, OrderReader},
+    strategy::portfolio::StrategyPortfolio,
 };
 
 const strategy_id: StrategyId = "fake_algo";
@@ -72,7 +71,7 @@ impl Stub {
 #[cfg(test)]
 #[async_trait]
 impl QouteProvider for Stub {
-    async fn get_quote(&self, security: &Security) -> Result<Quote, crate::error::Error> {
+    async fn get_quote(&self, security: &Security) -> Result<Quote, models::error::Error> {
         let price = self.price.read().await;
 
         let quote = Quote::builder()

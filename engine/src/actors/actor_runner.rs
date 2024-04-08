@@ -14,13 +14,10 @@ use super::{
 };
 use actix::Actor;
 use derive_builder::Builder;
-use domain::{
-    broker::Broker,
-    event::model::DataEvent,
-    risk::risk_engine::RiskEngine,
-    strategy::algorithm::{Algorithm, StrategyId},
-};
+use domain::{broker::Broker, risk::risk_engine::RiskEngine};
 use futures_util::{Stream, StreamExt};
+use models::{event::DataEvent, strategy::common::StrategyId};
+use traits::strategy::algorithm::Algorithm;
 
 #[derive(Builder)]
 #[builder(public, setter(prefix = "with", strip_option))]

@@ -20,7 +20,6 @@ use data_providers::{
 use domain::{
     broker::Broker,
     risk::{algo_risk_config::AlgorithmRiskConfig, risk_engine::RiskEngine},
-    strategy::algorithm::Strategy,
 };
 use eyre::ContextCompat;
 use opentelemetry::global;
@@ -35,6 +34,7 @@ use std::{
         Arc,
     },
 };
+use traits::strategy::algorithm::Strategy;
 
 pub async fn run_app() -> color_eyre::eyre::Result<()> {
     color_eyre::install()?;

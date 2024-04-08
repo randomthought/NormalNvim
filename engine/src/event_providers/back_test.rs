@@ -4,13 +4,14 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
 use data_providers::parser::{Parser, ParserError};
-use domain::event::model::DataEvent;
-use domain::models::price::price_bar::PriceBar;
-use domain::models::price::quote::Quote;
-use domain::{data::QouteProvider, models::security::Security};
+use models::event::DataEvent;
+use models::price::price_bar::PriceBar;
+use models::price::quote::Quote;
+use models::security::Security;
 use rust_decimal::prelude::FromPrimitive;
 use rust_decimal::Decimal;
 use tokio::sync::RwLock;
+use traits::data::QouteProvider;
 
 pub struct BackTester {
     spread: Decimal,
@@ -70,10 +71,10 @@ impl Parser for BackTester {
 
 #[async_trait]
 impl QouteProvider for BackTester {
-    async fn get_quote(&self, security: &Security) -> Result<Quote, domain::error::Error> {
+    async fn get_quote(&self, security: &Security) -> Result<Quote, models::error::Error> {
         let map = self.map.read().await;
         let quote = map.get(&security.ticker).ok_or_else(|| {
-            domain::error::Error::Message(format!(
+            models::error::Error::Message(format!(
                 "security='{}' not found in map",
                 security.ticker
             ))

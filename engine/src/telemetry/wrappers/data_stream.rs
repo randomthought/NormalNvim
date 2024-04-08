@@ -1,7 +1,7 @@
 use std::pin::Pin;
 
-use domain::event::model::DataEvent;
 use futures_util::Stream;
+use models::event::DataEvent;
 
 pub fn instrument_stream(
     data_event: Pin<Box<dyn Stream<Item = eyre::Result<DataEvent>> + Send>>,

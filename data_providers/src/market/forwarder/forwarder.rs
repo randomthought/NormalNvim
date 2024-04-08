@@ -1,8 +1,7 @@
 use bytes::Bytes;
 use derive_builder::Builder;
-use domain::event::model::DataEvent;
-use domain::models::price::price_bar::PriceBar;
 use futures_util::{Stream, StreamExt};
+use models::{event::DataEvent, price::price_bar::PriceBar};
 use std::pin::Pin;
 
 use color_eyre::eyre::Result;

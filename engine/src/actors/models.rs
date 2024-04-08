@@ -1,5 +1,5 @@
 use actix::{Message, Recipient};
-use domain::strategy::model::{algo_event::AlgoEvent, signal::Signal};
+use models::strategy::{algo_event::AlgoEvent, signal::Signal};
 
 #[derive(Message)]
 #[rtype(result = "()")]

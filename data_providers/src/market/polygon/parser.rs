@@ -1,8 +1,8 @@
-use std::{collections::VecDeque, time::Duration};
+use std::collections::VecDeque;
 
 use async_trait::async_trait;
-use domain::event::model::DataEvent;
-use tokio::{sync::Mutex, time::sleep};
+use models::event::DataEvent;
+use tokio::sync::Mutex;
 
 use crate::parser::{Parser, ParserError};
 

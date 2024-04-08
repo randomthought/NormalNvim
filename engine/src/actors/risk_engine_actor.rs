@@ -2,12 +2,12 @@ use std::{collections::HashMap, time::Instant};
 
 use actix::{dev::ContextFutureSpawner, Actor, Addr, Context, Handler, WrapFuture};
 use derive_builder::Builder;
-use domain::{
-    models::orders::order_result::OrderResult,
-    risk::{error::RiskError, risk_engine::RiskEngine},
-    strategy::{algorithm::StrategyId, model::algo_event::AlgoEvent},
-};
+use domain::risk::{error::RiskError, risk_engine::RiskEngine};
 use futures_util::Future;
+use models::{
+    orders::order_result::OrderResult,
+    strategy::{algo_event::AlgoEvent, common::StrategyId},
+};
 use opentelemetry::{
     metrics::{Counter, Histogram, ObservableGauge},
     KeyValue,

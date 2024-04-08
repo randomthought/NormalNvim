@@ -1,30 +1,27 @@
 use async_trait::async_trait;
-use rust_decimal::{prelude::FromPrimitive, Decimal};
+use models::orders::security_position::SecurityPosition;
+use traits::order::{OrderManager, OrderReader};
 use uuid::Uuid;
 
-use crate::broker::orders::pending::PendingKey;
 use crate::broker::utils;
-use crate::{broker::Broker, models::orders::security_position::SecurityPosition};
+use crate::broker::{orders::pending::PendingKey, Broker};
 
-use crate::{
-    models::orders::{
-        common::OrderId,
-        new_order::NewOrder,
-        one_cancels_others::OneCancelsOthers,
-        order_result::{OrderMeta, OrderResult},
-        pending_order::PendingOrder,
-    },
-    order::{OrderManager, OrderReader},
+use models::orders::{
+    common::OrderId,
+    new_order::NewOrder,
+    one_cancels_others::OneCancelsOthers,
+    order_result::{OrderMeta, OrderResult},
+    pending_order::PendingOrder,
 };
 
 #[async_trait]
 impl OrderReader for Broker {
-    async fn get_positions(&self) -> Result<Vec<SecurityPosition>, crate::error::Error> {
+    async fn get_positions(&self) -> Result<Vec<SecurityPosition>, models::error::Error> {
         let orders = self.orders.get_positions().await;
         Ok(orders)
     }
 
-    async fn get_pending_orders(&self) -> Result<Vec<PendingOrder>, crate::error::Error> {
+    async fn get_pending_orders(&self) -> Result<Vec<PendingOrder>, models::error::Error> {
         let orders = self.orders.get_pending_orders().await;
         Ok(orders)
     }
@@ -32,7 +29,7 @@ impl OrderReader for Broker {
 
 #[async_trait]
 impl OrderManager for Broker {
-    async fn place_order(&self, order: &NewOrder) -> Result<OrderResult, crate::error::Error> {
+    async fn place_order(&self, order: &NewOrder) -> Result<OrderResult, models::error::Error> {
         if let NewOrder::StopLimitMarket(o) = order {
             let market_order = NewOrder::Market(o.market().to_owned());
             self.place_order(&market_order).await?;
@@ -51,7 +48,7 @@ impl OrderManager for Broker {
                     o.get_limit().price,
                 )
                 .build()
-                .map_err(|e| crate::error::Error::Any(e.into()))?;
+                .map_err(|e| models::error::Error::Any(e.into()))?;
 
             let no = NewOrder::OCO(oco);
             return self.place_order(&no).await;
@@ -69,7 +66,7 @@ impl OrderManager for Broker {
             self.orders
                 .insert(&or)
                 .await
-                .map_err(|e| crate::error::Error::Message(e))?;
+                .map_err(|e| models::error::Error::Message(e))?;
 
             return Ok(or);
         };
@@ -87,12 +84,12 @@ impl OrderManager for Broker {
     async fn update(
         &self,
         pending_order: &PendingOrder,
-    ) -> Result<OrderResult, crate::error::Error> {
+    ) -> Result<OrderResult, models::error::Error> {
         let or = OrderResult::PendingOrder(pending_order.to_owned());
         self.orders
             .insert(&or)
             .await
-            .map_err(|e| crate::error::Error::Message(e))?;
+            .map_err(|e| models::error::Error::Message(e))?;
 
         Ok(OrderResult::Updated(
             OrderMeta::builder()
@@ -103,16 +100,16 @@ impl OrderManager for Broker {
         ))
     }
 
-    async fn cancel(&self, order_id: &OrderId) -> Result<OrderResult, crate::error::Error> {
+    async fn cancel(&self, order_id: &OrderId) -> Result<OrderResult, models::error::Error> {
         let key = PendingKey::OrderIdKey(order_id.to_owned());
         let pending_orders = self.orders.get_pending_order(key).await;
         let pending_order = match &pending_orders[..] {
             [a] => Ok(a),
-            [] => Err(crate::error::Error::Message(format!(
+            [] => Err(models::error::Error::Message(format!(
                 "no orders associated with the order_id=`{:?}`",
                 order_id
             ))),
-            _ => Err(crate::error::Error::Message(format!(
+            _ => Err(models::error::Error::Message(format!(
                 "more than one order associated with the order_id=`{:?}`",
                 order_id
             ))),
@@ -121,7 +118,7 @@ impl OrderManager for Broker {
         self.orders
             .remove(&pending_order)
             .await
-            .map_err(|e| crate::error::Error::Message(e))?;
+            .map_err(|e| models::error::Error::Message(e))?;
 
         Ok(OrderResult::Updated(
             OrderMeta::builder()

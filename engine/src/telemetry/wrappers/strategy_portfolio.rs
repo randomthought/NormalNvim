@@ -2,9 +2,9 @@ use std::{f64, sync::Arc, time::Instant, u64};
 
 use async_trait::async_trait;
 use derive_builder::Builder;
-use domain::{
-    models::orders::{pending_order::PendingOrder, security_position::SecurityPosition},
-    strategy::{algorithm::StrategyId, portfolio::StrategyPortfolio},
+use models::{
+    orders::{pending_order::PendingOrder, security_position::SecurityPosition},
+    strategy::common::StrategyId,
 };
 use opentelemetry::{
     metrics::{Counter, Histogram, ObservableGauge},
@@ -12,6 +12,7 @@ use opentelemetry::{
 };
 use rust_decimal::prelude::*;
 use rust_decimal::Decimal;
+use traits::strategy::portfolio::StrategyPortfolio;
 
 #[derive(Builder, Clone)]
 #[builder(setter(prefix = "with"))]
@@ -37,7 +38,7 @@ impl StrategyPortfolioTelemtry {
 
 #[async_trait]
 impl StrategyPortfolio for StrategyPortfolioTelemtry {
-    async fn get_profit(&self, strategy_id: StrategyId) -> Result<Decimal, domain::error::Error> {
+    async fn get_profit(&self, strategy_id: StrategyId) -> Result<Decimal, models::error::Error> {
         let default_attrs = &[KeyValue::new("strategy_id", strategy_id)];
 
         let start_time = Instant::now();
@@ -47,7 +48,7 @@ impl StrategyPortfolio for StrategyPortfolioTelemtry {
             let elapsed = start_time.elapsed().as_millis() as f64;
             self.get_profit_histogram.record(elapsed, default_attrs);
 
-            let profit = Decimal::to_f64(v).ok_or(domain::error::Error::Message(format!(
+            let profit = Decimal::to_f64(v).ok_or(models::error::Error::Message(format!(
                 "error recording metric: unable to convert `{:?}` to f64",
                 v
             )))?;
@@ -62,7 +63,7 @@ impl StrategyPortfolio for StrategyPortfolioTelemtry {
     async fn get_security_positions(
         &self,
         strategy_id: StrategyId,
-    ) -> Result<Vec<SecurityPosition>, domain::error::Error> {
+    ) -> Result<Vec<SecurityPosition>, models::error::Error> {
         let default_attrs = &[KeyValue::new("strategy_id", strategy_id)];
 
         let start_time = Instant::now();
@@ -91,7 +92,7 @@ impl StrategyPortfolio for StrategyPortfolioTelemtry {
     async fn get_pending(
         &self,
         strategy_id: StrategyId,
-    ) -> Result<Vec<PendingOrder>, domain::error::Error> {
+    ) -> Result<Vec<PendingOrder>, models::error::Error> {
         let default_attrs = &[KeyValue::new("strategy_id", strategy_id)];
 
         let start_time = Instant::now();

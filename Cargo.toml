@@ -1,2 +1,9 @@
 [workspace]
-members = ["engine", "domain", "data_forwarder", "data_providers"]
+members = [
+  "engine",
+  "domain",
+  "forwarder",
+  "data_providers",
+  "models",
+  "traits",
+]

@@ -1,7 +1,7 @@
+use models::strategy::common::StrategyId;
+use models::strategy::signal::Signal;
 use strum_macros::AsRefStr;
 use strum_macros::VariantNames;
-
-use crate::strategy::{algorithm::StrategyId, model::signal::Signal};
 
 #[derive(thiserror::Error, Debug, AsRefStr, VariantNames)]
 #[strum(serialize_all = "snake_case")]

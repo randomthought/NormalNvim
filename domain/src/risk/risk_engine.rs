@@ -1,23 +1,23 @@
 use derive_builder::Builder;
 use futures_util::future;
+use models::strategy::common::StrategyId;
+use models::strategy::signal::{Close, Entry, Signal};
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use std::collections::HashMap;
 use std::sync::Arc;
+use traits::data::QouteProvider;
+use traits::order::{Account, OrderManager};
+use traits::strategy::portfolio::StrategyPortfolio;
 
 use super::algo_risk_config::AlgorithmRiskConfig;
 use super::error::RiskError;
-use crate::data::QouteProvider;
-use crate::models::orders::common::Side;
-use crate::models::orders::market::Market;
-use crate::models::orders::new_order::NewOrder;
-use crate::models::orders::order_result::OrderResult;
-use crate::models::orders::pending_order::PendingOrder;
-use crate::models::orders::security_position::SecurityPosition;
-use crate::models::security::Security;
-use crate::order::{Account, OrderManager};
-use crate::strategy::algorithm::{Strategy, StrategyId};
-use crate::strategy::model::signal::{Close, Entry, Signal};
-use crate::strategy::portfolio::StrategyPortfolio;
+use models::orders::common::Side;
+use models::orders::market::Market;
+use models::orders::new_order::NewOrder;
+use models::orders::order_result::OrderResult;
+use models::orders::pending_order::PendingOrder;
+use models::orders::security_position::SecurityPosition;
+use models::security::Security;
 
 #[derive(Clone)]
 pub enum TradingState {
@@ -160,14 +160,14 @@ impl RiskEngine {
                     .map_err(|e| RiskError::OtherError(e.into()))?;
                 Some(order_results)
             }
-            Signal::Entry(_) => None,
+            _ => None,
         };
 
         if let Some(order_results) = order_results {
             return Ok(order_results);
         }
 
-        let strategy_id: StrategyId = algo_risk_config.strategy_id();
+        let strategy_id: StrategyId = algo_risk_config.strategy_id;
 
         let profit = self
             .strategy_portfolio
@@ -527,7 +527,7 @@ impl RiskEngineBuilder {
         &mut self,
         algo_risk_config: AlgorithmRiskConfig,
     ) -> &mut Self {
-        let strategy_id = algo_risk_config.strategy_id();
+        let strategy_id = algo_risk_config.strategy_id;
 
         if let Some(config_map) = self.algorithm_risk_configs.as_mut() {
             config_map.insert(strategy_id, algo_risk_config);

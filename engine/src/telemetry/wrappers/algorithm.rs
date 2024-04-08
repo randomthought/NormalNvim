@@ -2,14 +2,12 @@ use std::{sync::Arc, time::Instant, u64};
 
 use async_trait::async_trait;
 use derive_builder::Builder;
-use domain::strategy::{
-    algorithm::{Algorithm, Strategy, StrategyId},
-    model::{algo_event::AlgoEvent, signal::Signal},
-};
+use models::strategy::{algo_event::AlgoEvent, common::StrategyId, signal::Signal};
 use opentelemetry::{
     metrics::{Counter, Gauge, Histogram, ObservableGauge, UpDownCounter},
     KeyValue,
 };
+use traits::strategy::algorithm::{Algorithm, Strategy};
 
 #[derive(Builder, Clone)]
 #[builder(setter(prefix = "with"))]
@@ -40,7 +38,7 @@ impl Algorithm for AlgorithmTelemetry {
     async fn on_event(
         &self,
         algo_event: AlgoEvent,
-    ) -> Result<Option<Signal>, domain::error::Error> {
+    ) -> Result<Option<Signal>, models::error::Error> {
         let default_attrs = &[KeyValue::new("strategy_id", self.strategy_id)];
 
         self.event_counter.add(

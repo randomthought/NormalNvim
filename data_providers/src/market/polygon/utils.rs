@@ -1,11 +1,11 @@
 use std::time::Duration;
 
 use super::models::{Aggregates, QuoteResponse};
-use domain::models::{
+use eyre::{OptionExt, Result};
+use models::{
     price::{common::Resolution, price_bar::PriceBar, quote::Quote},
     security::{AssetType, Exchange, Security},
 };
-use eyre::{OptionExt, Result};
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 
 pub fn to_price_history(aggregates: &Aggregates) -> Result<PriceBar> {

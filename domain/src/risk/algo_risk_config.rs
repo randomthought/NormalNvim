@@ -1,12 +1,14 @@
 use derive_builder::Builder;
+use getset::Getters;
+use models::strategy::common::StrategyId;
 use rust_decimal::Decimal;
+use traits::strategy::algorithm::Strategy;
 
-use crate::strategy::algorithm::{Strategy, StrategyId};
-
-#[derive(Builder, Clone, Copy)]
+#[derive(Builder, Getters, Clone, Copy)]
 #[builder(setter(prefix = "with", strip_option))]
+// #[getset(get = "pub")]
 pub struct AlgorithmRiskConfig {
-    strategy_id: StrategyId,
+    pub strategy_id: StrategyId,
     #[builder(default)]
     pub starting_balance: Decimal,
     #[builder(default)]
@@ -24,11 +26,5 @@ pub struct AlgorithmRiskConfig {
 impl AlgorithmRiskConfig {
     pub fn builder() -> AlgorithmRiskConfigBuilder {
         AlgorithmRiskConfigBuilder::default()
-    }
-}
-
-impl Strategy for AlgorithmRiskConfig {
-    fn strategy_id(&self) -> StrategyId {
-        self.strategy_id
     }
 }

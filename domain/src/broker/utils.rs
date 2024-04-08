@@ -1,17 +1,15 @@
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use uuid::Uuid;
 
-use crate::{
-    broker::Broker,
-    models::{
-        orders::{
-            common::Side, filled_order::FilledOrder, market::Market, order_result::OrderResult,
-            security_position::SecurityPosition,
-        },
-        price::{common::Price, quote::Quote},
-        security::Security,
+use crate::broker::Broker;
+use models::{
+    orders::{
+        common::Side, filled_order::FilledOrder, market::Market, order_result::OrderResult,
+        security_position::SecurityPosition,
     },
-    strategy::algorithm::StrategyId,
+    price::{common::Price, quote::Quote},
+    security::Security,
+    strategy::common::StrategyId,
 };
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -21,7 +19,7 @@ fn create_filled_order(
     side: Side,
     quote: &Quote,
     strategy_id: StrategyId,
-) -> Result<FilledOrder, crate::error::Error> {
+) -> Result<FilledOrder, models::error::Error> {
     let price = match side {
         Side::Long => quote.ask,
         Side::Short => quote.bid,
@@ -31,7 +29,7 @@ fn create_filled_order(
 
     let datetime = SystemTime::now()
         .duration_since(UNIX_EPOCH)
-        .map_err(|e| crate::error::Error::Any(e.into()))?;
+        .map_err(|e| models::error::Error::Any(e.into()))?;
 
     let fo = FilledOrder::builder()
         .with_order_id(order_id)
@@ -42,7 +40,7 @@ fn create_filled_order(
         .with_side(side)
         .with_strategy_id(strategy_id)
         .build()
-        .map_err(|e| crate::error::Error::Any(e.into()))?;
+        .map_err(|e| models::error::Error::Any(e.into()))?;
 
     Ok(fo)
 }
@@ -61,7 +59,7 @@ async fn create_trade(
     broker: &Broker,
     market_order: &Market,
     quote: &Quote,
-) -> Result<(Price, FilledOrder), crate::error::Error> {
+) -> Result<(Price, FilledOrder), models::error::Error> {
     let price = match market_order.order_details.side() {
         Side::Long => quote.bid,
         Side::Short => quote.ask,
@@ -126,12 +124,12 @@ pub async fn execute_market_order(
     broker: &Broker,
     quote: &Quote,
     market_order: &Market,
-) -> Result<OrderResult, crate::error::Error> {
+) -> Result<OrderResult, models::error::Error> {
     let (cost, filled_order) = create_trade(broker, &market_order, &quote).await?;
 
     let mut account_balance = broker.account_balance.write().await;
     if (cost + *account_balance) < Decimal::default() {
-        return Err(crate::error::Error::Message(
+        return Err(models::error::Error::Message(
             "do not have enough funds to peform trade".to_string(),
         ));
     }
@@ -141,7 +139,7 @@ pub async fn execute_market_order(
         .orders
         .insert(&order_result)
         .await
-        .map_err(|e| crate::error::Error::Message(e))?;
+        .map_err(|e| models::error::Error::Message(e))?;
 
     let commision = Decimal::from_u64(market_order.order_details.quantity().clone()).unwrap()
         * broker.commissions_per_share;

@@ -1,8 +1,8 @@
 use std::{pin::Pin, sync::Arc, time::Duration};
 
-use domain::event::model::DataEvent;
 use eyre::Ok;
 use futures_util::{Stream, StreamExt};
+use models::event::DataEvent;
 use tokio::time::sleep;
 
 use crate::parser::Parser;

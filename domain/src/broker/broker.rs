@@ -1,18 +1,14 @@
-use crate::{
-    broker::{orders::pending::PendingKey, utils},
-    data::QouteProvider,
-    models::{
-        orders::{
-            common::Side, limit::Limit, market::Market, new_order::NewOrder,
-            order_result::OrderResult,
-        },
-        price::{price_bar::PriceBar, quote::Quote},
+use crate::broker::{orders::pending::PendingKey, utils};
+use models::{
+    orders::{
+        common::Side, limit::Limit, market::Market, new_order::NewOrder, order_result::OrderResult,
     },
-    order::OrderManager,
+    price::{price_bar::PriceBar, quote::Quote},
 };
 use rust_decimal::{prelude::FromPrimitive, Decimal};
 use std::sync::Arc;
 use tokio::sync::RwLock;
+use traits::{data::QouteProvider, order::OrderManager};
 
 use super::orders::orders::Orders;
 
@@ -37,7 +33,10 @@ impl Broker {
         }
     }
 
-    pub async fn handle(&self, candle: &PriceBar) -> Result<Vec<OrderResult>, crate::error::Error> {
+    pub async fn handle(
+        &self,
+        candle: &PriceBar,
+    ) -> Result<Vec<OrderResult>, models::error::Error> {
         let pending_key = PendingKey::SecurityKey(candle.security.clone());
         let pending_orders = self.orders.get_pending_order(pending_key).await;
 
@@ -72,7 +71,7 @@ impl Broker {
         &self,
         limit: &Limit,
         candle: &PriceBar,
-    ) -> Result<Option<OrderResult>, crate::error::Error> {
+    ) -> Result<Option<OrderResult>, models::error::Error> {
         let met = match limit.order_details.side() {
             Side::Long => limit.price >= candle.close,
             Side::Short => limit.price <= candle.close,
@@ -90,7 +89,7 @@ impl Broker {
             .with_bid(limit.price)
             .with_ask(limit.price)
             .build()
-            .map_err(|e| crate::error::Error::Any(e.into()))?;
+            .map_err(|e| models::error::Error::Any(e.into()))?;
 
         let market_order = Market::builder()
             .with_security(limit.security.clone())

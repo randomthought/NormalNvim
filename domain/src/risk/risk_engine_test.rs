@@ -7,25 +7,23 @@ use rust_decimal::Decimal;
 use tokio::sync::RwLock;
 
 use crate::broker::Broker;
-use crate::models::orders::common::{Side, TimeInForce};
-use crate::models::orders::limit::Limit;
-use crate::models::orders::market::Market;
-use crate::models::orders::new_order::NewOrder;
-use crate::models::orders::pending_order::PendingOrder;
-use crate::models::orders::stop_limit_market::StopLimitMarket;
-use crate::order::{OrderManager, OrderReader};
 use crate::risk::algo_risk_config::AlgorithmRiskConfig;
 use crate::risk::error::RiskError;
 use crate::risk::risk_engine::TradingState;
-use crate::strategy::algorithm::StrategyId;
-use crate::strategy::model::signal::{Cancel, Close, Entry, Modify, Signal};
-use crate::{
-    data::QouteProvider,
-    models::{
-        price::{common::Price, quote::Quote},
-        security::{AssetType, Exchange, Security},
-    },
+use models::orders::common::{Side, TimeInForce};
+use models::orders::limit::Limit;
+use models::orders::market::Market;
+use models::orders::new_order::NewOrder;
+use models::orders::pending_order::PendingOrder;
+use models::orders::stop_limit_market::StopLimitMarket;
+use models::strategy::common::StrategyId;
+use models::strategy::signal::{Cancel, Close, Entry, Modify, Signal};
+use models::{
+    price::{common::Price, quote::Quote},
+    security::{AssetType, Exchange, Security},
 };
+use traits::data::QouteProvider;
+use traits::order::{OrderManager, OrderReader};
 
 use super::risk_engine::RiskEngine;
 
@@ -63,7 +61,7 @@ impl Stub {
 #[cfg(test)]
 #[async_trait]
 impl QouteProvider for Stub {
-    async fn get_quote(&self, security: &Security) -> Result<Quote, crate::error::Error> {
+    async fn get_quote(&self, security: &Security) -> Result<Quote, models::error::Error> {
         let price = self.price.read().await;
 
         let quote = Quote::builder()
@@ -83,11 +81,6 @@ impl QouteProvider for Stub {
 #[cfg(test)]
 #[tokio::test]
 async fn reject_trade_on_halt() {
-    use crate::{
-        models::orders::pending_order::PendingOrder,
-        strategy::model::signal::{Cancel, Modify},
-    };
-
     let setup = Setup::new();
 
     let stub = Arc::new(Stub::new());

@@ -1,6 +1,6 @@
 use actix::{dev::SendError, Actor, Context, Recipient};
 use derive_builder::Builder;
-use domain::{event::model::DataEvent, strategy::model::algo_event::AlgoEvent};
+use models::{event::DataEvent, strategy::algo_event::AlgoEvent};
 
 use super::models::AlgoEventMessage;
 

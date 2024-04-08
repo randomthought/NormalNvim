@@ -1,7 +1,7 @@
 use derive_builder::Builder;
 use getset::{CopyGetters, Getters};
 
-use crate::models::{
+use models::{
     orders::{
         common::{OrderDetails, OrderId, Side},
         filled_order::FilledOrder,

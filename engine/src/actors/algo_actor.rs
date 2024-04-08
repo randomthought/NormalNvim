@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use actix::{dev::ContextFutureSpawner, Actor, Context, Handler, Recipient, WrapFuture};
 use derive_builder::Builder;
-use domain::strategy::algorithm::Algorithm;
+use traits::strategy::algorithm::Algorithm;
 
 use super::models::{AddSignalSubscribers, AlgoEventMessage, SignalMessage};
 

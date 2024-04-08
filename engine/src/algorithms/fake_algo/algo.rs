@@ -3,22 +3,17 @@ use std::time::{SystemTime, UNIX_EPOCH};
 use actix::Actor;
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use domain::{
-    event::{self, model},
-    models::orders::{
-        common::{OrderDetails, Side},
-        market::Market,
-        new_order::NewOrder,
-    },
+use models::{
+    event::DataEvent,
+    orders::{common::Side, market::Market, new_order::NewOrder},
     strategy::{
-        algorithm::{Algorithm, Strategy, StrategyId},
-        model::{
-            algo_event::AlgoEvent,
-            signal::{Entry, Signal},
-        },
+        algo_event::AlgoEvent,
+        common::StrategyId,
+        signal::{Entry, Signal},
     },
 };
 use rand::{rngs::StdRng, Rng, SeedableRng};
+use traits::strategy::algorithm::{Algorithm, Strategy};
 
 pub struct FakeAlgo {}
 
@@ -33,14 +28,13 @@ impl Algorithm for FakeAlgo {
     async fn on_event(
         &self,
         algo_event: AlgoEvent,
-    ) -> Result<Option<Signal>, domain::error::Error> {
+    ) -> Result<Option<Signal>, models::error::Error> {
         if let AlgoEvent::OrderResult(order_result) = algo_event {
             println!("fake_algo: my order was filled: {:?}", order_result);
             return Ok(None);
         };
 
-        let AlgoEvent::DataEvent(event::model::DataEvent::PriceBar(price_history)) = algo_event
-        else {
+        let AlgoEvent::DataEvent(DataEvent::PriceBar(price_history)) = algo_event else {
             return Ok(None);
         };
         // println!("fake_algo saw event");
@@ -67,7 +61,7 @@ impl Algorithm for FakeAlgo {
             let order = NewOrder::Market(market);
             let datetime = SystemTime::now()
                 .duration_since(UNIX_EPOCH)
-                .map_err(|e| domain::error::Error::Any(e.into()))?;
+                .map_err(|e| models::error::Error::Any(e.into()))?;
 
             let signal = Signal::Entry(
                 Entry::builder()
