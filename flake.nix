@@ -35,20 +35,28 @@
         engineApp = "engine";
         engineDockerImage = pkgs.dockerTools.buildImage {
           name = "${engineApp}";
-          config = { Entrypoint = [ "${appName}/bin/${engineApp}" ]; };
+          contents = [ appRustBuild pkgs.cacert ];
+          config = { 
+            Entrypoint = [ "${appRustBuild}/bin/${engineApp}" ];
+            Env = [ "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt" ];
+          };
         };
 
-        dataForwarderApp = "data_forwarder";
-        dataForwarderDockerImage = pkgs.dockerTools.buildImage {
-          name = "${dataForwarderApp}";
-          config = { Entrypoint = [ "${appName}/bin/${dataForwarderApp}" ]; };
+        forwarderApp = "forwarder";
+        forwarderDockerImage = pkgs.dockerTools.buildImage {
+          name = "${forwarderApp}";
+          contents = [ appRustBuild pkgs.cacert ];
+          config = { 
+            Entrypoint = [ "${appRustBuild}/bin/${forwarderApp}" ];
+            Env = [ "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt" ];
+          };
         };
 
       in rec {
         packages = {
           rustPackage = appRustBuild;
           engineDocker = engineDockerImage;
-          dataForwarderDocker = dataForwarderDockerImage;
+          forwarderDocker = forwarderDockerImage;
         };
         devShell = pkgs.mkShell {
           buildInputs = nonRustDeps;
