@@ -33,22 +33,31 @@
         };
 
         engineApp = "engine";
-        engineDockerImage = pkgs.dockerTools.buildImage {
-          name = "${engineApp}";
-          contents = [ appRustBuild pkgs.cacert ];
+        engineDockerImage = let 
+          appName = "engine";
+        in pkgs.dockerTools.buildImage {
+          name = "${appName}";
+          copyToRoot = pkgs.buildEnv {
+            name = "image-root";
+            pathsToLink = ["/"];
+            paths = [ appRustBuild ]; # TODO: ensure you only copy the app binery
+          };
           config = { 
-            Entrypoint = [ "${appRustBuild}/bin/${engineApp}" ];
-            Env = [ "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt" ];
+            Entrypoint = [ "${appRustBuild}/bin/${appName}" ];
           };
         };
 
-        forwarderApp = "forwarder";
-        forwarderDockerImage = pkgs.dockerTools.buildImage {
-          name = "${forwarderApp}";
-          contents = [ appRustBuild pkgs.cacert ];
+        forwarderDockerImage = let
+          appName = "forwarder";
+        in pkgs.dockerTools.buildImage {
+          name = "${appName}";
+          copyToRoot = pkgs.buildEnv {
+            name = "image-root";
+            pathsToLink = ["/"];
+            paths = [ appRustBuild ]; # TODO: ensure you only copy the app binery
+          };
           config = { 
-            Entrypoint = [ "${appRustBuild}/bin/${forwarderApp}" ];
-            Env = [ "SSL_CERT_FILE=${pkgs.cacert}/etc/ssl/certs/ca-bundle.crt" ];
+            Entrypoint = [ "${appRustBuild}/bin/${appName}" ];
           };
         };
 
