@@ -16,18 +16,12 @@ rand = "0.8"
 futures-util = "0.3.28"
 tungstenite = { version = "0.16.0", features = ["native-tls"] }
 url = "2.2.2"
-serde = { version = "1.0", features = ["derive"] }
-serde_derive = "1.0"
-serde_json = "1.0"
 async-stream = "0.3.5"
 reqwest = { version = "0.11", features = ["json"] }
 rust_decimal = "1.32"
-# anyhow = "1.0.75"
 eyre = "0.6"
 color-eyre = "0.5"
-sec = "1.0.0"
 thiserror = "1.0"
-tokio-stream = "0.1"
 actix = "0.13"
 derive_builder = "0.10"
 getset = "0.1.2"
@@ -39,3 +33,5 @@ opentelemetry-stdout = { version = "0.3", features = ["metrics"] }
 opentelemetry-prometheus = "0.15.0"
 prometheus = " 0.13"
 actix-web = "4"
+# move 
+sec = "1.0.0"
