@@ -23,11 +23,13 @@
 
         version = "0.1.0";
 
-        appName = "trade_engine";
-        appRustBuild = rustPlatform.buildRustPackage {
-          pname = "${appName}";
+        appEngineRustBuild = let 
+          appName = "engine";
+        in rustPlatform.buildRustPackage {
+          pname = appName;
           version = version;
           src = ./.;
+          buildAndTestSubdir = appName;
           cargoLock.lockFile = ./Cargo.lock;
           buildInputs = nonRustDeps;
         };
@@ -39,12 +41,23 @@
           name = "${appName}";
           copyToRoot = pkgs.buildEnv {
             name = "image-root";
-            pathsToLink = ["/"];
-            paths = [ appRustBuild ]; # TODO: ensure you only copy the app binery
+            pathsToLink = [ "/bin" ];
+            paths = [ appEngineRustBuild ];
           };
           config = { 
-            Entrypoint = [ "${appRustBuild}/bin/${appName}" ];
+            Entrypoint = [ "/bin/${appName}" ];
           };
+        };
+
+        appForwarderRustBuild = let 
+          appName = "forwarder";
+        in rustPlatform.buildRustPackage {
+          pname = appName;
+          version = version;
+          src = ./.;
+          buildAndTestSubdir = appName;
+          cargoLock.lockFile = ./Cargo.lock;
+          buildInputs = nonRustDeps;
         };
 
         forwarderDockerImage = let
@@ -53,17 +66,18 @@
           name = "${appName}";
           copyToRoot = pkgs.buildEnv {
             name = "image-root";
-            pathsToLink = ["/"];
-            paths = [ appRustBuild ]; # TODO: ensure you only copy the app binery
+            pathsToLink = [ "/bin" ];
+            paths = [ appForwarderRustBuild ];
           };
           config = { 
-            Entrypoint = [ "${appRustBuild}/bin/${appName}" ];
+            Entrypoint = [ "/bin/${appName}" ];
           };
         };
 
       in rec {
         packages = {
-          rustPackage = appRustBuild;
+          rustEnginePackage = appEngineRustBuild;
+          rustForwarderPackage = appForwarderRustBuild;
           engineDocker = engineDockerImage;
           forwarderDocker = forwarderDockerImage;
         };
