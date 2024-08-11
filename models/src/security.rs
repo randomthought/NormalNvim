@@ -31,14 +31,6 @@ pub struct Security {
 }
 
 impl Security {
-    pub fn new(asset_type: AssetType, exchange: Exchange, ticker: String) -> Self {
-        Security {
-            asset_type,
-            exchange,
-            ticker,
-        }
-    }
-
     pub fn builder() -> SecurityBuilder {
         SecurityBuilder::default()
     }

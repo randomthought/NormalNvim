@@ -36,7 +36,12 @@ struct Setup {
 
 impl Setup {
     pub fn new() -> Self {
-        let security = Security::new(AssetType::Equity, Exchange::NYSE, "GE".into());
+        let security = Security::builder()
+            .with_asset_type(AssetType::Equity)
+            .with_exchange(Exchange::NYSE)
+            .with_ticker("GE".into())
+            .build()
+            .unwrap();
         let price = Decimal::new(1000, 0);
         Self { security, price }
     }

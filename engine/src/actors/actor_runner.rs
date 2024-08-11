@@ -6,7 +6,7 @@ use std::{
     },
 };
 
-use crate::telemetry::metrics::Metrics;
+use crate::{event_providers::back_test::BackTester, telemetry::metrics::Metrics};
 
 use super::{
     algo_actor::AlgoActor, broker_price_event_actor::BrokerPriceEventActor, event_bus::EventBus,
@@ -27,6 +27,8 @@ pub struct ActorRunner {
     risk_engine: RiskEngine,
     #[builder(default)]
     in_memory_broker: Option<Arc<Broker>>,
+    #[builder(default)]
+    in_memory_qoute_provider: Option<Arc<BackTester>>,
     shutdown_signal: Arc<AtomicBool>,
     metrics: Metrics,
 }
@@ -110,7 +112,13 @@ impl ActorRunner {
             if self.shutdown_signal.load(Ordering::SeqCst) {
                 break;
             }
+
             if let Some(data_event) = dr? {
+                match (self.in_memory_qoute_provider.as_ref(), &data_event) {
+                    (Some(bt_qp), DataEvent::PriceBar(pb)) => bt_qp.add(&pb).await?,
+                    _ => (),
+                }
+
                 event_bus.notify(data_event)?;
             }
         }

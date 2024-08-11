@@ -31,7 +31,7 @@ impl BackTester {
         }
     }
 
-    async fn add(&self, candle: &PriceBar) -> Result<()> {
+    pub async fn add(&self, candle: &PriceBar) -> Result<()> {
         let spread_half = (candle.close * self.spread) / Decimal::from(2);
         let bid = candle.close - spread_half;
         let ask = candle.close + spread_half;

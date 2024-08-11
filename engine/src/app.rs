@@ -22,6 +22,7 @@ use domain::{
     risk::{algo_risk_config::AlgorithmRiskConfig, risk_engine::RiskEngine},
 };
 use eyre::ContextCompat;
+use futures_util::StreamExt;
 use opentelemetry::global;
 use opentelemetry_sdk::metrics::SdkMeterProvider;
 use prometheus::{Encoder, Registry, TextEncoder};
@@ -111,7 +112,7 @@ pub async fn run_app() -> color_eyre::eyre::Result<()> {
             };
 
             AlgorithmRiskConfig::builder()
-                .with_starting_balance(Decimal::new(100, 0))
+                .with_starting_balance(Decimal::new(50_000, 0))
                 .with_strategy_id(algo.strategy_id())
                 .with_max_open_trades(20)
                 .build()
@@ -150,6 +151,7 @@ pub async fn run_app() -> color_eyre::eyre::Result<()> {
             b.add_algorithm(x.strategy_id(), Arc::new(x))
         })
         .with_in_memory_broker(broker.clone())
+        .with_in_memory_qoute_provider(back_tester_)
         .with_risk_engine(risk_engine)
         .with_shutdown_signal(shutdown_signal.clone())
         .with_metrics(metrics.clone())
