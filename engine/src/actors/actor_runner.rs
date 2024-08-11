@@ -6,7 +6,9 @@ use std::{
     },
 };
 
-use crate::{event_providers::back_test::BackTester, telemetry::metrics::Metrics};
+use crate::{
+    event_providers::in_memory_qoute_provider::InMemoryQouteProvider, telemetry::metrics::Metrics,
+};
 
 use super::{
     algo_actor::AlgoActor, broker_price_event_actor::BrokerPriceEventActor, event_bus::EventBus,
@@ -28,7 +30,7 @@ pub struct ActorRunner {
     #[builder(default)]
     in_memory_broker: Option<Arc<Broker>>,
     #[builder(default)]
-    in_memory_qoute_provider: Option<Arc<BackTester>>,
+    in_memory_qoute_provider: Option<Arc<InMemoryQouteProvider>>,
     shutdown_signal: Arc<AtomicBool>,
     metrics: Metrics,
 }

@@ -14,7 +14,7 @@ pub struct Metrics {
     algorithm_signal_counter: Counter<u64>,
     algorithm_event_counter: Counter<u64>,
     algorithm_histogram: Histogram<f64>,
-    algorithm_event_guage: ObservableGauge<u64>,
+    algorithm_event_gauge: ObservableGauge<u64>,
     algorithm_on_data_error_counter: Counter<u64>,
     // Risk Engine Metrics
     // =======================================
@@ -30,7 +30,6 @@ pub struct Metrics {
     strategy_portfolio_profit_gauge: ObservableGauge<f64>,
     strategy_portfolio_get_profit_histogram: Histogram<f64>,
     strategy_portfolio_get_profit_error_counter: Counter<u64>,
-    strategy_portfolio_security_positions_guage: ObservableGauge<u64>,
     strategy_portfolio_get_security_positions_histogram: Histogram<f64>,
     strategy_portfolio_get_security_positions_error: Counter<u64>,
     strategy_portfolio_pending_orders_gauge: ObservableGauge<u64>,
@@ -71,9 +70,9 @@ impl MetricsBuilder {
                 .init(),
         );
 
-        self.algorithm_event_guage = Some(
+        self.algorithm_event_gauge = Some(
             value
-                .u64_observable_gauge("algo_event_guage")
+                .u64_observable_gauge("algo_event_gauge")
                 .with_description("records algo_event")
                 .init(),
         );
@@ -118,12 +117,6 @@ impl MetricsBuilder {
         self.strategy_portfolio_get_profit_error_counter = Some(
             value
                 .u64_counter("strategy_portfolio_get_profit_error_counter")
-                .init(),
-        );
-
-        self.strategy_portfolio_security_positions_guage = Some(
-            value
-                .u64_observable_gauge("strategy_portfolio_security_positions_guage")
                 .init(),
         );
 

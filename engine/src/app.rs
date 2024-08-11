@@ -1,7 +1,7 @@
 use crate::{
     actors::actor_runner::ActorRunner,
     algorithms::fake_algo::algo::FakeAlgo,
-    event_providers::back_test::BackTester,
+    event_providers::in_memory_qoute_provider::InMemoryQouteProvider,
     telemetry::{
         metrics::Metrics,
         wrappers::{algorithm::AlgorithmTelemetry, strategy_portfolio::StrategyPortfolioTelemtry},
@@ -9,20 +9,12 @@ use crate::{
 };
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use color_eyre::eyre::Result;
-use data_providers::{
-    file,
-    market::{
-        forwarder::forwarder::ForwarderClient,
-        polygon::{self, parser::PolygonParser},
-    },
-    utils,
-};
+use data_providers::{file, market::forwarder::forwarder::ForwarderClient};
 use domain::{
     broker::Broker,
     risk::{algo_risk_config::AlgorithmRiskConfig, risk_engine::RiskEngine},
 };
 use eyre::ContextCompat;
-use futures_util::StreamExt;
 use opentelemetry::global;
 use opentelemetry_sdk::metrics::SdkMeterProvider;
 use prometheus::{Encoder, Registry, TextEncoder};
@@ -52,9 +44,9 @@ pub async fn run_app() -> color_eyre::eyre::Result<()> {
     let meter = global::meter("trading_engine");
     let metrics = Metrics::builder().with_meter(&meter).build()?;
 
-    let back_tester = BackTester::new(0.05, Box::new(PolygonParser::new()));
-    let back_tester_ = Arc::new(back_tester);
-    let qoute_provider = back_tester_.clone();
+    let imqp = InMemoryQouteProvider::new(0.05);
+    let in_memory_qoute_provider = Arc::new(imqp);
+    let qoute_provider = in_memory_qoute_provider.clone();
 
     let broker = Broker::new(
         Decimal::from_u64(100_000).wrap_err("error parsing account balance")?,
@@ -112,7 +104,7 @@ pub async fn run_app() -> color_eyre::eyre::Result<()> {
             };
 
             AlgorithmRiskConfig::builder()
-                .with_starting_balance(Decimal::new(50_000, 0))
+                .with_starting_balance(Decimal::new(100, 0))
                 .with_strategy_id(algo.strategy_id())
                 .with_max_open_trades(20)
                 .build()
@@ -141,7 +133,6 @@ pub async fn run_app() -> color_eyre::eyre::Result<()> {
     let path = Path::new(&file);
     let buff_size = 4096usize;
     let raw_data_stream = file::utils::create_stream(path, buff_size)?;
-    let parser = back_tester_.clone();
 
     // let data_stream = utils::parse_stream(raw_data_stream, parser.clone());
     let shutdown_signal = Arc::new(AtomicBool::new(false));
@@ -151,7 +142,7 @@ pub async fn run_app() -> color_eyre::eyre::Result<()> {
             b.add_algorithm(x.strategy_id(), Arc::new(x))
         })
         .with_in_memory_broker(broker.clone())
-        .with_in_memory_qoute_provider(back_tester_)
+        .with_in_memory_qoute_provider(in_memory_qoute_provider)
         .with_risk_engine(risk_engine)
         .with_shutdown_signal(shutdown_signal.clone())
         .with_metrics(metrics.clone())

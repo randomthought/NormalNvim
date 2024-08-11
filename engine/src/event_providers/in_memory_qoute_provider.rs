@@ -3,8 +3,6 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use color_eyre::eyre::Result;
-use data_providers::parser::{Parser, ParserError};
-use models::event::DataEvent;
 use models::price::price_bar::PriceBar;
 use models::price::quote::Quote;
 use models::security::Security;
@@ -13,21 +11,19 @@ use rust_decimal::Decimal;
 use tokio::sync::RwLock;
 use traits::data::QouteProvider;
 
-pub struct BackTester {
+pub struct InMemoryQouteProvider {
     spread: Decimal,
     map: Arc<RwLock<HashMap<String, Quote>>>,
-    parser: Box<dyn Parser + Sync + Send>,
 }
 
-impl BackTester {
-    pub fn new(spread: f64, parser: Box<dyn Parser + Sync + Send>) -> Self {
+impl InMemoryQouteProvider {
+    pub fn new(spread: f64) -> Self {
         let hash_map = HashMap::new();
         let map = Arc::new(RwLock::new(hash_map));
         Self {
             // TODO: should we consider error handling if we cannot parse floating?
             spread: Decimal::from_f64(spread).unwrap(),
             map,
-            parser,
         }
     }
 
@@ -56,21 +52,7 @@ impl BackTester {
 }
 
 #[async_trait]
-impl Parser for BackTester {
-    async fn parse(&self, data: &str) -> Result<Option<DataEvent>, ParserError> {
-        let event = self.parser.parse(data).await?;
-        let Some(event) = event else { return Ok(None) };
-        let DataEvent::PriceBar(ph) = event.clone();
-        self.add(&ph)
-            .await
-            .map_err(|e| ParserError::OtherError(e.into()))?;
-
-        Ok(Some(event))
-    }
-}
-
-#[async_trait]
-impl QouteProvider for BackTester {
+impl QouteProvider for InMemoryQouteProvider {
     async fn get_quote(&self, security: &Security) -> Result<Quote, models::error::Error> {
         let map = self.map.read().await;
         let quote = map.get(&security.ticker).ok_or_else(|| {
