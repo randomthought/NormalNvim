@@ -9,12 +9,19 @@ use crate::{
 };
 use actix_web::{web, App, HttpResponse, HttpServer, Responder};
 use color_eyre::eyre::Result;
-use data_providers::{file, market::forwarder::forwarder::ForwarderClient};
+use data_providers::{
+    file,
+    market::{forwarder::forwarder::ForwarderClient, polygon},
+    parser::Parser,
+    utils,
+};
 use domain::{
     broker::Broker,
     risk::{algo_risk_config::AlgorithmRiskConfig, risk_engine::RiskEngine},
 };
 use eyre::ContextCompat;
+use futures_util::Stream;
+use models::event::DataEvent;
 use opentelemetry::global;
 use opentelemetry_sdk::metrics::SdkMeterProvider;
 use prometheus::{Encoder, Registry, TextEncoder};
@@ -22,6 +29,7 @@ use rust_decimal::{prelude::FromPrimitive, Decimal};
 use std::{
     env,
     path::Path,
+    pin::Pin,
     sync::{
         atomic::{AtomicBool, Ordering},
         Arc,
@@ -88,7 +96,7 @@ pub async fn run_app() -> color_eyre::eyre::Result<()> {
                 .with_event_counter(m.algorithm_event_counter().clone())
                 .with_signal_counter(m.algorithm_signal_counter().clone())
                 .with_histogram(m.algorithm_histogram().clone())
-                .with_event_guage(m.algorithm_event_guage().clone())
+                .with_event_guage(m.algorithm_event_gauge().clone())
                 .with_on_data_error(m.algorithm_on_data_error_counter().clone())
                 .build()
         })
@@ -116,25 +124,10 @@ pub async fn run_app() -> color_eyre::eyre::Result<()> {
         .with_qoute_provider(qoute_provider.clone())
         .build()?;
 
-    let client = reqwest::Client::new();
+    let polygon_parser = polygon::parser::PolygonParser::new();
+    let parser = Arc::new(polygon_parser);
+    let data_stream = get_stream(parser).await?;
 
-    let forwarder_client = ForwarderClient::builder()
-        .with_client(client.clone())
-        .with_end_point("http://127.0.0.1:8081/market".into())
-        .build()?;
-
-    let data_stream = forwarder_client.get_stream().await?;
-
-    let api_key = env::var("API_KEY")?;
-    let subscription = "A.*";
-    // let raw_data_stream = polygon::stream_client::create_stream(&api_key, &subscription)?;
-
-    let file = env::var("FILE")?;
-    let path = Path::new(&file);
-    let buff_size = 4096usize;
-    let raw_data_stream = file::utils::create_stream(path, buff_size)?;
-
-    // let data_stream = utils::parse_stream(raw_data_stream, parser.clone());
     let shutdown_signal = Arc::new(AtomicBool::new(false));
     let actor_runner = algorithms
         .into_iter()
@@ -190,4 +183,38 @@ async fn prometheus_metrics_api(registry: Registry) -> impl Responder {
     HttpResponse::Ok()
         .content_type(encoder.format_type())
         .body(output)
+}
+
+async fn get_stream(
+    parser: Arc<dyn Parser + Sync + Send>,
+) -> Result<Pin<Box<dyn Stream<Item = Result<Option<DataEvent>>> + Send>>> {
+    if let Ok(file) = env::var("FILE") {
+        let path = Path::new(&file);
+        let buff_size = 4096usize;
+        let raw_data_stream = file::utils::create_stream(path, buff_size)?;
+        let data_stream = utils::parse_stream(raw_data_stream, parser);
+        return Ok(data_stream);
+    }
+
+    if let Ok(end_point) = env::var("ENDPOINT") {
+        let client = reqwest::Client::new();
+        let forwarder_client = ForwarderClient::builder()
+            .with_client(client.clone())
+            .with_end_point(end_point)
+            .build()?;
+
+        let data_stream = forwarder_client.get_stream().await?;
+        return Ok(data_stream);
+    }
+
+    if let Ok(api_key) = env::var("API_KEY") {
+        let subscription = "A.*";
+        let raw_data_stream = polygon::stream_client::create_stream(&api_key, &subscription)?;
+        let pp = polygon::parser::PolygonParser::new();
+        let polygon_parser = Arc::new(pp);
+        let data_stream = utils::parse_stream(raw_data_stream, polygon_parser);
+        return Ok(data_stream);
+    }
+
+    unimplemented!()
 }
