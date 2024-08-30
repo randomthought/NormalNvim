@@ -57,6 +57,7 @@ return {
   Package = "󰏖",
   Paste = "󰅌",
   Refresh = "",
+  Replace = "󰛔",
   Run = "󰑮",
   Search = "",
   Selected = "❯",

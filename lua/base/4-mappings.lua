@@ -71,6 +71,7 @@ local is_android = vim.fn.isdirectory('/data') == 1 -- true if on android
 -- icons displayed on which-key.nvim ---------------------------------------
 local icons = {
   f = { desc = get_icon("Search", 1, true) .. "Find" },
+  fr = { desc = get_icon("Replace", 1, true) .. "Replace" },
   p = { desc = get_icon("Package", 1, true) .. "Packages" },
   l = { desc = get_icon("ActiveLSP", 1, true) .. "LSP" },
   u = { desc = get_icon("Window", 1, true) .. "UI" },
@@ -132,8 +133,6 @@ if not is_android then
   -- only useful when the option clipboard is commented on ./1-options.lua
   maps.n["<C-y>"] = { '"+y<esc>', desc = "Copy to cliboard" }
   maps.x["<C-y>"] = { '"+y<esc>', desc = "Copy to cliboard" }
-  maps.n["<C-d>"] = { '"+y<esc>dd', desc = "Copy to clipboard and delete line" }
-  maps.x["<C-d>"] = { '"+y<esc>dd', desc = "Copy to clipboard and delete line" }
   maps.n["<C-p>"] = { '"+p<esc>', desc = "Paste from clipboard" }
 end
 
@@ -142,46 +141,6 @@ maps.n["c"] = { '"_c', desc = "Change without yanking" }
 maps.n["C"] = { '"_C', desc = "Change without yanking" }
 maps.x["c"] = { '"_c', desc = "Change without yanking" }
 maps.x["C"] = { '"_C', desc = "Change without yanking" }
-
--- Make 'x' key not copy to clipboard when deleting a character.
-maps.n["x"] = {
-  -- Also let's allow 'x' key to delete blank lines in normal mode.
-  function()
-    if vim.fn.col "." == 1 then
-      local line = vim.fn.getline "."
-      if line:match "^%s*$" then
-        vim.api.nvim_feedkeys('"_dd', "n", false)
-        vim.api.nvim_feedkeys("$", "n", false)
-      else
-        vim.api.nvim_feedkeys('"_x', "n", false)
-      end
-    else
-      vim.api.nvim_feedkeys('"_x', "n", false)
-    end
-  end,
-  desc = "Delete character without yanking it",
-}
-maps.x["x"] = { '"_x', desc = "Delete all characters in line" }
-
--- Same for shifted X
-maps.n["X"] = {
-  -- Also let's allow 'x' key to delete blank lines in normal mode.
-  function()
-    if vim.fn.col "." == 1 then
-      local line = vim.fn.getline "."
-      if line:match "^%s*$" then
-        vim.api.nvim_feedkeys('"_dd', "n", false)
-        vim.api.nvim_feedkeys("$", "n", false)
-      else
-        vim.api.nvim_feedkeys('"_X', "n", false)
-      end
-    else
-      vim.api.nvim_feedkeys('"_X', "n", false)
-    end
-  end,
-  desc = "Delete before character without yanking it",
-}
-maps.x["X"] = { '"_X', desc = "Delete all characters in line" }
 
 -- Override nvim default behavior so it doesn't auto-yank when pasting on visual mode.
 maps.x["p"] = { "P", desc = "Paste content you've previourly yanked" }
@@ -868,16 +827,16 @@ if is_available "telescope.nvim" then
     desc = "Find commands",
   }
   -- Let's disable this. It is way too imprecise. Use rnvimr instead.
-  -- maps.n["<leader>ff"] = {
-  --   function()
-  --     require("telescope.builtin").find_files { hidden = true, no_ignore = true }
-  --   end,
-  --   desc = "Find all files",
-  -- }
-  -- maps.n["<leader>fF"] = {
-  --   function() require("telescope.builtin").find_files() end,
-  --   desc = "Find files (no hidden)",
-  -- }
+  maps.n["<leader>ff"] = {
+    function()
+      require("telescope.builtin").find_files { hidden = true, no_ignore = true }
+    end,
+    desc = "Find all files",
+  }
+  maps.n["<leader>fF"] = {
+    function() require("telescope.builtin").find_files() end,
+    desc = "Find files (no hidden)",
+  }
   maps.n["<leader>fh"] = {
     function() require("telescope.builtin").help_tags() end,
     desc = "Find help",
@@ -917,7 +876,11 @@ if is_available "telescope.nvim" then
     end,
     desc = "Find themes",
   }
-  maps.n["<leader>ff"] = {
+  maps.n["<leader>fb"] = {
+    function() require("telescope.builtin").current_buffer_fuzzy_find() end,
+    desc = "Find words in current buffer"
+  }
+  maps.n["<leader>fg"] = {
     function()
       require("telescope.builtin").live_grep {
         additional_args = function(args)
@@ -927,13 +890,9 @@ if is_available "telescope.nvim" then
     end,
     desc = "Find words in project",
   }
-  maps.n["<leader>fF"] = {
+  maps.n["<leader>fG"] = {
     function() require("telescope.builtin").live_grep() end,
     desc = "Find words in project (no hidden)",
-  }
-  maps.n["<leader>f/"] = {
-    function() require("telescope.builtin").current_buffer_fuzzy_find() end,
-    desc = "Find words in current buffer"
   }
 
   -- Some lsp keymappings are here because they depend on telescope
@@ -971,11 +930,12 @@ if is_available "telescope.nvim" then
 
   -- extra - spectre.nvim (search and replace in project)
   if is_available "nvim-spectre" then
-    maps.n["<leader>fr"] = {
+    maps.n["<leader>fr"] = icons.fr
+    maps.n["<leader>frp"] = {
       function() require("spectre").toggle() end,
       desc = "Find and replace word in project",
     }
-    maps.n["<leader>fb"] = {
+    maps.n["<leader>frb"] = {
       function() require("spectre").toggle { path = vim.fn.expand "%:t:p" } end,
       desc = "Find and replace word in buffer",
     }

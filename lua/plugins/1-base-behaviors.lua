@@ -2,6 +2,7 @@
 -- Plugins that add new behaviors.
 
 --    Sections:
+--       -> indent-o-matic         [better indentation detection]
 --       -> yazi file browser      [yazi]
 --       -> project.nvim           [project search + auto cd]
 --       -> trim.nvim              [auto trim spaces]
@@ -14,6 +15,7 @@
 --       -> spectre.nvim           [search and replace in project]
 --       -> neotree file browser   [neotree]
 --       -> nvim-ufo               [folding mod]
+--       -> tabfold                [folding using tab]
 --       -> nvim-neoclip           [nvim clipboard]
 --       -> zen-mode.nvim          [distraction free mode]
 --       -> suda.vim               [write as sudo]
@@ -28,7 +30,8 @@
 local is_android = vim.fn.isdirectory('/data') == 1 -- true if on android
 
 return {
-
+  -- indent-o-matic
+  { "Darazaki/indent-o-matic" },
   -- [yazi] file browser
   -- https://github.com/mikavilpas/yazi.nvim
   -- Make sure you have yazi installed on your system!
@@ -140,6 +143,7 @@ return {
     "akinsho/toggleterm.nvim",
     cmd = { "ToggleTerm", "TermExec" },
     opts = {
+      open_mapping = [[<c-\>]],
       highlights = {
         Normal = { link = "Normal" },
         NormalNC = { link = "NormalNC" },
@@ -448,7 +452,9 @@ return {
           end,
         },
         window = {
-          width = 30,
+          position = "float",
+          popup_border_style = "double",
+          width = 35,
           mappings = {
             ["<space>"] = false,
             ["<S-CR>"] = "system_open",
@@ -467,6 +473,21 @@ return {
           },
           hijack_netrw_behavior = "open_current",
           use_libuv_file_watcher = true,
+				  buffers = {
+					  follow_current_file = true,
+					  leave_dirs_open = false,
+				  },
+        },
+       default_component_configs = {
+          file_size = {
+            enabled = false,
+          },
+          type = {
+            enabled = false,
+          },
+          last_modified = {
+            enabled = false,
+          },
         },
         event_handlers = {
           {
@@ -477,6 +498,10 @@ return {
       }
     end,
   },
+
+  --  code [tabfold]
+  --  https://github.com/thalesmello/tabfold
+  { "thalesmello/tabfold" },
 
   --  code [folding mod] + [promise-asyn] dependency
   --  https://github.com/kevinhwang91/nvim-ufo

@@ -7,6 +7,7 @@
 --       -> alpha-nvim                  [greeter]
 --       -> nvim-notify                 [notifications]
 --       -> mini.indentscope            [guides]
+--       -> indent-blankline            [ui components]
 --       -> heirline-components.nvim    [ui components]
 --       -> heirline                    [ui components]
 --       -> telescope                   [search]
@@ -17,7 +18,6 @@
 --       -> nvim-web-devicons           [icons | ui]
 --       -> lspkind.nvim                [icons | lsp]
 --       -> nvim-scrollbar              [scrollbar]
---       -> mini.animate                [animations]
 --       -> highlight-undo              [highlights]
 --       -> which-key                   [on-screen keybinding]
 
@@ -26,7 +26,6 @@ local is_windows = vim.fn.has('win32') == 1         -- true if on windows
 local is_android = vim.fn.isdirectory('/data') == 1 -- true if on android
 
 return {
-
   -- tokyonight [theme]
   -- https://github.com/folke/tokyonight.nvim
   {
@@ -49,6 +48,7 @@ return {
     opts = {
       palette = "astrodark",
       plugins = { ["dashboard-nvim"] = true },
+      style = { inactive = false, },
     },
   },
 
@@ -62,16 +62,16 @@ return {
       local dashboard = require("alpha.themes.dashboard")
 
       -- Header
-      -- dashboard.section.header.val = {
-      --   "                                                                     ",
-      --   "       ████ ██████           █████      ██                     ",
-      --   "      ███████████             █████                             ",
-      --   "      █████████ ███████████████████ ███   ███████████   ",
-      --   "     █████████  ███    █████████████ █████ ██████████████   ",
-      --   "    █████████ ██████████ █████████ █████ █████ ████ █████   ",
-      --   "  ███████████ ███    ███ █████████ █████ █████ ████ █████  ",
-      --   " ██████  █████████████████████ ████ █████ █████ ████ ██████ ",
-      -- }
+      dashboard.section.header.val = {
+        "                                                                     ",
+        "       ████ ██████           █████      ██                     ",
+        "      ███████████             █████                             ",
+        "      █████████ ███████████████████ ███   ███████████   ",
+        "     █████████  ███    █████████████ █████ ██████████████   ",
+        "    █████████ ██████████ █████████ █████ █████ ████ █████   ",
+        "  ███████████ ███    ███ █████████ █████ █████ ████ █████  ",
+        " ██████  █████████████████████ ████ █████ █████ ████ ██████ ",
+      }
       -- dashboard.section.header.val = {
       --   '                                        ▟▙            ',
       --   '                                        ▝▘            ',
@@ -118,6 +118,22 @@ return {
       --   [[\ \_\ \_\ \___/  \ \_\ \_\ \_\ \_\]],
       --   [[ \/_/\/_/\/__/    \/_/\/_/\/_/\/_/]],
       -- }
+      -- dashboard.section.header.val = {
+      --   [[888b      88                                                           88]],
+      --   [[8888b     88                                                           88]],
+      --   [[88 `8b    88                                                           88]],
+      --   [[88  `8b   88   ,adPPYba,   8b,dPPYba,  88,dPYba,,adPYba,   ,adPPYYba,  88]],
+      --   [[88   `8b  88  a8"     "8a  88P'   "Y8  88P'   "88"    "8a  ""     `Y8  88]],
+      --   [[88    `8b 88  8b       d8  88          88      88      88  ,adPPPPP88  88]],
+      --   [[88     `8888  "8a,   ,a8"  88          88      88      88  88,    ,88  88]],
+      --   [[88      `888   `"YbbdP"'   88          88      88      88  `"8bbdP"Y8  88]],
+      --   [[                                    __                ]],
+      --   [[                      ___   __  __ /\_\    ___ ___    ]],
+      --   [[                    /' _ `\/\ \/\ \\/\ \ /' __` __`\  ]],
+      --   [[                    /\ \/\ \ \ \_/ |\ \ \/\ \/\ \/\ \ ]],
+      --   [[                    \ \_\ \_\ \___/  \ \_\ \_\ \_\ \_\]],
+      --   [[                     \/_/\/_/\/__/    \/_/\/_/\/_/\/_/]],
+      -- }
 
       if is_android then
         dashboard.section.header.val = {
@@ -127,23 +143,6 @@ return {
           [[\ \ \_/ |\ \ \/\ \/\ \/\ \ ]],
           [[ \ \___/  \ \_\ \_\ \_\ \_\]],
           [[  \/__/    \/_/\/_/\/_/\/_/]],
-        }
-      else
-        dashboard.section.header.val = {
-          [[888b      88                                                           88]],
-          [[8888b     88                                                           88]],
-          [[88 `8b    88                                                           88]],
-          [[88  `8b   88   ,adPPYba,   8b,dPPYba,  88,dPYba,,adPYba,   ,adPPYYba,  88]],
-          [[88   `8b  88  a8"     "8a  88P'   "Y8  88P'   "88"    "8a  ""     `Y8  88]],
-          [[88    `8b 88  8b       d8  88          88      88      88  ,adPPPPP88  88]],
-          [[88     `8888  "8a,   ,a8"  88          88      88      88  88,    ,88  88]],
-          [[88      `888   `"YbbdP"'   88          88      88      88  `"8bbdP"Y8  88]],
-          [[                                    __                ]],
-          [[                      ___   __  __ /\_\    ___ ___    ]],
-          [[                    /' _ `\/\ \/\ \\/\ \ /' __` __`\  ]],
-          [[                    /\ \/\ \ \ \_/ |\ \ \/\ \/\ \/\ \ ]],
-          [[                    \ \_\ \_\ \___/  \ \_\ \_\ \_\ \_\]],
-          [[                     \/_/\/_/\/__/    \/_/\/_/\/_/\/_/]],
         }
       end
 
@@ -421,8 +420,8 @@ return {
         i = {
           ["<C-j>"] = actions.move_selection_next,
           ["<C-k>"] = actions.move_selection_previous,
-          ["<ESC>"] = actions.close,
-          ["<C-c>"] = false,
+          -- ["<ESC>"] = actions.close,
+          ["<C-c>"] = actions.close,
         },
         n = { ["q"] = actions.close },
       }
@@ -622,51 +621,6 @@ return {
         "alpha",
       },
     },
-  },
-
-  --  mini.animate [animations]
-  --  https://github.com/echasnovski/mini.animate
-  --  HINT: if one of your personal keymappings fail due to mini.animate, try to
-  --        disable it during the keybinding using vim.g.minianimate_disable = true
-  {
-    "echasnovski/mini.animate",
-    event = "User BaseFile",
-    enabled = not is_android,
-    opts = function()
-      -- don't use animate when scrolling with the mouse
-      local mouse_scrolled = false
-      for _, scroll in ipairs { "Up", "Down" } do
-        local key = "<ScrollWheel" .. scroll .. ">"
-        vim.keymap.set({ "", "i" }, key, function()
-          mouse_scrolled = true
-          return key
-        end, { expr = true })
-      end
-
-      local animate = require("mini.animate")
-      return {
-        open = { enable = false }, -- true causes issues on nvim-spectre
-        resize = {
-          timing = animate.gen_timing.linear { duration = 33, unit = "total" },
-        },
-        scroll = {
-          timing = animate.gen_timing.linear { duration = 50, unit = "total" },
-          subscroll = animate.gen_subscroll.equal {
-            predicate = function(total_scroll)
-              if mouse_scrolled then
-                mouse_scrolled = false
-                return false
-              end
-              return total_scroll > 1
-            end,
-          },
-        },
-        cursor = {
-          enable = false, -- We don't want cursor ghosting
-          timing = animate.gen_timing.linear { duration = 26, unit = "total" },
-        },
-      }
-    end,
   },
 
   --  highlight-undo
