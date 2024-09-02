@@ -2,6 +2,7 @@
 -- Plugins that make the user interface better.
 
 --    Sections:
+--       -> ondark                      [theme]
 --       -> tokyonight                  [theme]
 --       -> astrotheme                  [theme]
 --       -> alpha-nvim                  [greeter]
@@ -26,6 +27,17 @@ local is_windows = vim.fn.has('win32') == 1         -- true if on windows
 local is_android = vim.fn.isdirectory('/data') == 1 -- true if on android
 
 return {
+  --  onedark [theme]
+  --  https://github.com/AstroNvim/astrotheme
+  {
+    "navarasu/onedark.nvim",
+    event = "User LoadColorSchemes",
+    opts = {
+      style = "darker",
+      -- style = "dark",
+      -- style = "warm",
+    },
+  },
   -- tokyonight [theme]
   -- https://github.com/folke/tokyonight.nvim
   {
@@ -420,7 +432,7 @@ return {
         i = {
           ["<C-j>"] = actions.move_selection_next,
           ["<C-k>"] = actions.move_selection_previous,
-          -- ["<ESC>"] = actions.close,
+          ["<ESC>"] = actions.close,
           ["<C-c>"] = actions.close,
         },
         n = { ["q"] = actions.close },

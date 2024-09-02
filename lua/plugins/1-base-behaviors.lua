@@ -2,7 +2,6 @@
 -- Plugins that add new behaviors.
 
 --    Sections:
---       -> indent-o-matic         [better indentation detection]
 --       -> yazi file browser      [yazi]
 --       -> project.nvim           [project search + auto cd]
 --       -> trim.nvim              [auto trim spaces]
@@ -30,8 +29,6 @@
 local is_android = vim.fn.isdirectory('/data') == 1 -- true if on android
 
 return {
-  -- indent-o-matic
-  { "Darazaki/indent-o-matic" },
   -- [yazi] file browser
   -- https://github.com/mikavilpas/yazi.nvim
   -- Make sure you have yazi installed on your system!
@@ -141,9 +138,11 @@ return {
   -- workarounds → https://github.com/akinsho/toggleterm.nvim/wiki/Mouse-support
   {
     "akinsho/toggleterm.nvim",
+    event = "User BaseFile",
     cmd = { "ToggleTerm", "TermExec" },
     opts = {
       open_mapping = [[<c-\>]],
+      -- open_mapping = [[<F7>]],
       highlights = {
         Normal = { link = "Normal" },
         NormalNC = { link = "NormalNC" },
@@ -155,7 +154,6 @@ return {
         WinBarNC = { link = "WinBarNC" },
       },
       size = 10,
-      open_mapping = [[<F7>]],
       shading_factor = 2,
       direction = "float",
       float_opts = {
@@ -501,7 +499,10 @@ return {
 
   --  code [tabfold]
   --  https://github.com/thalesmello/tabfold
-  { "thalesmello/tabfold" },
+  {
+    "thalesmello/tabfold",
+    event = { "User BaseFile" },
+  },
 
   --  code [folding mod] + [promise-asyn] dependency
   --  https://github.com/kevinhwang91/nvim-ufo
