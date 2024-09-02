@@ -881,6 +881,10 @@ if is_available "telescope.nvim" then
     desc = "Find words in current buffer"
   }
   maps.n["<leader>fg"] = {
+    function() require("telescope.builtin").live_grep() end,
+    desc = "Find words in project",
+  }
+  maps.n["<leader>fG"] = {
     function()
       require("telescope.builtin").live_grep {
         additional_args = function(args)
@@ -888,10 +892,6 @@ if is_available "telescope.nvim" then
         end,
       }
     end,
-    desc = "Find words in project",
-  }
-  maps.n["<leader>fG"] = {
-    function() require("telescope.builtin").live_grep() end,
     desc = "Find words in project (no hidden)",
   }
 
