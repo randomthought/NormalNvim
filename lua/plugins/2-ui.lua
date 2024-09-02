@@ -33,8 +33,8 @@ return {
     "navarasu/onedark.nvim",
     event = "User LoadColorSchemes",
     opts = {
-      style = "darker",
-      -- style = "dark",
+      -- style = "darker",
+      style = "dark",
       -- style = "warm",
     },
   },
@@ -354,7 +354,8 @@ return {
             {
               lib.component.neotree(),
               lib.component.compiler_play(),
-              lib.component.fill(),
+              lib.component.file_info({ filetype = false, filename = {}, file_modified = false, hl = { bg = "inactive" }}),
+              lib.component.fill { hl = { bg = "inactive" } },
               lib.component.compiler_redo(),
               lib.component.aerial(),
             },
@@ -363,9 +364,10 @@ return {
           {
             lib.component.neotree(),
             lib.component.compiler_play(),
-            lib.component.fill(),
-            lib.component.breadcrumbs(),
-            lib.component.fill(),
+            lib.component.file_info({ filetype = false, filename = {}, file_modified = false, hl = { bg = "inactive" }}),
+            lib.component.fill { hl = { bg = "inactive" } },
+            lib.component.breadcrumbs { hl = { bg = "inactive" } },
+            lib.component.fill { hl = { bg = "inactive" } },
             lib.component.compiler_redo(),
             lib.component.aerial(),
           }
