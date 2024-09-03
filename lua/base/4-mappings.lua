@@ -117,12 +117,44 @@ maps.n["<leader>q"] = {
   end,
   desc = "Quit",
 }
+-- maps.n["<Tab>"] = {
+--   "<Tab>",
+--   noremap = true,
+--   silent = true,
+--   expr = false,
+--   desc = "FIX: Prevent TAB from behaving like <C-i>, as they share the same internal code",
+-- }
+
 maps.n["<Tab>"] = {
-  "<Tab>",
+  function ()
+    print(vim.inspect("here 1"))
+    local function toggle_fold()
+      print(vim.inspect("here 2"))
+      if vim.fn.foldclosed(vim.fn.line('.')) >= 0 then
+        vim.cmd('silent! normal! zv')
+      else
+        vim.cmd('silent! normal! za')
+      end
+    end
+
+
+    local function do_tables_match( a, b )
+        return table.concat(a) == table.concat(b)
+    end
+
+    local oldpos = vim.fn.getpos('.')
+    vim.cmd('normal! 1\\<c-i>')
+    local newpos = vim.fn.getpos('.')
+    print(vim.inspect(oldpos))
+    print(vim.inspect(newpos))
+    if do_tables_match(oldpos, newpos) then
+      toggle_fold()
+    end
+  end,
   noremap = true,
   silent = true,
   expr = false,
-  desc = "FIX: Prevent TAB from behaving like <C-i>, as they share the same internal code",
+  desc = "Tabfold + Prevent TAB from behaving like <C-i>, as they share the same internal code",
 }
 
 -- clipboard ---------------------------------------------------------------

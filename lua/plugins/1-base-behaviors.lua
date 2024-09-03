@@ -14,7 +14,6 @@
 --       -> spectre.nvim           [search and replace in project]
 --       -> neotree file browser   [neotree]
 --       -> nvim-ufo               [folding mod]
---       -> tabfold                [folding using tab]
 --       -> nvim-neoclip           [nvim clipboard]
 --       -> zen-mode.nvim          [distraction free mode]
 --       -> suda.vim               [write as sudo]
@@ -495,13 +494,6 @@ return {
         },
       }
     end,
-  },
-
-  --  code [tabfold]
-  --  https://github.com/thalesmello/tabfold
-  {
-    "thalesmello/tabfold",
-    event = { "User BaseFile" },
   },
 
   --  code [folding mod] + [promise-asyn] dependency

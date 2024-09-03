@@ -8,6 +8,7 @@
 --       -> alpha-nvim                  [greeter]
 --       -> nvim-notify                 [notifications]
 --       -> mini.indentscope            [guides]
+--       -> todo-comments               [ui components]
 --       -> indent-blankline            [ui components]
 --       -> heirline-components.nvim    [ui components]
 --       -> heirline                    [ui components]
@@ -298,7 +299,17 @@ return {
       })
     end
   },
-
+  --  todo-comments [ui component]
+  --  https://github.com/AstroNvim/astrotheme
+  { "folke/todo-comments.nvim",
+    event = "User BaseFile",
+    dependencies = { "nvim-lua/plenary.nvim" },
+    opts = {
+    -- your configuration comes here
+    -- or leave it empty to use the default settings
+    -- refer to the configuration section below
+    }
+  },
   -- heirline-components.nvim [ui components]
   -- https://github.com/zeioth/heirline-components.nvim
   -- Collection of components to use on your heirline config.
@@ -352,22 +363,33 @@ return {
           {
             condition = function() return not lib.condition.is_active() end,
             {
+              hl = { bg = "inactive" },
               lib.component.neotree(),
               lib.component.compiler_play(),
-              lib.component.file_info({ filetype = false, filename = {}, file_modified = false, hl = { bg = "inactive" }}),
-              lib.component.fill { hl = { bg = "inactive" } },
+              lib.component.file_info({
+                surround = { color = "inactive" },
+                filetype = false,
+                filename = {},
+                file_modified = false
+              }),
+              lib.component.fill(),
               lib.component.compiler_redo(),
               lib.component.aerial(),
             },
           },
           -- Regular winbar
           {
+            hl = { bg = "inactive" },
             lib.component.neotree(),
             lib.component.compiler_play(),
-            lib.component.file_info({ filetype = false, filename = {}, file_modified = false, hl = { bg = "inactive" }}),
-            lib.component.fill { hl = { bg = "inactive" } },
+            lib.component.file_info({
+              filetype = false,
+              filename = {},
+              file_modified = false
+            }),
+            lib.component.fill(),
             lib.component.breadcrumbs { hl = { bg = "inactive" } },
-            lib.component.fill { hl = { bg = "inactive" } },
+            lib.component.fill(),
             lib.component.compiler_redo(),
             lib.component.aerial(),
           }

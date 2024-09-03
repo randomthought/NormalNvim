@@ -71,7 +71,14 @@ return {
         enable_quotes = true,
         disable = function(_, bufnr) return utils.is_big_file(bufnr) end,
       },
-      incremental_selection = { enable = true },
+      incremental_selection = {
+        enable = true,
+        keymaps = {
+          init_selection = '<CR>',
+          node_incremental = '<CR>',
+          node_decremental = '<BS>',
+        },
+      },
       indent = { enable = true },
       textobjects = {
         select = {
