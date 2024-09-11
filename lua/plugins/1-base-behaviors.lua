@@ -309,6 +309,7 @@ return {
       local utils = require("base.utils")
       local get_icon = utils.get_icon
       return {
+        popup_border_style = "rounded",
         auto_clean_after_session_restore = true,
         close_if_last_window = true,
         buffers = {
@@ -316,7 +317,7 @@ return {
         },
         sources = { "filesystem", "buffers", "git_status" },
         source_selector = {
-          winbar = true,
+          winbar = false,
           content_layout = "center",
           sources = {
             {
@@ -338,6 +339,15 @@ return {
           },
         },
         default_component_configs = {
+          file_size = {
+            enabled = false,
+          },
+          type = {
+            enabled = false,
+          },
+          last_modified = {
+            enabled = false,
+          },
           indent = { padding = 0 },
           icon = {
             folder_closed = get_icon("FolderClosed"),
@@ -474,17 +484,6 @@ return {
 					  follow_current_file = true,
 					  leave_dirs_open = false,
 				  },
-        },
-       default_component_configs = {
-          file_size = {
-            enabled = false,
-          },
-          type = {
-            enabled = false,
-          },
-          last_modified = {
-            enabled = false,
-          },
         },
         event_handlers = {
           {
