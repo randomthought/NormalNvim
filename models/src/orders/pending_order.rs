@@ -23,6 +23,7 @@ impl Order {
 #[derive(Debug, Getters, Builder, Clone, PartialEq, Eq)]
 #[getset(get = "pub")]
 #[builder(public, setter(prefix = "with"))]
+// TODO: pending order should have a time stamp
 pub struct PendingOrder {
     order_id: OrderId,
     order: NewOrder,
