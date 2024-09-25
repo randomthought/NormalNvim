@@ -465,8 +465,7 @@ return {
           mappings = {
             ["<space>"] = false,
             ["<S-CR>"] = "system_open",
-            ["[b"] = "prev_source",
-            ["]b"] = "next_source",
+            ["<Tab>"] = "next_source",
             F = utils.is_available "telescope.nvim" and "find_in_dir" or nil,
             O = "system_open",
             Y = "copy_selector",
