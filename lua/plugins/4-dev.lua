@@ -101,6 +101,10 @@ return {
           changedelete = { text = get_icon("GitSign") },
           untracked = { text = get_icon("GitSign") },
         },
+        watch_gitdir = {
+          enable = true,
+          follow_files = true
+        }
       }
     end
   },
