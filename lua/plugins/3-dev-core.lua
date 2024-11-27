@@ -268,6 +268,7 @@ return {
       "MasonUpdateAll", -- this cmd is provided by mason-extra-cmds
     },
     opts = {
+      PATH = "append",
       registries = {
         "github:nvim-java/mason-registry",
         "github:mason-org/mason-registry",
