@@ -584,6 +584,10 @@ if is_available "gitsigns.nvim" then
     function() require("gitsigns").prev_hunk() end,
     desc = "Previous Git hunk",
   }
+  maps.n["<leader>gf"] = {
+    function() require("telescope.builtin").git_status() end,
+    desc = "Git status",
+  }
   maps.n["<leader>gl"] = {
     function() require("gitsigns").blame_line() end,
     desc = "View Git blame",
@@ -1479,7 +1483,7 @@ function M.lsp_mappings(client, bufnr)
   -- Other LSP mappings
   lsp_mappings.n["<leader>lL"] = {
     function() vim.api.nvim_command(':LspRestart') end,
-    desc = "LSP refresh",
+    desc = "LSP restart",
   }
 
   -- Goto definition / declaration
