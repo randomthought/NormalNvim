@@ -630,11 +630,13 @@ if is_available "vim-fugitive" then
 end
 -- git client
 if vim.fn.executable "lazygit" == 1 then -- if lazygit exists, show it
+  local Terminal  = require('toggleterm.terminal').Terminal
+  local lazygit = Terminal:new({ cmd = "lazygit", hidden = true })
   maps.n["<leader>gg"] = {
     function()
       local git_dir = vim.fn.finddir(".git", vim.fn.getcwd() .. ";")
       if git_dir ~= "" then
-        vim.cmd("TermExec cmd='lazygit && exit'")
+        lazygit:toggle()
       else
         utils.notify("Not a git repository", vim.log.levels.WARN)
       end
