@@ -235,6 +235,11 @@ autocmd("BufWritePre", {
   end,
 })
 
+-- Automatically adjust window splits from resize
+vim.api.nvim_create_autocmd("VimResized", {
+  pattern = "*",
+  command = "wincmd =",
+})
 -- ## COMMANDS --------------------------------------------------------------
 
 -- 10. Testing commands
