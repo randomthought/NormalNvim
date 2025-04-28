@@ -195,34 +195,34 @@ return {
   -- nvim-java [java support]
   -- https://github.com/nvim-java/nvim-java
   -- Reliable jdtls support. Must go before mason-lspconfig and lsp-config.
-  {
-    "nvim-java/nvim-java",
-    ft = { "java" },
-    dependencies = {
-      "MunifTanjim/nui.nvim",
-      "neovim/nvim-lspconfig",
-      "mfussenegger/nvim-dap",
-      "williamboman/mason.nvim",
-    },
-    opts = {
-      notifications = {
-        dap = false,
-      },
-      -- NOTE: One of these files must be in your project root directory.
-      --       Otherwise the debugger will end in the wrong directory and fail.
-      root_markers = {
-        'settings.gradle',
-        'settings.gradle.kts',
-        'pom.xml',
-        'build.gradle',
-        'mvnw',
-        'gradlew',
-        'build.gradle',
-        'build.gradle.kts',
-        '.git',
-      },
-    },
-  },
+  -- {
+  --   "nvim-java/nvim-java",
+  --   ft = { "java" },
+  --   dependencies = {
+  --     "MunifTanjim/nui.nvim",
+  --     "neovim/nvim-lspconfig",
+  --     "mfussenegger/nvim-dap",
+  --     "williamboman/mason.nvim",
+  --   },
+  --   opts = {
+  --     notifications = {
+  --       dap = false,
+  --     },
+  --     -- NOTE: One of these files must be in your project root directory.
+  --     --       Otherwise the debugger will end in the wrong directory and fail.
+  --     root_markers = {
+  --       'settings.gradle',
+  --       'settings.gradle.kts',
+  --       'pom.xml',
+  --       'build.gradle',
+  --       'mvnw',
+  --       'gradlew',
+  --       'build.gradle',
+  --       'build.gradle.kts',
+  --       '.git',
+  --     },
+  --   },
+  -- },
 
   --  nvim-lspconfig [lsp configs]
   --  https://github.com/neovim/nvim-lspconfig
@@ -494,151 +494,222 @@ return {
 
   --  AUTO COMPLETION --------------------------------------------------------
   --  Auto completion engine [autocompletion engine]
-  --  https://github.com/hrsh7th/nvim-cmp
   {
-    "hrsh7th/nvim-cmp",
-    dependencies = {
-      "saadparwaiz1/cmp_luasnip",
-      "hrsh7th/cmp-buffer",
-      "hrsh7th/cmp-path",
-      "hrsh7th/cmp-nvim-lsp",
+    'saghen/blink.cmp',
+    -- optional: provides snippets for the snippet source
+    dependencies = { 'rafamadriz/friendly-snippets' },
+
+    -- enabled = function() return not vim.tbl_contains({ "lua", "markdown" }, vim.bo.filetype) end,
+
+    -- use a release tag to download pre-built binaries
+    version = '1.*',
+    -- AND/OR build from source, requires nightly: https://rust-lang.github.io/rustup/concepts/channels.html#working-with-nightly-rust
+    -- build = 'cargo build --release',
+    -- If you use nix, you can build from source using latest nightly rust with:
+    -- build = 'nix run .#build-plugin',
+
+    ---@module 'blink.cmp'
+    ---@type blink.cmp.Config
+    opts = {
+      -- 'default' (recommended) for mappings similar to built-in completions (C-y to accept)
+      -- 'super-tab' for mappings similar to vscode (tab to accept)
+      -- 'enter' for enter to accept
+      -- 'none' for no mappings
+      --
+      -- All presets have the following mappings:
+      -- C-space: Open menu or open docs if already open
+      -- C-n/C-p or Up/Down: Select next/previous item
+      -- C-e: Hide menu
+      -- C-k: Toggle signature help (if signature.enabled = true)
+      --
+      -- See :h blink-cmp-config-keymap for defining your own keymap
+      keymap = {
+        preset = 'default',
+        ["<C-k>"] = { 'select_prev', 'fallback' },
+        ["<C-j>"] = { 'select_next', 'fallback' },
+        ["<Tab>"] = { 'accept', 'fallback' },
+        ["<Return>"] = { 'accept', 'fallback' },
+      },
+
+      appearance = {
+        -- 'mono' (default) for 'Nerd Font Mono' or 'normal' for 'Nerd Font'
+        -- Adjusts spacing to ensure icons are aligned
+        nerd_font_variant = 'mono'
+      },
+
+      -- (Default) Only show the documentation popup when manually triggered
+      completion = {
+        accept = { auto_brackets = { enabled = true }, },
+        menu = {
+          border = "rounded",
+        },
+        ghost_text = { enabled = true },
+        documentation = { auto_show = true, auto_show_delay_ms = 500 },
+      },
+      signature = { enabled = true },
+
+
+      -- Default list of enabled providers defined so that you can extend it
+      -- elsewhere in your config, without redefining it, due to `opts_extend`
+      sources = {
+        default = { 'lsp', 'path', 'snippets', 'buffer' },
+      },
+
+      -- (Default) Rust fuzzy matcher for typo resistance and significantly better performance
+      -- You may use a lua implementation instead by using `implementation = "lua"` or fallback to the lua implementation,
+      -- when the Rust fuzzy matcher is not available, by using `implementation = "prefer_rust"`
+      --
+      -- See the fuzzy documentation for more information
+      fuzzy = { implementation = "prefer_rust_with_warning" }
     },
-    event = "InsertEnter",
-    opts = function()
-      -- ensure dependencies exist
-      local cmp = require("cmp")
-      local luasnip = require("luasnip")
-      local lspkind = require("lspkind")
-
-      -- border opts
-      local border_opts = {
-        border = "rounded",
-        winhighlight = "Normal:NormalFloat,FloatBorder:FloatBorder,CursorLine:PmenuSel,Search:None",
-      }
-
-      -- helper
-      local function has_words_before()
-        local line, col = unpack(vim.api.nvim_win_get_cursor(0))
-        return col ~= 0 and vim.api.nvim_buf_get_lines(0, line - 1, line, true)[1]:sub(col, col):match "%s" == nil
-      end
-
-      return {
-        enabled = function() -- disable in certain cases on dap.
-          local is_prompt = vim.bo.buftype == "prompt"
-          local is_dap_prompt = utils.is_available("cmp-dap")
-              and vim.tbl_contains(
-                { "dap-repl", "dapui_watches", "dapui_hover" }, vim.bo.filetype)
-          if is_prompt and not is_dap_prompt then
-            return false
-          else
-            return vim.g.cmp_enabled
-          end
-        end,
-        preselect = cmp.PreselectMode.None,
-        formatting = {
-          fields = { "kind", "abbr", "menu" },
-          format = lspkind.cmp_format(utils.get_plugin_opts("lspkind.nvim")),
-        },
-        snippet = {
-          expand = function(args) luasnip.lsp_expand(args.body) end,
-        },
-        duplicates = {
-          nvim_lsp = 1,
-          lazydev = 1,
-          luasnip = 1,
-          cmp_tabnine = 1,
-          buffer = 1,
-          path = 1,
-        },
-        confirm_opts = {
-          behavior = cmp.ConfirmBehavior.Replace,
-          select = false,
-        },
-        window = {
-          completion = cmp.config.window.bordered(border_opts),
-          documentation = cmp.config.window.bordered(border_opts),
-        },
-        mapping = {
-          ["<PageUp>"] = cmp.mapping.select_prev_item {
-            behavior = cmp.SelectBehavior.Select,
-            count = 8,
-          },
-          ["<PageDown>"] = cmp.mapping.select_next_item {
-            behavior = cmp.SelectBehavior.Select,
-            count = 8,
-          },
-          ["<C-PageUp>"] = cmp.mapping.select_prev_item {
-            behavior = cmp.SelectBehavior.Select,
-            count = 16,
-          },
-          ["<C-PageDown>"] = cmp.mapping.select_next_item {
-            behavior = cmp.SelectBehavior.Select,
-            count = 16,
-          },
-          ["<S-PageUp>"] = cmp.mapping.select_prev_item {
-            behavior = cmp.SelectBehavior.Select,
-            count = 16,
-          },
-          ["<S-PageDown>"] = cmp.mapping.select_next_item {
-            behavior = cmp.SelectBehavior.Select,
-            count = 16,
-          },
-          ["<Up>"] = cmp.mapping.select_prev_item {
-            behavior = cmp.SelectBehavior.Select,
-          },
-          ["<Down>"] = cmp.mapping.select_next_item {
-            behavior = cmp.SelectBehavior.Select,
-          },
-          ["<C-p>"] = cmp.mapping.select_prev_item {
-            behavior = cmp.SelectBehavior.Insert,
-          },
-          ["<C-n>"] = cmp.mapping.select_next_item {
-            behavior = cmp.SelectBehavior.Insert,
-          },
-          ["<C-k>"] = cmp.mapping.select_prev_item {
-            behavior = cmp.SelectBehavior.Insert,
-          },
-          ["<C-j>"] = cmp.mapping.select_next_item {
-            behavior = cmp.SelectBehavior.Insert,
-          },
-          ["<C-u>"] = cmp.mapping(cmp.mapping.scroll_docs(-4), { "i", "c" }),
-          ["<C-Space>"] = cmp.mapping(cmp.mapping.complete(), { "i", "c" }),
-          ["<C-y>"] = cmp.config.disable,
-          ["<C-e>"] = cmp.mapping {
-            i = cmp.mapping.abort(),
-            c = cmp.mapping.close(),
-          },
-          ["<CR>"] = cmp.mapping.confirm { select = false },
-          ["<Tab>"] = cmp.mapping(function(fallback)
-            if cmp.visible() then
-              cmp.select_next_item()
-            elseif luasnip.expand_or_jumpable() then
-              luasnip.expand_or_jump()
-            elseif has_words_before() then
-              cmp.complete()
-            else
-              fallback()
-            end
-          end, { "i", "s" }),
-          ["<S-Tab>"] = cmp.mapping(function(fallback)
-            if cmp.visible() then
-              cmp.select_prev_item()
-            elseif luasnip.jumpable(-1) then
-              luasnip.jump(-1)
-            else
-              fallback()
-            end
-          end, { "i", "s" }),
-        },
-        sources = cmp.config.sources {
-          { name = "nvim_lsp", priority = 1000 },
-          { name = "lazydev",  priority = 850 },
-          { name = "luasnip",  priority = 750 },
-          { name = "buffer",   priority = 500 },
-          { name = "path",     priority = 250 },
-        },
-      }
-    end,
+    opts_extend = { "sources.default" }
   },
+
+  --  https://github.com/hrsh7th/nvim-cmp
+  -- {
+  --   "hrsh7th/nvim-cmp",
+  --   dependencies = {
+  --     "saadparwaiz1/cmp_luasnip",
+  --     "hrsh7th/cmp-buffer",
+  --     "hrsh7th/cmp-path",
+  --     "hrsh7th/cmp-nvim-lsp",
+  --   },
+  --   event = "InsertEnter",
+  --   opts = function()
+  --     -- ensure dependencies exist
+  --     local cmp = require("cmp")
+  --     local luasnip = require("luasnip")
+  --     local lspkind = require("lspkind")
+  --
+  --     -- border opts
+  --     local border_opts = {
+  --       border = "rounded",
+  --       winhighlight = "Normal:NormalFloat,FloatBorder:FloatBorder,CursorLine:PmenuSel,Search:None",
+  --     }
+  --
+  --     -- helper
+  --     local function has_words_before()
+  --       local line, col = unpack(vim.api.nvim_win_get_cursor(0))
+  --       return col ~= 0 and vim.api.nvim_buf_get_lines(0, line - 1, line, true)[1]:sub(col, col):match "%s" == nil
+  --     end
+  --
+  --     return {
+  --       enabled = function() -- disable in certain cases on dap.
+  --         local is_prompt = vim.bo.buftype == "prompt"
+  --         local is_dap_prompt = utils.is_available("cmp-dap")
+  --             and vim.tbl_contains(
+  --               { "dap-repl", "dapui_watches", "dapui_hover" }, vim.bo.filetype)
+  --         if is_prompt and not is_dap_prompt then
+  --           return false
+  --         else
+  --           return vim.g.cmp_enabled
+  --         end
+  --       end,
+  --       preselect = cmp.PreselectMode.None,
+  --       formatting = {
+  --         fields = { "kind", "abbr", "menu" },
+  --         format = lspkind.cmp_format(utils.get_plugin_opts("lspkind.nvim")),
+  --       },
+  --       snippet = {
+  --         expand = function(args) luasnip.lsp_expand(args.body) end,
+  --       },
+  --       duplicates = {
+  --         nvim_lsp = 1,
+  --         lazydev = 1,
+  --         luasnip = 1,
+  --         cmp_tabnine = 1,
+  --         buffer = 1,
+  --         path = 1,
+  --       },
+  --       confirm_opts = {
+  --         behavior = cmp.ConfirmBehavior.Replace,
+  --         select = false,
+  --       },
+  --       window = {
+  --         completion = cmp.config.window.bordered(border_opts),
+  --         documentation = cmp.config.window.bordered(border_opts),
+  --       },
+  --       mapping = {
+  --         ["<PageUp>"] = cmp.mapping.select_prev_item {
+  --           behavior = cmp.SelectBehavior.Select,
+  --           count = 8,
+  --         },
+  --         ["<PageDown>"] = cmp.mapping.select_next_item {
+  --           behavior = cmp.SelectBehavior.Select,
+  --           count = 8,
+  --         },
+  --         ["<C-PageUp>"] = cmp.mapping.select_prev_item {
+  --           behavior = cmp.SelectBehavior.Select,
+  --           count = 16,
+  --         },
+  --         ["<C-PageDown>"] = cmp.mapping.select_next_item {
+  --           behavior = cmp.SelectBehavior.Select,
+  --           count = 16,
+  --         },
+  --         ["<S-PageUp>"] = cmp.mapping.select_prev_item {
+  --           behavior = cmp.SelectBehavior.Select,
+  --           count = 16,
+  --         },
+  --         ["<S-PageDown>"] = cmp.mapping.select_next_item {
+  --           behavior = cmp.SelectBehavior.Select,
+  --           count = 16,
+  --         },
+  --         ["<Up>"] = cmp.mapping.select_prev_item {
+  --           behavior = cmp.SelectBehavior.Select,
+  --         },
+  --         ["<Down>"] = cmp.mapping.select_next_item {
+  --           behavior = cmp.SelectBehavior.Select,
+  --         },
+  --         ["<C-p>"] = cmp.mapping.select_prev_item {
+  --           behavior = cmp.SelectBehavior.Insert,
+  --         },
+  --         ["<C-n>"] = cmp.mapping.select_next_item {
+  --           behavior = cmp.SelectBehavior.Insert,
+  --         },
+  --         ["<C-k>"] = cmp.mapping.select_prev_item {
+  --           behavior = cmp.SelectBehavior.Insert,
+  --         },
+  --         ["<C-j>"] = cmp.mapping.select_next_item {
+  --           behavior = cmp.SelectBehavior.Insert,
+  --         },
+  --         ["<C-u>"] = cmp.mapping(cmp.mapping.scroll_docs(-4), { "i", "c" }),
+  --         ["<C-Space>"] = cmp.mapping(cmp.mapping.complete(), { "i", "c" }),
+  --         ["<C-y>"] = cmp.config.disable,
+  --         ["<C-e>"] = cmp.mapping {
+  --           i = cmp.mapping.abort(),
+  --           c = cmp.mapping.close(),
+  --         },
+  --         ["<CR>"] = cmp.mapping.confirm { select = false },
+  --         ["<Tab>"] = cmp.mapping(function(fallback)
+  --           if cmp.visible() then
+  --             cmp.select_next_item()
+  --           elseif luasnip.expand_or_jumpable() then
+  --             luasnip.expand_or_jump()
+  --           elseif has_words_before() then
+  --             cmp.complete()
+  --           else
+  --             fallback()
+  --           end
+  --         end, { "i", "s" }),
+  --         ["<S-Tab>"] = cmp.mapping(function(fallback)
+  --           if cmp.visible() then
+  --             cmp.select_prev_item()
+  --           elseif luasnip.jumpable(-1) then
+  --             luasnip.jump(-1)
+  --           else
+  --             fallback()
+  --           end
+  --         end, { "i", "s" }),
+  --       },
+  --       sources = cmp.config.sources {
+  --         { name = "nvim_lsp", priority = 1000 },
+  --         { name = "lazydev",  priority = 850 },
+  --         { name = "luasnip",  priority = 750 },
+  --         { name = "buffer",   priority = 500 },
+  --         { name = "path",     priority = 250 },
+  --       },
+  --     }
+  --   end,
+  -- },
 
 }
