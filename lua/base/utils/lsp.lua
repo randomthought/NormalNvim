@@ -127,7 +127,8 @@ function M.apply_user_lsp_settings(server_name)
   local server = require("lspconfig")[server_name]
 
   -- Define user server capabilities.
-  M.capabilities = vim.lsp.protocol.make_client_capabilities()
+  local capabilities = vim.lsp.protocol.make_client_capabilities()
+  M.capabilities = require('blink.cmp').get_lsp_capabilities(capabilities)
   M.capabilities.textDocument.completion.completionItem.documentationFormat = { "markdown", "plaintext" }
   M.capabilities.textDocument.completion.completionItem.snippetSupport = true
   M.capabilities.textDocument.completion.completionItem.preselectSupport = true
